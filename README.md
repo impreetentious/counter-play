@@ -55,5 +55,13 @@ MIT © Sidakpreet Singh
 
 ---
 
-**v0.0.1** · 2025-12-19 IST
+## AI Agent Instructions
 
+Before making any new commits, update the **Product Version** string below in this file with the current IST time of commit (`Asia/Kolkata`). Keep the same numeric release version in `package.json` and the root package entries of `package-lock.json` (once `package.json` exists — from P0 on).
+
+This IST timestamp rule is permanent for all future workflows, commits, and AI agents working in this repository.
+
+Follow this format for version control:
+
+* **Base Format Version:** 0.0.0 — the version of the version-block schema itself (the shape of these lines); it is bumped only when this block's structure changes, not on every commit.
+* **Product Version:** `v0.1.0_2025-12-20_01:35:26` (IST)

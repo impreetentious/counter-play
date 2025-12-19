@@ -1,0 +1,38 @@
+{
+  "name": "app",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.12.0"
+  },
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "start": "serve -l 4001 out",
+    "lint": "eslint .",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "next": "16.0.8",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "zod": "~4.1.13",
+    "zustand": "~5.0.9"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "~4.11.0",
+    "@playwright/test": "~1.57.0",
+    "@tailwindcss/postcss": "~4.1.17",
+    "@types/node": "~25.0.0",
+    "@types/react": "~19.2.7",
+    "@types/react-dom": "~19.2.3",
+    "autoprefixer": "~10.4.22",
+    "eslint": "~9.39.1",
+    "eslint-config-next": "~16.0.8",
+    "fast-check": "~4.4.0",
+    "postcss": "~8.5.6",
+    "serve": "~14.2.5",
+    "tailwindcss": "~4.1.17",
+    "typescript": "~5.9.3",
+    "vitest": "~4.0.15"
+  }
+}
