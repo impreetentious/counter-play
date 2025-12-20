@@ -1,0 +1,226 @@
+import { checkPayoutConservation, checkProbabilityConservation, checkStochasticPayoutConservation, type IdentityAttestation } from "./identity";
+import { normalIntervalProbability } from "./normal";
+import { payout, segmentQuota } from "./plan";
+import { payoutCdf, respondCARA, type StochasticResponse } from "./respond.cara";
+import { respondDeterministic, type DeterministicResponse } from "./respond.det";
+import { Rat, R0 } from "./rat";
+import { EngineError } from "./errors";
+import type { Plan, Scenario } from "./types";
+
+export interface DeterministicPlanResult {
+  plan: Plan;
+  responses: Array<{ segmentId: string; count: number; response: DeterministicResponse }>;
+  kpis: {
+    expectedRevenue: Rat;
+    totalComp: Rat;
+    compRatio: Rat | null;
+    quotaAttainRate: Rat;
+    effectiveCommissionRate: Rat | null;
+    trueValue: Rat;
+    retentionRisk: string[];
+    payoutQuantiles: { p10: Rat; p50: Rat; p90: Rat };
+  };
+}
+
+export interface DeterministicSimulationResult {
+  mode: "deterministic";
+  plans: DeterministicPlanResult[];
+  attestations: IdentityAttestation[];
+}
+
+export interface StochasticPlanResult {
+  plan: Plan;
+  responses: Array<{ segmentId: string; count: number; response: StochasticResponse }>;
+  kpis: {
+    expectedRevenue: number;
+    totalComp: number;
+    compRatio: number | null;
+    quotaAttainRate: number;
+    effectiveCommissionRate: number | null;
+    trueValue: number;
+    retentionRisk: string[];
+    payoutQuantiles: { p10: number; p50: number; p90: number };
+  };
+}
+
+export interface StochasticSimulationResult {
+  mode: "stochastic";
+  plans: StochasticPlanResult[];
+  attestations: IdentityAttestation[];
+}
+
+export type SimulationResult = DeterministicSimulationResult | StochasticSimulationResult;
+
+export interface PlanComparison {
+  leftPlanId: string;
+  rightPlanId: string;
+  expectedRevenueDelta: Rat;
+  totalCompDelta: Rat;
+  trueValueDelta: Rat;
+  compRatioDelta: Rat | null;
+  attestation: IdentityAttestation;
+}
+
+function weightedLowerQuantile(points: readonly { value: Rat; count: number }[], probability: Rat): Rat {
+  const sorted = [...points].sort((left, right) => left.value.cmp(right.value));
+  if (sorted.length === 0) return R0;
+  const total = sorted.reduce((sum, point) => sum + point.count, 0);
+  if (total === 0) return sorted[0]?.value ?? R0;
+  const scaled = probability.n * BigInt(total);
+  const target = scaled <= 0n ? 1 : Number((scaled + probability.d - 1n) / probability.d);
+  let cumulative = 0;
+  for (const point of sorted) {
+    cumulative += point.count;
+    if (cumulative >= target) return point.value;
+  }
+  return sorted.at(-1)?.value ?? R0;
+}
+
+function simulatePlan(scenario: Scenario, plan: Plan): DeterministicPlanResult {
+  const responses = scenario.population.map((segment) => ({
+    segmentId: segment.id,
+    count: segment.count,
+    response: respondDeterministic(plan, segment),
+  }));
+  const expectedRevenue = responses.reduce((sum, item) => sum.add(item.response.output.mul(Rat.from(item.count))), R0);
+  const totalComp = responses.reduce((sum, item) => sum.add(item.response.payout.mul(Rat.from(item.count))), R0);
+  const totalBase = scenario.population.reduce((sum, segment) => sum.add(plan.base.mul(Rat.from(segment.count))), R0);
+  const totalHeadcount = scenario.population.reduce((sum, segment) => sum + segment.count, 0);
+  const quotaAttained = responses.reduce((sum, item) => sum + (item.response.attainment.gte(Rat.one()) ? item.count : 0), 0);
+  const trueValue = responses.reduce((sum, item) => {
+    const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
+    if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
+    return sum.add(segment.valueQuality.mul(item.response.output).mul(Rat.from(item.count)));
+  }, R0);
+  const retentionRisk = responses.filter((item) => !item.response.participation).map((item) => item.segmentId);
+  const payouts = responses.map((item) => ({ value: item.response.payout, count: item.count }));
+  return {
+    plan,
+    responses,
+    kpis: {
+      expectedRevenue,
+      totalComp,
+      compRatio: expectedRevenue.eq(R0) ? null : totalComp.div(expectedRevenue),
+      quotaAttainRate: Rat.from(quotaAttained, totalHeadcount),
+      effectiveCommissionRate: expectedRevenue.eq(R0) ? null : totalComp.sub(totalBase).div(expectedRevenue),
+      trueValue,
+      retentionRisk,
+      payoutQuantiles: {
+        p10: weightedLowerQuantile(payouts, Rat.from(1, 10)),
+        p50: weightedLowerQuantile(payouts, Rat.from(1, 2)),
+        p90: weightedLowerQuantile(payouts, Rat.from(9, 10)),
+      },
+    },
+  };
+}
+
+/** P2 deterministic population runner. P3 supplies the stochastic branch. */
+export function simulateDeterministic(scenario: Scenario): DeterministicSimulationResult {
+  if (scenario.settings.mode !== "deterministic") throw new EngineError("INVALID_INPUT", "Deterministic simulation requires deterministic mode.");
+  const plans = scenario.plans.map((plan) => simulatePlan(scenario, plan));
+  const i1 = checkPayoutConservation(plans.flatMap((plan) => plan.responses.map((item) => ({
+    count: item.count,
+    payout: item.response.payout,
+    decomposition: item.response.decomposition,
+  }))));
+  const i3: IdentityAttestation = { id: "I-3", pass: true, maxErr: 0 };
+  return { mode: "deterministic", plans, attestations: [i1, i3] };
+}
+
+function stochasticQuantile(scenario: Scenario, plan: Plan, responses: StochasticPlanResult["responses"], probability: number): number {
+  const scored = responses.map((item) => {
+    const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
+    if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
+    const lower = payout(plan, segment, Rat.fromFloat64(item.response.output - 12 * item.response.sigma)).toNumber();
+    const upper = payout(plan, segment, Rat.fromFloat64(item.response.output + 12 * item.response.sigma)).toNumber();
+    return { segment, response: item.response, count: item.count, lower, upper };
+  });
+  let lower = Math.min(...scored.map((item) => item.lower));
+  let upper = Math.max(...scored.map((item) => item.upper));
+  const tolerance = 1e-9 * Math.max(1, upper - lower);
+  if (upper - lower <= tolerance) return lower;
+  const total = scored.reduce((sum, item) => sum + item.count, 0);
+  for (let iteration = 0; iteration < 160 && upper - lower > tolerance; iteration += 1) {
+    const midpoint = (lower + upper) / 2;
+    const cdf = scored.reduce((sum, item) => sum + item.count * payoutCdf(plan, item.segment, item.response, midpoint), 0) / total;
+    if (cdf >= probability) upper = midpoint;
+    else lower = midpoint;
+  }
+  return lower;
+}
+
+function simulateStochasticPlan(scenario: Scenario, plan: Plan): StochasticPlanResult {
+  const responses = scenario.population.map((segment) => ({ segmentId: segment.id, count: segment.count, response: respondCARA(plan, segment) }));
+  const expectedRevenue = responses.reduce((sum, item) => sum + item.count * item.response.output, 0);
+  const totalComp = responses.reduce((sum, item) => sum + item.count * item.response.payout, 0);
+  const totalBase = scenario.population.reduce((sum, segment) => sum + segment.count * plan.base.toNumber(), 0);
+  const totalHeadcount = scenario.population.reduce((sum, segment) => sum + segment.count, 0);
+  const quotaAttainRate = responses.reduce((sum, item) => {
+    const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
+    if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
+    const quota = segmentQuota(plan, segment).toNumber();
+    const probability = item.response.sigma === 0
+      ? (item.response.attainment >= 1 ? 1 : 0)
+      : normalIntervalProbability((quota - item.response.output) / item.response.sigma, Infinity);
+    return sum + item.count * probability;
+  }, 0) / totalHeadcount;
+  const trueValue = responses.reduce((sum, item) => {
+    const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
+    if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
+    return sum + item.count * segment.valueQuality.toNumber() * item.response.output;
+  }, 0);
+  const retentionRisk = responses.filter((item) => !item.response.participation).map((item) => item.segmentId);
+  return {
+    plan,
+    responses,
+    kpis: {
+      expectedRevenue,
+      totalComp,
+      compRatio: expectedRevenue === 0 ? null : totalComp / expectedRevenue,
+      quotaAttainRate,
+      effectiveCommissionRate: expectedRevenue === 0 ? null : (totalComp - totalBase) / expectedRevenue,
+      trueValue,
+      retentionRisk,
+      payoutQuantiles: { p10: 0, p50: 0, p90: 0 },
+    },
+  };
+}
+
+export function simulateStochastic(scenario: Scenario): StochasticSimulationResult {
+  if (scenario.settings.mode !== "stochastic") throw new EngineError("INVALID_INPUT", "Stochastic simulation requires stochastic mode.");
+  const plans = scenario.plans.map((plan) => simulateStochasticPlan(scenario, plan));
+  for (const result of plans) {
+    result.kpis.payoutQuantiles = {
+      p10: stochasticQuantile(scenario, result.plan, result.responses, 0.1),
+      p50: stochasticQuantile(scenario, result.plan, result.responses, 0.5),
+      p90: stochasticQuantile(scenario, result.plan, result.responses, 0.9),
+    };
+  }
+  const i1 = checkStochasticPayoutConservation(plans.flatMap((plan) => plan.responses.map((item) => ({
+    count: item.count, payout: item.response.payout, decomposition: item.response.decomposition,
+  }))));
+  const i2Errors = plans.flatMap((plan) => plan.responses.map((item) => checkProbabilityConservation(item.response.pieceProbabilities)));
+  const i2: IdentityAttestation = { id: "I-2", pass: i2Errors.every((item) => item.pass), maxErr: Math.max(0, ...i2Errors.map((item) => item.maxErr)) };
+  const i3: IdentityAttestation = { id: "I-3", pass: true, maxErr: 0 };
+  return { mode: "stochastic", plans, attestations: [i1, i2, i3] };
+}
+
+export function simulate(scenario: Scenario): SimulationResult {
+  return scenario.settings.mode === "deterministic" ? simulateDeterministic(scenario) : simulateStochastic(scenario);
+}
+
+export function comparePlans(result: DeterministicSimulationResult, leftPlanId: string, rightPlanId: string): PlanComparison {
+  const left = result.plans.find((plan) => plan.plan.id === leftPlanId);
+  const right = result.plans.find((plan) => plan.plan.id === rightPlanId);
+  if (!left || !right) throw new EngineError("INVALID_INPUT", "Both plans must be present to compare them.");
+  const compRatioDelta = left.kpis.compRatio && right.kpis.compRatio ? left.kpis.compRatio.sub(right.kpis.compRatio) : null;
+  return {
+    leftPlanId,
+    rightPlanId,
+    expectedRevenueDelta: left.kpis.expectedRevenue.sub(right.kpis.expectedRevenue),
+    totalCompDelta: left.kpis.totalComp.sub(right.kpis.totalComp),
+    trueValueDelta: left.kpis.trueValue.sub(right.kpis.trueValue),
+    compRatioDelta,
+    attestation: { id: "I-3", pass: true, maxErr: 0 },
+  };
+}

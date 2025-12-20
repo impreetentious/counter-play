@@ -36,7 +36,7 @@ Next.js (App Router, static export) · React · TypeScript (strict) · Tailwind 
 
 ## Status
 
-Planning is ratified; the build has not started.
+P0 complete (v0.1.5); P1 (Domain schema & payout engine) is next.
 
 ## References
 
@@ -64,4 +64,4 @@ This IST timestamp rule is permanent for all future workflows, commits, and AI a
 Follow this format for version control:
 
 * **Base Format Version:** 0.0.0 — the version of the version-block schema itself (the shape of these lines); it is bumped only when this block's structure changes, not on every commit.
-* **Product Version:** `v0.1.4_2025-12-20_22:15:39` (IST)
+* **Product Version:** `v0.1.5_2025-12-20_23:16:10` (IST)

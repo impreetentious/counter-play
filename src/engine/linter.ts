@@ -1,0 +1,356 @@
+import { effectiveCap, marginalRate, payout, segmentQuota } from "./plan";
+import { respondDeterministic } from "./respond.det";
+import { respondCARA } from "./respond.cara";
+import { simulate } from "./simulate";
+import { computeTiming } from "./timing";
+import { EngineError } from "./errors";
+import { Rat, R0 } from "./rat";
+import type { Plan, Scenario, Segment } from "./types";
+
+export type FindingType = "L-1" | "L-2" | "L-3" | "L-4" | "L-5" | "L-6" | "L-7";
+export type FindingSeverity = "info" | "warn" | "high";
+
+export interface Finding {
+  id: string;
+  type: FindingType;
+  severity: FindingSeverity;
+  planId?: string;
+  segments: string[];
+  plans?: string[];
+  evidence: Record<string, unknown>;
+}
+
+function clonePlan(plan: Plan, mutator: (plan: Plan) => Plan): Plan {
+  return mutator({ ...plan, tiers: plan.tiers.map((tier) => ({ ...tier })), bonus: plan.bonus ? { ...plan.bonus } : null });
+}
+
+function counterfactualPlanWithoutBonus(plan: Plan): Plan {
+  return clonePlan(plan, (next) => ({ ...next, bonus: null }));
+}
+
+function counterfactualPlanUncapped(plan: Plan): Plan {
+  return clonePlan(plan, (next) => {
+    let lastNonzeroRate: Rat | null = null;
+    for (const tier of next.tiers) if (!tier.rate.eq(R0)) lastNonzeroRate = tier.rate;
+    if (!lastNonzeroRate) return { ...next, cap: null };
+    let firstTrailingZeroIndex = -1;
+    for (let index = next.tiers.length - 1; index >= 0; index -= 1) {
+      const tier = next.tiers[index];
+      if (!tier) continue;
+      if (tier.rate.eq(R0)) firstTrailingZeroIndex = index; else break;
+    }
+    const tiers = next.tiers.map((tier, index) => firstTrailingZeroIndex >= 0 && index >= firstTrailingZeroIndex ? { ...tier, rate: lastNonzeroRate! } : tier);
+    return { ...next, tiers, cap: null };
+  });
+}
+
+interface ZoneRun {
+  fromIndex: number;
+  toIndex: number;
+  loAttain: Rat;
+  hiAttain: Rat;
+}
+
+function findInteriorZeroRuns(plan: Plan): ZoneRun[] {
+  const runs: ZoneRun[] = [];
+  let index = 0;
+  while (index < plan.tiers.length) {
+    const tier = plan.tiers[index];
+    if (!tier || !tier.rate.eq(R0)) { index += 1; continue; }
+    let end = index;
+    while (end + 1 < plan.tiers.length && plan.tiers[end + 1]?.rate.eq(R0)) end += 1;
+    const upper = plan.tiers[end + 1];
+    if (upper) runs.push({ fromIndex: index, toIndex: end, loAttain: tier.from, hiAttain: upper.from });
+    index = end + 1;
+  }
+  return runs;
+}
+
+function replaceZoneRate(plan: Plan, run: ZoneRun, rate: Rat): Plan {
+  return clonePlan(plan, (next) => ({
+    ...next,
+    tiers: next.tiers.map((tier, index) => index >= run.fromIndex && index <= run.toIndex ? { ...tier, rate } : tier),
+  }));
+}
+
+function nearestPrecedingNonzeroRate(plan: Plan, index: number): Rat | null {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const tier = plan.tiers[i];
+    if (tier && !tier.rate.eq(R0)) return tier.rate;
+  }
+  return null;
+}
+
+function nearestFollowingNonzeroRate(plan: Plan, index: number): Rat | null {
+  for (let i = index + 1; i < plan.tiers.length; i += 1) {
+    const tier = plan.tiers[i];
+    if (tier && !tier.rate.eq(R0)) return tier.rate;
+  }
+  return null;
+}
+
+function detEffort(plan: Plan, segment: Segment): number {
+  return respondDeterministic(plan, segment).effort.toNumber();
+}
+
+function stochEffort(plan: Plan, segment: Segment): number {
+  return respondCARA(plan, segment).effort;
+}
+
+function planHasNonzeroRate(plan: Plan): boolean {
+  return plan.tiers.some((tier) => !tier.rate.eq(R0));
+}
+
+function planKPIsFromScenario(scenario: Scenario, plan: Plan): { revenue: number; trueValue: number } {
+  const derived: Scenario = { ...scenario, plans: [plan] };
+  const result = simulate(derived);
+  const first = result.plans[0];
+  if (!first) throw new EngineError("INTERNAL_INVARIANT", "Linter counterfactual missing plan result.");
+  const revenue = "mode" in result && result.mode === "deterministic" ? (first as { kpis: { expectedRevenue: Rat } }).kpis.expectedRevenue.toNumber() : (first as { kpis: { expectedRevenue: number } }).kpis.expectedRevenue;
+  const trueValue = "mode" in result && result.mode === "deterministic" ? (first as { kpis: { trueValue: Rat } }).kpis.trueValue.toNumber() : (first as { kpis: { trueValue: number } }).kpis.trueValue;
+  return { revenue, trueValue };
+}
+
+function lintPlanForL1(plan: Plan, scenario: Scenario): Finding[] {
+  const runs = findInteriorZeroRuns(plan);
+  const findings: Finding[] = [];
+  runs.forEach((run, runIndex) => {
+    const replacement = nearestPrecedingNonzeroRate(plan, run.fromIndex) ?? nearestFollowingNonzeroRate(plan, run.toIndex);
+    if (!replacement) return;
+    const counterfactualPlan = replaceZoneRate(plan, run, replacement);
+    let highSegments: string[] = [];
+    let warnSegments: string[] = [];
+    for (const segment of scenario.population) {
+      const effortCf = detEffort(counterfactualPlan, segment);
+      const revenueCf = segment.ability.toNumber() * effortCf;
+      const attainCf = revenueCf / segmentQuota(plan, segment).toNumber();
+      if (attainCf >= run.loAttain.toNumber() && attainCf < run.hiAttain.toNumber()) highSegments.push(segment.id);
+      const actualResponse = respondDeterministic(plan, segment);
+      if (actualResponse.attainment.eq(run.loAttain)) warnSegments.push(segment.id);
+    }
+    let severity: FindingSeverity = "info";
+    let segments: string[] = [];
+    if (highSegments.length > 0) { severity = "high"; segments = highSegments; }
+    else if (warnSegments.length > 0) { severity = "warn"; segments = warnSegments; }
+    findings.push({
+      id: `${plan.id}-L1-${runIndex}`,
+      type: "L-1",
+      severity,
+      planId: plan.id,
+      segments,
+      evidence: {
+        zone_lo_pct: `${Math.round(run.loAttain.toNumber() * 100)}%`,
+        zone_hi_pct: `${Math.round(run.hiAttain.toNumber() * 100)}%`,
+        cf_rate: replacement.toDecimalString(),
+      },
+    });
+  });
+  return findings;
+}
+
+function lintPlanForL2(plan: Plan, scenario: Scenario): Finding[] {
+  if (!plan.bonus || plan.bonus.L.eq(R0)) return [];
+  const withoutBonus = counterfactualPlanWithoutBonus(plan);
+  const isDet = scenario.settings.mode === "deterministic";
+  const affected: string[] = [];
+  let crossers = 0;
+  let affectedHeadcount = 0;
+  const totalHeadcount = scenario.population.reduce((sum, segment) => sum + segment.count, 0);
+  for (const segment of scenario.population) {
+    const effortWith = isDet ? detEffort(plan, segment) : stochEffort(plan, segment);
+    const effortWithout = isDet ? detEffort(withoutBonus, segment) : stochEffort(withoutBonus, segment);
+    const movesEnough = effortWithout === 0 ? effortWith > 0 : Math.abs(effortWith - effortWithout) > 0.05 * effortWithout;
+    if (movesEnough) { affected.push(segment.id); affectedHeadcount += segment.count; }
+    const quota = segmentQuota(plan, segment).toNumber();
+    const revenueWith = segment.ability.toNumber() * effortWith;
+    const revenueWithout = segment.ability.toNumber() * effortWithout;
+    if (revenueWith >= quota && revenueWithout < quota) crossers += segment.count;
+  }
+  if (affected.length === 0) return [];
+  const severity: FindingSeverity = crossers >= 0.25 * totalHeadcount ? "high" : "warn";
+  return [{
+    id: `${plan.id}-L2`,
+    type: "L-2",
+    severity,
+    planId: plan.id,
+    segments: affected,
+    evidence: {
+      x_b_pct: `${Math.round(plan.bonus.x_b.toNumber() * 100)}%`,
+      affected_headcount_pct: `${Math.round((affectedHeadcount / totalHeadcount) * 100)}%`,
+      crossers_pct: `${Math.round((crossers / totalHeadcount) * 100)}%`,
+    },
+  }];
+}
+
+function lintPlanForL3(plan: Plan, scenario: Scenario): Finding[] {
+  const cap = effectiveCap(plan);
+  if (!cap) return [];
+  if (!planHasNonzeroRate(plan)) return [];
+  const uncappedPlan = counterfactualPlanUncapped(plan);
+  const isDet = scenario.settings.mode === "deterministic";
+  const flagged: string[] = [];
+  let flaggedHeadcount = 0;
+  const totalHeadcount = scenario.population.reduce((sum, segment) => sum + segment.count, 0);
+  let revenueLeft = 0;
+  for (const segment of scenario.population) {
+    const effortActual = isDet ? detEffort(plan, segment) : stochEffort(plan, segment);
+    const effortUncapped = isDet ? detEffort(uncappedPlan, segment) : stochEffort(uncappedPlan, segment);
+    const capAttain = cap.toNumber();
+    if (isDet) {
+      const attainActual = respondDeterministic(plan, segment).attainment.toNumber();
+      if (Math.abs(attainActual - capAttain) < 1e-9 && effortUncapped > effortActual) {
+        flagged.push(segment.id);
+        flaggedHeadcount += segment.count;
+        revenueLeft += segment.count * segment.ability.toNumber() * (effortUncapped - effortActual);
+      }
+    } else if (effortUncapped - effortActual > Math.max(1e-9, 0.005 * effortActual)) {
+      flagged.push(segment.id);
+      flaggedHeadcount += segment.count;
+      revenueLeft += segment.count * segment.ability.toNumber() * (effortUncapped - effortActual);
+    }
+  }
+  if (flagged.length === 0) return [];
+  const severity: FindingSeverity = flaggedHeadcount >= 0.25 * totalHeadcount ? "high" : "warn";
+  return [{
+    id: `${plan.id}-L3`,
+    type: "L-3",
+    severity,
+    planId: plan.id,
+    segments: flagged,
+    evidence: {
+      x_bar_pct: `${Math.round(cap.toNumber() * 100)}%`,
+      revenue_left_currency: revenueLeft,
+    },
+  }];
+}
+
+function lintPlanForL4(plan: Plan, scenario: Scenario): Finding[] {
+  const isDet = scenario.settings.mode === "deterministic";
+  const findings: Finding[] = [];
+  for (const segment of scenario.population) {
+    const ce = isDet ? respondDeterministic(plan, segment).ce.toNumber() : respondCARA(plan, segment).ce;
+    const reservation = segment.reservationCE.toNumber();
+    if (ce < reservation) {
+      const gap = reservation - ce;
+      findings.push({
+        id: `${plan.id}-L4-${segment.id}`,
+        type: "L-4",
+        severity: "warn",
+        planId: plan.id,
+        segments: [segment.id],
+        evidence: { ce_gap_currency: gap, base_delta_currency: gap },
+      });
+    }
+  }
+  return findings;
+}
+
+function lintScenarioForL5(scenario: Scenario): Finding[] {
+  const findings: Finding[] = [];
+  if (scenario.plans.length === 1) {
+    const plan = scenario.plans[0]!;
+    const wedgeSegments = scenario.population.filter((segment) => !segment.valueQuality.eq(Rat.one())).map((segment) => segment.id);
+    if (wedgeSegments.length > 0) {
+      findings.push({
+        id: `${plan.id}-L5-single`,
+        type: "L-5",
+        severity: "info",
+        planId: plan.id,
+        segments: wedgeSegments,
+        plans: [plan.id],
+        evidence: { gamma_neq_one_segments: wedgeSegments },
+      });
+    }
+    return findings;
+  }
+  const perPlan = scenario.plans.map((plan) => ({ plan, kpis: planKPIsFromScenario(scenario, plan) }));
+  for (let i = 0; i < perPlan.length; i += 1) {
+    for (let j = i + 1; j < perPlan.length; j += 1) {
+      const a = perPlan[i]!;
+      const b = perPlan[j]!;
+      const revenueFlip = (a.kpis.revenue > b.kpis.revenue && a.kpis.trueValue < b.kpis.trueValue) || (a.kpis.revenue < b.kpis.revenue && a.kpis.trueValue > b.kpis.trueValue);
+      if (revenueFlip) {
+        const revLeader = a.kpis.revenue > b.kpis.revenue ? a.plan.id : b.plan.id;
+        const valueLeader = a.kpis.trueValue > b.kpis.trueValue ? a.plan.id : b.plan.id;
+        findings.push({
+          id: `L5-flip-${a.plan.id}-${b.plan.id}`,
+          type: "L-5",
+          severity: "high",
+          segments: [],
+          plans: [a.plan.id, b.plan.id],
+          evidence: { plan_high_revenue: revLeader, plan_high_value: valueLeader },
+        });
+      }
+    }
+  }
+  return findings;
+}
+
+function lintPlanForL7(plan: Plan, scenario: Scenario): Finding[] {
+  const timing = computeTiming(scenario);
+  const planResult = timing.plans.find((entry) => entry.planId === plan.id);
+  if (!planResult) return [];
+  const affected = planResult.perSegment.filter((seg) => !seg.zStar.eq(R0));
+  if (affected.length === 0) return [];
+  const primary = affected.reduce((max, seg) => (seg.zStar.abs().gt(max.zStar.abs()) ? seg : max));
+  const displaced = planResult.displacedRevenueTotal;
+  const twoPeriod = planResult.twoPeriodExpectedRevenue;
+  const ratio = twoPeriod.eq(R0) ? 0 : displaced.toNumber() / twoPeriod.toNumber();
+  const severity: FindingSeverity = ratio >= 0.05 ? "high" : "warn";
+  return [{
+    id: `${plan.id}-L7`,
+    type: "L-7",
+    severity,
+    planId: plan.id,
+    segments: affected.map((seg) => seg.segmentId),
+    evidence: {
+      z_star_currency: primary.zStar.toNumber().toString(),
+      pay_gain_currency: primary.payGain.toNumber().toString(),
+      displaced_revenue: displaced.toNumber(),
+      displaced_pct: `${Math.round(ratio * 100)}%`,
+    },
+  }];
+}
+
+function lintPlanForL6(plan: Plan, scenario: Scenario): Finding[] {
+  const findings: Finding[] = [];
+  for (const segment of scenario.population) {
+    const quota = segmentQuota(plan, segment);
+    const outputs = [R0, quota.mul(plan.bonus?.x_b ?? R0), ...plan.tiers.map((tier) => quota.mul(tier.from)), plan.cap ? quota.mul(plan.cap) : R0];
+    const sorted = outputs.filter((value) => value.gte(R0)).sort((left, right) => left.cmp(right));
+    let previous = payout(plan, segment, sorted[0] ?? R0);
+    for (let i = 1; i < sorted.length; i += 1) {
+      const current = payout(plan, segment, sorted[i]!);
+      if (current.lt(previous)) {
+        findings.push({
+          id: `${plan.id}-L6-${segment.id}-${i}`,
+          type: "L-6",
+          severity: "high",
+          planId: plan.id,
+          segments: [segment.id],
+          evidence: { q_flip_currency: sorted[i]!.toNumber() },
+        });
+      }
+      previous = current;
+    }
+  }
+  return findings;
+}
+
+export function lintScenario(scenario: Scenario): Finding[] {
+  void marginalRate;
+  const findings: Finding[] = [];
+  for (const plan of scenario.plans) {
+    findings.push(...lintPlanForL1(plan, scenario));
+    findings.push(...lintPlanForL2(plan, scenario));
+    findings.push(...lintPlanForL3(plan, scenario));
+    findings.push(...lintPlanForL4(plan, scenario));
+    findings.push(...lintPlanForL6(plan, scenario));
+    findings.push(...lintPlanForL7(plan, scenario));
+  }
+  findings.push(...lintScenarioForL5(scenario));
+  return findings.sort((left, right) => {
+    const severityRank = { high: 0, warn: 1, info: 2 } as const;
+    return severityRank[left.severity] - severityRank[right.severity];
+  });
+}
