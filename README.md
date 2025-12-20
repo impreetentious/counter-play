@@ -36,7 +36,7 @@ Next.js (App Router, static export) · React · TypeScript (strict) · Tailwind 
 
 ## Status
 
-P0 complete (v0.1.5); P1 (Domain schema & payout engine) is next.
+P0–P1 complete (v0.3.0); P2 (Deterministic best response) is next.
 
 ## References
 
@@ -64,4 +64,4 @@ This IST timestamp rule is permanent for all future workflows, commits, and AI a
 Follow this format for version control:
 
 * **Base Format Version:** 0.0.0 — the version of the version-block schema itself (the shape of these lines); it is bumped only when this block's structure changes, not on every commit.
-* **Product Version:** `v0.2.0_2025-12-20_23:48:29` (IST)
+* **Product Version:** `v0.3.0_2025-12-20_23:51:05` (IST)
