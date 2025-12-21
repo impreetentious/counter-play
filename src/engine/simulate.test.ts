@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comparePlans, simulateDeterministic } from "./simulate";
+import { comparePlans, simulate, simulateDeterministic } from "./simulate";
 import { parseScenario, type ScenarioJson } from "@/state/schema";
 
 const scenarioJson: ScenarioJson = {
@@ -29,5 +29,19 @@ describe("deterministic simulation", () => {
     expect(comparison.expectedRevenueDelta.serialize()).toBe("20/1");
     expect(comparison.totalCompDelta.serialize()).toBe("6/1");
     expect(comparison.attestation.pass).toBe(true);
+  });
+
+  it("aggregates analytic stochastic distributions and conservation attestations", () => {
+    const stochastic = {
+      ...scenarioJson,
+      population: [{ ...scenarioJson.population[0]!, noiseSD: "20", riskAversion: "0.01" }],
+      settings: { ...scenarioJson.settings, mode: "stochastic" as const },
+    };
+    const result = simulate(parseScenario(stochastic));
+    expect(result.mode).toBe("stochastic");
+    if (result.mode !== "stochastic") throw new Error("Expected stochastic result.");
+    expect(result.plans[0]?.kpis.payoutQuantiles.p10).toBeLessThanOrEqual(result.plans[0]?.kpis.payoutQuantiles.p90 ?? Infinity);
+    expect(result.attestations.map((item) => item.id)).toEqual(["I-1", "I-2", "I-3"]);
+    expect(result.attestations.every((item) => item.pass)).toBe(true);
   });
 });
