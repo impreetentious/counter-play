@@ -36,7 +36,7 @@ Next.js (App Router, static export) · React · TypeScript (strict) · Tailwind 
 
 ## Status
 
-P0–P5 complete (v0.6.1); P6 (Linter) is next.
+P0–P6 complete (v0.8.0); P7 (Monte Carlo & tornado) is next.
 
 ## References
 
@@ -64,4 +64,4 @@ This IST timestamp rule is permanent for all future workflows, commits, and AI a
 Follow this format for version control:
 
 * **Base Format Version:** 0.0.0 — the version of the version-block schema itself (the shape of these lines); it is bumped only when this block's structure changes, not on every commit.
-* **Product Version:** `v0.7.0_2026-01-04_03:16:24` (IST)
+* **Product Version:** `v0.8.0_2026-01-04_03:20:06` (IST)

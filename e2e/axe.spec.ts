@@ -25,3 +25,9 @@ test("Simulate surface has no serious or critical axe violations", async ({ page
   await page.getByRole("tab", { name: /Simulate/ }).click();
   await scan(page);
 });
+
+test("Analyze surface has no serious or critical axe violations", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: /Analyze/ }).click();
+  await scan(page);
+});

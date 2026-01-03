@@ -1,6 +1,6 @@
 {
   "name": "app",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "engines": {
     "node": "24.12.0"
@@ -33,7 +33,7 @@
     "autoprefixer": "~10.4.23",
     "eslint": "~9.39.2",
     "eslint-config-next": "~16.1.0",
-    "fast-check": "~4.5.0",
+    "fast-check": "~4.5.2",
     "postcss": "~8.5.6",
     "serve": "~14.2.5",
     "tailwindcss": "~4.1.18",
