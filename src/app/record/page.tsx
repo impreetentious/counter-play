@@ -1,11 +1,5 @@
-import { brandName } from "@/brand";
+import { RecordView } from "@/components/record-view";
 
-export default function RecordStub(): React.JSX.Element {
-  return (
-    <main className="record-stub">
-      <p className="eyebrow">Design record</p>
-      <h1>{brandName}</h1>
-      <p>A printable decision record will appear here once a scenario has been simulated.</p>
-    </main>
-  );
+export default function RecordRoute(): React.JSX.Element {
+  return <RecordView />;
 }

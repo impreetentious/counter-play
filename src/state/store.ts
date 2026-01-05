@@ -42,6 +42,7 @@ export interface StoreState {
   setMode(mode: "deterministic" | "stochastic"): void;
   setDiscount(value: string): void;
   setSeasonality(value: [string, string]): void;
+  setNotes(notes: string): void;
   mcResult: McResult | null;
   mcTornado: TornadoResult | null;
   mcTornadoKpi: KpiKey;
@@ -230,6 +231,12 @@ export const useScenarioStore = create<StoreState>((set, get) => ({
   setSeasonality(value) {
     const scenario = get().scenario;
     const next: ScenarioJson = { ...scenario, settings: { ...scenario.settings, seasonality: value } };
+    set(commit(next, get().activePlanId));
+  },
+  setNotes(notes) {
+    const scenario = get().scenario;
+    if (scenario.meta.notes === notes) return;
+    const next: ScenarioJson = { ...scenario, meta: { ...scenario.meta, notes } };
     set(commit(next, get().activePlanId));
   },
   mcResult: null,
