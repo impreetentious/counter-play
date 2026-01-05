@@ -202,6 +202,23 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .chart-table th, .chart-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
 .sr-only, .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 
+.boundary-panel { margin-top: 32px; border-top: 1px solid var(--line); padding-top: 24px; }
+.boundary-header { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.boundary-description { color: var(--muted); font-size: 0.9rem; max-width: 720px; line-height: 1.55; }
+.boundary-description code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+.boundary-controls { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin-bottom: 16px; padding: 12px 16px; background: var(--surface-muted); border: 1px solid var(--line); }
+.boundary-plan { margin-top: 20px; padding: 16px; border: 1px solid var(--line); background: var(--surface); }
+.boundary-plan header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.boundary-plan h4 { margin: 0; font-size: 1.05rem; }
+.boundary-plan-summary { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.boundary-plan-summary strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.boundary-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.boundary-table caption { color: var(--muted); text-align: left; padding-bottom: 8px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.boundary-table th, .boundary-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; font-variant-numeric: tabular-nums; }
+.boundary-table th { color: var(--muted); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.boundary-shift-pull { color: var(--accent-ink); font-weight: 700; }
+.boundary-shift-push { color: var(--focus); font-weight: 700; }
+
 .mc-panel { margin-top: 32px; border-top: 1px solid var(--line); padding-top: 24px; }
 .mc-panel-header { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .mc-panel-description { color: var(--muted); font-size: 0.9rem; max-width: 720px; line-height: 1.55; }

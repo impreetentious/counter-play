@@ -36,7 +36,7 @@ Next.js (App Router, static export) · React · TypeScript (strict) · Tailwind 
 
 ## Status
 
-P0–P7 complete (v0.8.1); P8 (Timing module) is next.
+P0–P8 complete (v0.9.1); P9 (Design record & share) and P10 (Hardening) remain.
 
 ## References
 
@@ -64,4 +64,4 @@ This IST timestamp rule is permanent for all future workflows, commits, and AI a
 Follow this format for version control:
 
 * **Base Format Version:** 0.0.0 — the version of the version-block schema itself (the shape of these lines); it is bumped only when this block's structure changes, not on every commit.
-* **Product Version:** `v0.9.0_2026-01-04_22:59:48` (IST)
+* **Product Version:** `v0.9.1_2026-01-06_02:07:04` (IST)
