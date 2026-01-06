@@ -1,8 +1,8 @@
 # Counterplay
 
-Pre-build (documentation only)
-
 > A compensation plan is a mechanism. People respond to the mechanism, not to the intent behind it. This is the instrument that computes that response — before the plan ships.
+
+**Status:** v0.10.0 — client-side app on `main` (model, design, simulate, analyze, design-record export). Static export; not yet deployed to a public URL.
 
 ## The problem
 
@@ -30,13 +30,32 @@ Not an incentive-compensation-management or commission-tracking tool. It does no
 - **Replayable.** Every random element is seeded. Every run re-derives and displays a global payout-conservation identity. Counterfactuals are comparable across runs.
 - **Accessible.** Light and dark themes; WCAG 2.1 AA intent, with a recorded audit before any stronger claim.
 
-## Stack (planned)
+## Stack
 
 Next.js (App Router, static export) · React · TypeScript (strict) · Tailwind CSS · Zustand · Zod · hand-rolled SVG visualization · Vitest + fast-check · Playwright.
 
-## Status
+## Run locally
 
-P0–P8 complete (v0.9.1); P9 (Design record & share) and P10 (Hardening) remain.
+Requires Node `24.12.0` (see `.nvmrc`).
+
+```bash
+npm ci
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Verify
+
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+npm run test:e2e
+```
+
+Or `npm run test:all` when that script is available in your checkout.
 
 ## References
 
@@ -51,17 +70,4 @@ The engine's design draws on a specific slice of the principal-agent literature.
 
 ## License
 
-MIT © Sidakpreet Singh
-
----
-
-## AI Agent Instructions
-
-Before making any new commits, update the **Product Version** string below in this file with the current IST time of commit (`Asia/Kolkata`). Keep the same numeric release version in `package.json` and the root package entries of `package-lock.json` (once `package.json` exists — from P0 on).
-
-This IST timestamp rule is permanent for all future workflows, commits, and AI agents working in this repository.
-
-Follow this format for version control:
-
-* **Base Format Version:** 0.0.0 — the version of the version-block schema itself (the shape of these lines); it is bumped only when this block's structure changes, not on every commit.
-* **Product Version:** `v0.9.2_2026-01-06_02:21:18` (IST)
+MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
