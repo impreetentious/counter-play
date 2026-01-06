@@ -16,7 +16,7 @@ jobs:
           node-version: 24.12.0
           cache: npm
       - run: npm ci
-      - run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium
+      - run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium firefox webkit
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test

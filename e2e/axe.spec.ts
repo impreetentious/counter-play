@@ -31,3 +31,17 @@ test("Analyze surface has no serious or critical axe violations", async ({ page 
   await page.getByRole("tab", { name: /Analyze/ }).click();
   await scan(page);
 });
+
+test("Record page has no serious or critical axe violations", async ({ page }) => {
+  await page.goto("/record");
+  await scan(page);
+});
+
+test("Dark theme Model surface has no serious or critical axe violations", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("settings.v1", JSON.stringify({ theme: "dark" }));
+  });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await scan(page);
+});
