@@ -1,5 +1,6 @@
 import { EngineError } from "./errors";
-import { kinks, marginalRate, payout, segmentQuota } from "./plan";
+import { commissionPieces, kinks, marginalRate, payout, prefloorPieces, segmentQuota } from "./plan";
+import type { LinearPiece } from "./plan";
 import { deterministicCandidates, respondDeterministic } from "./respond.det";
 import { Rat, R0 } from "./rat";
 import { logNormalCdf, logNormalInterval, normalCdf, normalIntervalProbability, truncatedNormalMoments } from "./normal";
@@ -9,11 +10,57 @@ export interface FloatDecomposition {
   base: number;
   perTier: number[];
   bonus: number;
+  /** §3.2a: E[S·1[q ≥ x_sp·Q]]. */
   spiff: number;
+  /** §3.2a: E[K_c·1[q < x_c·Q]] (positive, subtracted). */
   clawback: number;
+  /** §3.2a: E[(D_nr − C(q))⁺]. */
   drawTopUp: number;
+  /** §3.2a: E[(F − W_pre(q))⁺]. */
   floorTopUp: number;
   total: number;
+}
+
+/** §3.2a recoverable-draw cash-flow report (never enters W). */
+export interface RecoverableDrawReport {
+  advance: number;
+  carry: number;
+}
+
+interface NumericPiece {
+  lower: number;
+  upper: number;
+  slope: number;
+  alpha: number;
+}
+
+function toNumericPieces(pieces: readonly LinearPiece[]): NumericPiece[] {
+  return pieces.map((piece) => ({
+    lower: piece.from ? piece.from.toNumber() : -Infinity,
+    upper: piece.to ? piece.to.toNumber() : Infinity,
+    slope: piece.slope.toNumber(),
+    alpha: piece.alpha.toNumber(),
+  }));
+}
+
+/** P(g < T) and E[(T − g)⁺] for a nondecreasing piecewise-linear g(q) = alpha + slope·q. */
+function expectedShortfall(pieces: readonly NumericPiece[], threshold: number, mean: number, sigma: number): { probability: number; shortfall: number } {
+  let probability = 0;
+  let shortfall = 0;
+  for (const piece of pieces) {
+    let lower = piece.lower;
+    let upper = piece.upper;
+    if (piece.slope > 0) {
+      upper = Math.min(upper, (threshold - piece.alpha) / piece.slope);
+    } else if (piece.alpha >= threshold) {
+      continue;
+    }
+    if (!(upper > lower)) continue;
+    const moments = truncatedNormalMoments(mean, sigma, lower, upper);
+    probability += moments.probability;
+    shortfall += (threshold - piece.alpha) * moments.probability - piece.slope * moments.first;
+  }
+  return { probability, shortfall: Math.max(0, shortfall) };
 }
 
 export interface PayoutPiece {
@@ -36,6 +83,7 @@ export interface StochasticResponse {
   pieceProbabilities: number[];
   sigma: number;
   eMax: number;
+  recoverableDraw: RecoverableDrawReport | null;
 }
 
 const EPS = 1e-12;
@@ -116,7 +164,33 @@ function expectedDecomposition(plan: Plan, segment: Segment, mean: number, sigma
   const bonus = plan.bonus
     ? toNumber(plan.bonus.L) * normalIntervalProbability((quota * toNumber(plan.bonus.x_b) - mean) / sigma, Infinity)
     : 0;
-  return { base, perTier, bonus, spiff: 0, clawback: 0, drawTopUp: 0, floorTopUp: 0, total: base + perTier.reduce((sum, value) => sum + value, 0) + bonus };
+
+  const extras = plan.extras ?? null;
+  const spiff = extras?.spiff
+    ? toNumber(extras.spiff.amount) * normalIntervalProbability((quota * toNumber(extras.spiff.threshold) - mean) / sigma, Infinity)
+    : 0;
+  const clawback = extras?.clawback
+    ? toNumber(extras.clawback.amount) * normalIntervalProbability(-Infinity, (quota * toNumber(extras.clawback.threshold) - mean) / sigma)
+    : 0;
+  const drawTopUp = extras?.drawNonRecoverable
+    ? expectedShortfall(toNumericPieces(commissionPieces(plan, segment)), toNumber(extras.drawNonRecoverable), mean, sigma).shortfall
+    : 0;
+  const floorTopUp = extras?.payFloor
+    ? expectedShortfall(toNumericPieces(prefloorPieces(plan, segment)), toNumber(extras.payFloor), mean, sigma).shortfall
+    : 0;
+
+  const total = base + perTier.reduce((sum, value) => sum + value, 0) + bonus + spiff - clawback + drawTopUp + floorTopUp;
+  return { base, perTier, bonus, spiff, clawback, drawTopUp, floorTopUp, total };
+}
+
+/** §3.2a recoverable-draw report: advance D_r and expected carry E[(D_r + B − W)⁺]. */
+function recoverableDrawReport(plan: Plan, segment: Segment, pieces: readonly PayoutPiece[], mean: number, sigma: number): RecoverableDrawReport | null {
+  const draw = plan.extras?.drawRecoverable ?? null;
+  if (!draw) return null;
+  const advance = toNumber(draw);
+  const level = advance + toNumber(plan.base);
+  const carry = expectedShortfall(pieces.map((piece) => ({ lower: piece.lower, upper: piece.upper, slope: piece.beta, alpha: piece.alpha })), level, mean, sigma).shortfall;
+  return { advance, carry };
 }
 
 function logSumExp(values: readonly number[]): number {
@@ -155,7 +229,13 @@ export function stochasticCeiling(plan: Plan, segment: Segment): number {
   const maxRate = Math.max(...rates);
   const maxKink = Math.max(0, ...kinks(plan, segment).map(toNumber));
   const kinkEffort = maxKink / ability;
-  const bonus = plan.bonus ? toNumber(plan.bonus.L) : 0;
+  // §3.2a: widen the constant payout headroom by the bounded extension lumps (S + D_nr + F);
+  // clawback and the floors only reduce/bound the tail, so the ceiling stays a sufficient over-estimate.
+  const extras = plan.extras ?? null;
+  const bonus = (plan.bonus ? toNumber(plan.bonus.L) : 0)
+    + (extras?.spiff ? toNumber(extras.spiff.amount) : 0)
+    + (extras?.drawNonRecoverable ? toNumber(extras.drawNonRecoverable) : 0)
+    + (extras?.payFloor ? toNumber(extras.payFloor) : 0);
   const c0 = c0ForCeiling(firstRate, sigma, rho);
   const focus = (maxRate * ability + Math.sqrt((maxRate * ability) ** 2 + 2 * costK * (bonus + 0.4 * maxRate * sigma + c0))) / costK;
   return 1.05 * Math.max(kinkEffort + 6 * sigma / ability, focus);
@@ -220,10 +300,10 @@ export function respondCARA(plan: Plan, segment: Segment): StochasticResponse {
       base: toNumber(response.decomposition.base),
       perTier: response.decomposition.perTier.map(toNumber),
       bonus: toNumber(response.decomposition.bonus),
-      spiff: 0,
-      clawback: 0,
-      drawTopUp: 0,
-      floorTopUp: 0,
+      spiff: toNumber(response.decomposition.spiff),
+      clawback: toNumber(response.decomposition.clawback),
+      drawTopUp: toNumber(response.decomposition.drawTopUp),
+      floorTopUp: toNumber(response.decomposition.floorTopUp),
       total: toNumber(response.decomposition.total),
     };
     return {
@@ -231,6 +311,9 @@ export function respondCARA(plan: Plan, segment: Segment): StochasticResponse {
       decomposition, ce: toNumber(response.ce), marginalAtOpt: toNumber(response.marginalAtOpt), participation: response.participation,
       pieceProbabilities: payoutPieces(plan, segment).map((piece) => (piece.lower < toNumber(response.output) && toNumber(response.output) <= piece.upper ? 1 : 0)),
       sigma, eMax: stochasticCeiling(plan, segment),
+      recoverableDraw: response.recoverableDraw
+        ? { advance: toNumber(response.recoverableDraw.advance), carry: toNumber(response.recoverableDraw.carry) }
+        : null,
     };
   }
 
@@ -285,6 +368,7 @@ export function respondCARA(plan: Plan, segment: Segment): StochasticResponse {
     pieceProbabilities: moments.probabilities,
     sigma,
     eMax,
+    recoverableDraw: recoverableDrawReport(plan, segment, pieces, mean, sigma),
   };
 }
 

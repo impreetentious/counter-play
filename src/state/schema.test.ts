@@ -49,4 +49,33 @@ describe("scenario wire schema", () => {
     expect(allocateId("seg", ["seg-1", "seg-4", "imported"])).toBe("seg-5");
     expect(allocateId("plan", ["plan-x"])).toBe("plan-1");
   });
+
+  it("round-trips V-01 payout extras and omits them when absent", () => {
+    // absent extras stay absent on the wire (byte-stable for pre-V-01 scenarios)
+    expect(serializeScenario(parseScenario(scenario)).plans[0]).not.toHaveProperty("extras");
+
+    const withExtras: ScenarioJson = {
+      ...scenario,
+      plans: [{
+        ...scenario.plans[0]!,
+        extras: {
+          drawNonRecoverable: "20000", spiff: { amount: "5000", threshold: "1.5" },
+          clawback: { amount: "8000", threshold: "0.5" }, payFloor: "12000", drawRecoverable: "25000",
+        },
+      }],
+    };
+    const parsed = parseScenario(withExtras);
+    expect(parsed.plans[0]?.extras?.spiff?.amount.toDecimalString()).toBe("5000");
+    const wire = serializeScenario(parsed);
+    expect(wire.plans[0]?.extras?.payFloor).toBe("12000");
+    expect(serializeScenario(parseScenario(wire))).toEqual(wire);
+  });
+
+  it("validates extras bounds", () => {
+    const bad: ScenarioJson = {
+      ...scenario,
+      plans: [{ ...scenario.plans[0]!, extras: { clawback: { amount: "8000", threshold: "0" } } }],
+    };
+    expect(() => parseScenario(bad)).toThrow(EngineError); // threshold must be > 0
+  });
 });

@@ -18,6 +18,9 @@ export function DesignSurface(): React.JSX.Element {
   const setBonusField = useScenarioStore((state) => state.setBonusField);
   const toggleCap = useScenarioStore((state) => state.toggleCap);
   const setCap = useScenarioStore((state) => state.setCap);
+  const toggleExtra = useScenarioStore((state) => state.toggleExtra);
+  const setExtraScalar = useScenarioStore((state) => state.setExtraScalar);
+  const setExtraLump = useScenarioStore((state) => state.setExtraLump);
   const addPlan = useScenarioStore((state) => state.addPlan);
   const duplicatePlan = useScenarioStore((state) => state.duplicatePlan);
   const deletePlan = useScenarioStore((state) => state.deletePlan);
@@ -165,6 +168,77 @@ export function DesignSurface(): React.JSX.Element {
             <div>
               <label htmlFor={`plan-${activePlan.id}-cap`}>Cap (attainment)</label>
               <input id={`plan-${activePlan.id}-cap`} inputMode="decimal" value={activePlan.cap} onChange={(event) => setCap(activePlan.id, event.target.value)} />
+            </div>
+          ) : null}
+        </fieldset>
+        <fieldset className="extras-block">
+          <legend>Advanced payout primitives</legend>
+          <p className="field-note">Optional §3.2a extensions to the payout curve. Leave every box unchecked for a standard plan.</p>
+          <label className="inline-toggle">
+            <input type="checkbox" checked={activePlan.extras?.drawNonRecoverable != null} onChange={() => toggleExtra(activePlan.id, "drawNonRecoverable")} />
+            <span>Non-recoverable draw (guarantee commission floor)</span>
+          </label>
+          {activePlan.extras?.drawNonRecoverable != null ? (
+            <div>
+              <label htmlFor={`plan-${activePlan.id}-draw-nr`}>Guaranteed commission</label>
+              <input id={`plan-${activePlan.id}-draw-nr`} inputMode="decimal" value={activePlan.extras.drawNonRecoverable} onChange={(event) => setExtraScalar(activePlan.id, "drawNonRecoverable", event.target.value)} />
+            </div>
+          ) : null}
+
+          <label className="inline-toggle">
+            <input type="checkbox" checked={activePlan.extras?.spiff != null} onChange={() => toggleExtra(activePlan.id, "spiff")} />
+            <span>SPIFF spot bonus above a threshold</span>
+          </label>
+          {activePlan.extras?.spiff != null ? (
+            <div className="plan-grid">
+              <div>
+                <label htmlFor={`plan-${activePlan.id}-spiff-amount`}>SPIFF amount</label>
+                <input id={`plan-${activePlan.id}-spiff-amount`} inputMode="decimal" value={activePlan.extras.spiff.amount} onChange={(event) => setExtraLump(activePlan.id, "spiff", "amount", event.target.value)} />
+              </div>
+              <div>
+                <label htmlFor={`plan-${activePlan.id}-spiff-threshold`}>Threshold (attainment)</label>
+                <input id={`plan-${activePlan.id}-spiff-threshold`} inputMode="decimal" value={activePlan.extras.spiff.threshold} onChange={(event) => setExtraLump(activePlan.id, "spiff", "threshold", event.target.value)} />
+              </div>
+            </div>
+          ) : null}
+
+          <label className="inline-toggle">
+            <input type="checkbox" checked={activePlan.extras?.clawback != null} onChange={() => toggleExtra(activePlan.id, "clawback")} />
+            <span>Clawback penalty below a threshold</span>
+          </label>
+          {activePlan.extras?.clawback != null ? (
+            <div className="plan-grid">
+              <div>
+                <label htmlFor={`plan-${activePlan.id}-clawback-amount`}>Clawback amount</label>
+                <input id={`plan-${activePlan.id}-clawback-amount`} inputMode="decimal" value={activePlan.extras.clawback.amount} onChange={(event) => setExtraLump(activePlan.id, "clawback", "amount", event.target.value)} />
+              </div>
+              <div>
+                <label htmlFor={`plan-${activePlan.id}-clawback-threshold`}>Threshold (attainment)</label>
+                <input id={`plan-${activePlan.id}-clawback-threshold`} inputMode="decimal" value={activePlan.extras.clawback.threshold} onChange={(event) => setExtraLump(activePlan.id, "clawback", "threshold", event.target.value)} />
+              </div>
+            </div>
+          ) : null}
+
+          <label className="inline-toggle">
+            <input type="checkbox" checked={activePlan.extras?.payFloor != null} onChange={() => toggleExtra(activePlan.id, "payFloor")} />
+            <span>Pay-floor (clamp total pay, override the negative tail)</span>
+          </label>
+          {activePlan.extras?.payFloor != null ? (
+            <div>
+              <label htmlFor={`plan-${activePlan.id}-pay-floor`}>Minimum total pay</label>
+              <input id={`plan-${activePlan.id}-pay-floor`} inputMode="decimal" value={activePlan.extras.payFloor} onChange={(event) => setExtraScalar(activePlan.id, "payFloor", event.target.value)} />
+            </div>
+          ) : null}
+
+          <label className="inline-toggle">
+            <input type="checkbox" checked={activePlan.extras?.drawRecoverable != null} onChange={() => toggleExtra(activePlan.id, "drawRecoverable")} />
+            <span>Recoverable draw (cash-flow report only)</span>
+          </label>
+          {activePlan.extras?.drawRecoverable != null ? (
+            <div>
+              <label htmlFor={`plan-${activePlan.id}-draw-r`}>Advance against commission</label>
+              <input id={`plan-${activePlan.id}-draw-r`} inputMode="decimal" value={activePlan.extras.drawRecoverable} onChange={(event) => setExtraScalar(activePlan.id, "drawRecoverable", event.target.value)} />
+              <p className="field-note">Full-recovery assumption — CE-neutral in the one-period model; multi-period recovery is V-04.</p>
             </div>
           ) : null}
         </fieldset>

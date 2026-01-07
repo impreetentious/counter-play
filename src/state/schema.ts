@@ -5,11 +5,13 @@ import type {
   Bonus,
   MonteCarloSettings,
   MultiplierRange,
+  PayoutExtras,
   Plan,
   Scenario,
   ScenarioSettings,
   Segment,
   SegmentRanges,
+  ThresholdLump,
   Tier,
 } from "@/engine/types";
 
@@ -32,6 +34,19 @@ export interface TierJson {
   rate: string;
 }
 
+export interface ThresholdLumpJson {
+  amount: string;
+  threshold: string;
+}
+
+export interface PayoutExtrasJson {
+  drawNonRecoverable?: string | null;
+  drawRecoverable?: string | null;
+  spiff?: ThresholdLumpJson | null;
+  clawback?: ThresholdLumpJson | null;
+  payFloor?: string | null;
+}
+
 export interface PlanJson {
   id: string;
   label: string;
@@ -40,6 +55,7 @@ export interface PlanJson {
   tiers: TierJson[];
   bonus: { L: string; x_b: string } | null;
   cap: string | null;
+  extras?: PayoutExtrasJson | null;
 }
 
 export interface ScenarioJson {
@@ -117,6 +133,15 @@ const label = z.string().max(60, "Labels are limited to 60 characters.");
 const tierSchema = z.object({ from: attainment, rate }).strict();
 
 const bonusSchema = z.object({ L: money, x_b: positiveAttainment }).strict();
+const thresholdLumpSchema = z.object({ amount: money, threshold: positiveAttainment }).strict();
+// §3.2a V-01 payout-primitive extensions; every field optional/nullable so absence ⇒ identical W.
+const extrasSchema = z.object({
+  drawNonRecoverable: money.nullable().optional(),
+  drawRecoverable: money.nullable().optional(),
+  spiff: thresholdLumpSchema.nullable().optional(),
+  clawback: thresholdLumpSchema.nullable().optional(),
+  payFloor: money.nullable().optional(),
+}).strict();
 const planSchema = z.object({
   id,
   label,
@@ -125,6 +150,7 @@ const planSchema = z.object({
   tiers: z.array(tierSchema).min(1).max(12),
   bonus: bonusSchema.nullable(),
   cap: positiveAttainment.nullable(),
+  extras: extrasSchema.nullable().optional(),
 }).strict().superRefine((plan, ctx) => {
   const first = plan.tiers[0];
   if (!first || !Rat.fromDecimalString(first.from).eq(R0)) {
@@ -235,10 +261,25 @@ function toSegment(json: SegmentJson): Segment {
   };
 }
 
+function toLump(json: ThresholdLumpJson | null | undefined): ThresholdLump | null {
+  return json ? { amount: toRat(json.amount), threshold: toRat(json.threshold) } : null;
+}
+
+function toExtras(json: PayoutExtrasJson | null | undefined): PayoutExtras | null {
+  if (!json) return null;
+  return {
+    drawNonRecoverable: json.drawNonRecoverable != null ? toRat(json.drawNonRecoverable) : null,
+    drawRecoverable: json.drawRecoverable != null ? toRat(json.drawRecoverable) : null,
+    spiff: toLump(json.spiff),
+    clawback: toLump(json.clawback),
+    payFloor: json.payFloor != null ? toRat(json.payFloor) : null,
+  };
+}
+
 function toPlan(json: PlanJson): Plan {
   const bonus: Bonus | null = json.bonus ? { L: toRat(json.bonus.L), x_b: toRat(json.bonus.x_b) } : null;
   const tiers: Tier[] = json.tiers.map((tier) => ({ from: toRat(tier.from), rate: toRat(tier.rate) }));
-  return { ...json, base: toRat(json.base), quota: toRat(json.quota), tiers, bonus, cap: json.cap ? toRat(json.cap) : null };
+  return { ...json, base: toRat(json.base), quota: toRat(json.quota), tiers, bonus, cap: json.cap ? toRat(json.cap) : null, extras: toExtras(json.extras) };
 }
 
 function toRange(range: [string, string]): MultiplierRange {
@@ -310,14 +351,33 @@ function fromSegment(segment: Segment): SegmentJson {
   };
 }
 
+function fromLump(lump: ThresholdLump): ThresholdLumpJson {
+  return { amount: decimalOf(lump.amount), threshold: decimalOf(lump.threshold) };
+}
+
+/** Serializes extras, omitting null fields so extras-free plans stay byte-identical on the wire. */
+function fromExtras(extras: PayoutExtras | null | undefined): PayoutExtrasJson | undefined {
+  if (!extras) return undefined;
+  const out: PayoutExtrasJson = {};
+  if (extras.drawNonRecoverable != null) out.drawNonRecoverable = decimalOf(extras.drawNonRecoverable);
+  if (extras.drawRecoverable != null) out.drawRecoverable = decimalOf(extras.drawRecoverable);
+  if (extras.spiff) out.spiff = fromLump(extras.spiff);
+  if (extras.clawback) out.clawback = fromLump(extras.clawback);
+  if (extras.payFloor != null) out.payFloor = decimalOf(extras.payFloor);
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function fromPlan(plan: Plan): PlanJson {
+  const { extras: _domainExtras, ...rest } = plan;
+  const extras = fromExtras(plan.extras);
   return {
-    ...plan,
+    ...rest,
     base: decimalOf(plan.base),
     quota: decimalOf(plan.quota),
     tiers: plan.tiers.map((tier) => ({ from: decimalOf(tier.from), rate: decimalOf(tier.rate) })),
     bonus: plan.bonus ? { L: decimalOf(plan.bonus.L), x_b: decimalOf(plan.bonus.x_b) } : null,
     cap: plan.cap ? decimalOf(plan.cap) : null,
+    ...(extras ? { extras } : {}),
   };
 }
 

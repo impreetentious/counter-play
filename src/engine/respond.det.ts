@@ -3,6 +3,12 @@ import { Rat, R0 } from "./rat";
 import type { PayoutDecomposition } from "./plan";
 import type { Plan, Segment } from "./types";
 
+/** §3.2a recoverable-draw cash-flow report (never enters W); exact in det mode. */
+export interface RecoverableDrawReport {
+  advance: Rat;
+  carry: Rat;
+}
+
 export interface DeterministicResponse {
   effort: Rat;
   output: Rat;
@@ -12,6 +18,7 @@ export interface DeterministicResponse {
   ce: Rat;
   marginalAtOpt: Rat;
   participation: boolean;
+  recoverableDraw: RecoverableDrawReport | null;
 }
 
 function effortCe(plan: Plan, segment: Segment, effort: Rat): Rat {
@@ -69,6 +76,8 @@ export function respondDeterministic(plan: Plan, segment: Segment): Deterministi
   const output = segment.ability.mul(best);
   const payoutValue = payout(plan, segment, output);
   const decomposition = decompose(plan, segment, output);
+  const recoverable = plan.extras?.drawRecoverable ?? null;
+  const variablePay = payoutValue.sub(plan.base);
   return {
     effort: best,
     output,
@@ -78,5 +87,6 @@ export function respondDeterministic(plan: Plan, segment: Segment): Deterministi
     ce: bestCe,
     marginalAtOpt: marginalRate(plan, segment, output),
     participation: bestCe.gte(segment.reservationCE),
+    recoverableDraw: recoverable ? { advance: recoverable, carry: recoverable.sub(variablePay).max(R0) } : null,
   };
 }

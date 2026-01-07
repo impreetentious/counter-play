@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import type { Scenario } from "@/engine/types";
 import { EngineError } from "@/engine/errors";
-import { allocateId, parseScenario, ScenarioJsonSchema, type PlanJson, type ScenarioJson, type SegmentJson } from "./schema";
+import { allocateId, parseScenario, ScenarioJsonSchema, type PayoutExtrasJson, type PlanJson, type ScenarioJson, type SegmentJson } from "./schema";
 import { landingScenario, templates, type TemplateEntry } from "./templates";
 import { persistScenario } from "./persist";
 import { computeTornado, runMonteCarlo, type KpiKey, type McResult, type TornadoResult } from "@/engine/mc";
@@ -35,6 +35,9 @@ export interface StoreState {
   setBonusField(planId: string, key: "L" | "x_b", value: string): void;
   toggleCap(planId: string): void;
   setCap(planId: string, value: string): void;
+  toggleExtra(planId: string, key: ExtraKey): void;
+  setExtraScalar(planId: string, key: ExtraScalarKey, value: string): void;
+  setExtraLump(planId: string, key: ExtraLumpKey, field: "amount" | "threshold", value: string): void;
   addPlan(): void;
   duplicatePlan(id: string): void;
   deletePlan(id: string): void;
@@ -54,6 +57,33 @@ export interface StoreState {
   setSegmentRange(segmentId: string, param: "a" | "k" | "sigma" | "gamma", range: [string, string] | null): void;
   setTornadoKpi(kpi: KpiKey): void;
   runMonteCarloAction(): void;
+}
+
+export type ExtraKey = "drawNonRecoverable" | "drawRecoverable" | "spiff" | "clawback" | "payFloor";
+export type ExtraScalarKey = "drawNonRecoverable" | "drawRecoverable" | "payFloor";
+export type ExtraLumpKey = "spiff" | "clawback";
+
+// §3.2a defaults used when a primitive is switched on in the Design surface.
+const EXTRA_DEFAULTS: { [K in ExtraKey]: NonNullable<PayoutExtrasJson[K]> } = {
+  drawNonRecoverable: "30000",
+  drawRecoverable: "30000",
+  payFloor: "0",
+  spiff: { amount: "5000", threshold: "1.2" },
+  clawback: { amount: "5000", threshold: "0.5" },
+};
+
+/** Applies a mutation to a plan's extras block, dropping it entirely when empty. */
+function mutateExtras(plan: PlanJson, fn: (extras: PayoutExtrasJson) => PayoutExtrasJson): PlanJson {
+  const next = fn({ ...(plan.extras ?? {}) });
+  const cleaned: PayoutExtrasJson = {};
+  for (const [key, value] of Object.entries(next)) {
+    if (value != null) (cleaned as Record<string, unknown>)[key] = value;
+  }
+  if (Object.keys(cleaned).length === 0) {
+    const { extras: _drop, ...rest } = plan;
+    return rest;
+  }
+  return { ...plan, extras: cleaned };
 }
 
 function reviewScenario(next: ScenarioJson): { domain: Scenario | null; issues: FieldIssue[]; domainError: string | null } {
@@ -184,6 +214,26 @@ export const useScenarioStore = create<StoreState>((set, get) => ({
   },
   setCap(planId, value) {
     const next = replacePlan(get().scenario, planId, (plan) => (plan.cap ? { ...plan, cap: value } : plan));
+    set(commit(next, get().activePlanId));
+  },
+  toggleExtra(planId, key) {
+    const next = replacePlan(get().scenario, planId, (plan) => mutateExtras(plan, (extras) => (
+      extras[key] != null ? { ...extras, [key]: null } : { ...extras, [key]: EXTRA_DEFAULTS[key] }
+    )));
+    set(commit(next, get().activePlanId));
+  },
+  setExtraScalar(planId, key, value) {
+    const next = replacePlan(get().scenario, planId, (plan) => (
+      plan.extras?.[key] != null ? mutateExtras(plan, (extras) => ({ ...extras, [key]: value })) : plan
+    ));
+    set(commit(next, get().activePlanId));
+  },
+  setExtraLump(planId, key, field, value) {
+    const next = replacePlan(get().scenario, planId, (plan) => {
+      const current = plan.extras?.[key];
+      if (!current) return plan;
+      return mutateExtras(plan, (extras) => ({ ...extras, [key]: { ...current, [field]: value } }));
+    });
     set(commit(next, get().activePlanId));
   },
   addPlan() {

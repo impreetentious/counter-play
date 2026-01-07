@@ -11,7 +11,7 @@ import { computeTiming } from "@/engine/timing";
 import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 
-const appVersion = "0.11.0";
+const appVersion = "0.11.1";
 
 function fmtCurrency(value: number, currency: string): string {
   const sign = value < 0 ? "-" : "";
@@ -148,6 +148,11 @@ export function RecordView(): React.JSX.Element {
               <div><dt>Quota</dt><dd>{plan.quota}</dd></div>
               <div><dt>Bonus</dt><dd>{plan.bonus ? `${plan.bonus.L} @ x_b=${plan.bonus.x_b}` : "none"}</dd></div>
               <div><dt>Cap</dt><dd>{plan.cap ?? "none"}</dd></div>
+              {plan.extras?.drawNonRecoverable != null ? <div><dt>Non-recoverable draw</dt><dd>{plan.extras.drawNonRecoverable}</dd></div> : null}
+              {plan.extras?.spiff != null ? <div><dt>SPIFF</dt><dd>{plan.extras.spiff.amount} @ x={plan.extras.spiff.threshold}</dd></div> : null}
+              {plan.extras?.clawback != null ? <div><dt>Clawback</dt><dd>{plan.extras.clawback.amount} below x={plan.extras.clawback.threshold}</dd></div> : null}
+              {plan.extras?.payFloor != null ? <div><dt>Pay-floor</dt><dd>{plan.extras.payFloor}</dd></div> : null}
+              {plan.extras?.drawRecoverable != null ? <div><dt>Recoverable draw</dt><dd>{plan.extras.drawRecoverable} (cash-flow report)</dd></div> : null}
             </dl>
             <table className="record-table">
               <caption>Tier structure</caption>
