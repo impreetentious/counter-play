@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { brandName } from "@/brand";
 import { engineVersion } from "@/engine/version";
@@ -10,7 +11,7 @@ import { computeTiming } from "@/engine/timing";
 import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 
-const appVersion = "0.10.1";
+const appVersion = "0.10.2";
 
 function fmtCurrency(value: number, currency: string): string {
   const sign = value < 0 ? "-" : "";
@@ -20,8 +21,17 @@ function fmtCurrency(value: number, currency: string): string {
   return `${sign}${currency}${abs.toFixed(0)}`;
 }
 
-function fmtPercent(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return "—";
+function fmtPercent(value: number | null): ReactNode {
+  if (value === null || !Number.isFinite(value)) {
+    return (
+      <span
+        title="No expected revenue in this population — see per-segment table"
+        aria-label="No expected revenue in this population — see per-segment table"
+      >
+        —
+      </span>
+    );
+  }
   return `${(value * 100).toFixed(1)}%`;
 }
 
@@ -80,7 +90,7 @@ export function RecordView(): React.JSX.Element {
       </header>
 
       <section className="record-section record-cover" aria-labelledby="cover-heading">
-        <h2 id="cover-heading">Pricing Decision Record</h2>
+        <h2 id="cover-heading">Compensation Design Record</h2>
         <dl className="record-meta">
           <div><dt>Mode</dt><dd>{scenario.settings.mode}</dd></div>
           <div><dt>Period</dt><dd>{scenario.settings.periodLabel}</dd></div>

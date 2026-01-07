@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("record page renders assumptions, KPIs, findings, and stamps from the current scenario", async ({ page }) => {
   await page.goto("/record");
-  await expect(page.getByRole("heading", { name: "Pricing Decision Record" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Compensation Design Record" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Segment assumptions" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Plan specification" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Simulated KPIs/ })).toBeVisible();

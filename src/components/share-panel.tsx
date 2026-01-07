@@ -41,9 +41,16 @@ export function SharePanel(): React.JSX.Element {
       const origin = typeof window === "undefined" ? "" : `${window.location.origin}${window.location.pathname}`;
       const url = `${origin}#${share.hash}`;
       setShareUrl(url);
-      setShareStatus({ kind: "ok", message: `${share.bytes} bytes · ${share.compressed ? "deflate-raw" : "uncompressed"} · payload contains scenario only (results always recompute).` });
+      const base = `${share.bytes} bytes · ${share.compressed ? "deflate-raw" : "uncompressed"} · payload contains scenario only (results always recompute)`;
       if (typeof navigator !== "undefined" && navigator.clipboard) {
-        try { await navigator.clipboard.writeText(url); } catch { /* user can copy manually */ }
+        try {
+          await navigator.clipboard.writeText(url);
+          setShareStatus({ kind: "ok", message: `${base} · copied to clipboard.` });
+        } catch {
+          setShareStatus({ kind: "ok", message: `${base} · clipboard blocked — select the link and copy manually.` });
+        }
+      } else {
+        setShareStatus({ kind: "ok", message: `${base} · select the link and copy manually.` });
       }
     } catch (error) {
       setShareStatus({ kind: "error", message: errorMessage(error, "Failed to build a share link.") });
@@ -71,12 +78,12 @@ export function SharePanel(): React.JSX.Element {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "counterplay-scenario.json";
+      anchor.download = "scenario.json";
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
-      setJsonStatus({ kind: "ok", message: "Downloaded counterplay-scenario.json." });
+      setJsonStatus({ kind: "ok", message: "Downloaded scenario.json." });
     } catch (error) {
       setJsonStatus({ kind: "error", message: errorMessage(error, "Failed to export the scenario.") });
     }
