@@ -9,6 +9,10 @@ export interface FloatDecomposition {
   base: number;
   perTier: number[];
   bonus: number;
+  spiff: number;
+  clawback: number;
+  drawTopUp: number;
+  floorTopUp: number;
   total: number;
 }
 
@@ -112,7 +116,7 @@ function expectedDecomposition(plan: Plan, segment: Segment, mean: number, sigma
   const bonus = plan.bonus
     ? toNumber(plan.bonus.L) * normalIntervalProbability((quota * toNumber(plan.bonus.x_b) - mean) / sigma, Infinity)
     : 0;
-  return { base, perTier, bonus, total: base + perTier.reduce((sum, value) => sum + value, 0) + bonus };
+  return { base, perTier, bonus, spiff: 0, clawback: 0, drawTopUp: 0, floorTopUp: 0, total: base + perTier.reduce((sum, value) => sum + value, 0) + bonus };
 }
 
 function logSumExp(values: readonly number[]): number {
@@ -216,6 +220,10 @@ export function respondCARA(plan: Plan, segment: Segment): StochasticResponse {
       base: toNumber(response.decomposition.base),
       perTier: response.decomposition.perTier.map(toNumber),
       bonus: toNumber(response.decomposition.bonus),
+      spiff: 0,
+      clawback: 0,
+      drawTopUp: 0,
+      floorTopUp: 0,
       total: toNumber(response.decomposition.total),
     };
     return {

@@ -26,7 +26,11 @@ export function checkPayoutConservation(lines: readonly DeterministicPayoutLine[
   const direct = lines.reduce((sum, line) => sum.add(line.payout.mul(Rat.from(line.count))), R0);
   const rebuilt = lines.reduce((sum, line) => {
     const parts = line.decomposition.perTier.reduce((tierSum, value) => tierSum.add(value), line.decomposition.base)
-      .add(line.decomposition.bonus);
+      .add(line.decomposition.bonus)
+      .add(line.decomposition.spiff)
+      .sub(line.decomposition.clawback)
+      .add(line.decomposition.drawTopUp)
+      .add(line.decomposition.floorTopUp);
     return sum.add(parts.mul(Rat.from(line.count)));
   }, R0);
   const pass = direct.eq(rebuilt);
@@ -39,7 +43,11 @@ export function checkPayoutConservation(lines: readonly DeterministicPayoutLine[
 /** Float I-1 uses the contract's combined absolute/relative tolerance. */
 export function checkStochasticPayoutConservation(lines: readonly StochasticPayoutLine[]): IdentityAttestation {
   const direct = lines.reduce((sum, line) => sum + line.count * line.payout, 0);
-  const rebuilt = lines.reduce((sum, line) => sum + line.count * (line.decomposition.base + line.decomposition.perTier.reduce((tierSum, value) => tierSum + value, 0) + line.decomposition.bonus), 0);
+  const rebuilt = lines.reduce((sum, line) => {
+    const d = line.decomposition;
+    const parts = d.base + d.perTier.reduce((tierSum, value) => tierSum + value, 0) + d.bonus + d.spiff - d.clawback + d.drawTopUp + d.floorTopUp;
+    return sum + line.count * parts;
+  }, 0);
   const error = Math.abs(direct - rebuilt);
   const pass = error <= 1e-9 * Math.max(1, Math.abs(direct));
   if (!pass) throw new EngineError("INTERNAL_INVARIANT", `I-1 stochastic payout conservation failed: ${direct} != ${rebuilt}.`);
