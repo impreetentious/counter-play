@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import type { ReactNode } from "react";
 import type { DeterministicPlanResult, DeterministicSimulationResult, PlanComparison, StochasticPlanResult, StochasticSimulationResult } from "@/engine/simulate";
 import { comparePlans, simulate } from "@/engine/simulate";
 import { engineVersion } from "@/engine/version";
@@ -16,8 +17,17 @@ function niceCurrency(value: number): string {
   return `${sign}$${abs.toFixed(0)}`;
 }
 
-function nicePercent(value: number | null): string {
-  if (value === null) return "—";
+function nicePercent(value: number | null): ReactNode {
+  if (value === null) {
+    return (
+      <span
+        title="No expected revenue in this population — see per-segment table"
+        aria-label="No expected revenue in this population — see per-segment table"
+      >
+        —
+      </span>
+    );
+  }
   return `${(value * 100).toFixed(1)}%`;
 }
 
@@ -141,7 +151,6 @@ export function SimulateSurface(): React.JSX.Element {
   const setMode = useScenarioStore((state) => state.setMode);
   const activePlanId = useScenarioStore((state) => state.activePlanId);
   const setActivePlanId = useScenarioStore((state) => state.setActivePlanId);
-  const [runtimeError, setRuntimeError] = useState<Error | null>(null);
 
   const runOutcome = useMemo(() => {
     if (!domain) return null;
@@ -157,6 +166,7 @@ export function SimulateSurface(): React.JSX.Element {
       <p className="eyebrow">Simulate</p>
       <h2 id="simulate-heading">Fix scenario inputs first</h2>
       <p role="alert" className="surface-error">{domainError}</p>
+      <p className="surface-summary">Return to Model or Design, clear the flagged fields, then come back — simulation re-runs the moment the scenario validates.</p>
     </section>
   );
 
@@ -166,14 +176,24 @@ export function SimulateSurface(): React.JSX.Element {
         <p className="eyebrow">Simulate</p>
         <h2 id="simulate-heading">Engine could not run</h2>
         <p className="surface-error">{runOutcome instanceof Error ? runOutcome.message : "Scenario has not been parsed yet."}</p>
-        <button type="button" onClick={() => setRuntimeError(null)}>Retry</button>
+        <p className="surface-summary">
+          This is an engine throw, not a form validation message. Reload a template from the picker above, or export the scenario JSON and inspect the inputs.
+        </p>
       </section>
     );
   }
 
   const result = runOutcome;
   const activePlan = result.plans.find((plan) => plan.plan.id === activePlanId) ?? result.plans[0];
-  if (!activePlan) return <section className="surface"><p>No plans available.</p></section>;
+  if (!activePlan) {
+    return (
+      <section className="surface" id="surface-simulate" aria-labelledby="simulate-heading">
+        <p className="eyebrow">Simulate</p>
+        <h2 id="simulate-heading">No plans available</h2>
+        <p className="surface-summary">Add a plan on the Design surface (or load a template) before simulating best responses.</p>
+      </section>
+    );
+  }
 
   const comparisons: PlanComparison[] = result.mode === "deterministic" && result.plans.length > 1
     ? result.plans.slice(1).map((plan) => comparePlans(result, result.plans[0]!.plan.id, plan.plan.id))

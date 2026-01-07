@@ -40,6 +40,7 @@ export function AnalyzeSurface(): React.JSX.Element {
       <p className="eyebrow">Analyze</p>
       <h2 id="analyze-heading">Fix scenario inputs first</h2>
       <p role="alert" className="surface-error">{domainError}</p>
+      <p className="surface-summary">Return to Model or Design and clear the flagged inputs. The linter, boundary panel, and Monte Carlo all require a valid scenario.</p>
     </section>
   );
 

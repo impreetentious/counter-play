@@ -24,7 +24,15 @@ export function DesignSurface(): React.JSX.Element {
 
   const activePlan = scenario.plans.find((plan) => plan.id === activePlanId) ?? scenario.plans[0];
   const domainPlan = domain?.plans.find((plan) => plan.id === activePlan?.id);
-  if (!activePlan) return <p>No plans configured.</p>;
+  if (!activePlan) {
+    return (
+      <section className="surface" id="surface-design" aria-labelledby="design-heading">
+        <p className="eyebrow">Design</p>
+        <h2 id="design-heading">No plans configured</h2>
+        <p className="surface-summary">A scenario needs at least one plan. Load a template above, or import a JSON handoff that includes a plan.</p>
+      </section>
+    );
+  }
 
   const planIndex = scenario.plans.findIndex((plan) => plan.id === activePlan.id);
   const planPath = `plans.${planIndex}`;
