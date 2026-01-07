@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Counterplay">
+  <rect width="128" height="128" rx="18" fill="#102724"/>
+  <line x1="18" y1="70" x2="110" y2="70" stroke="#40514c" stroke-width="2"/>
+  <path d="M22 88 C40 84 46 82 48 82 C48 82 62 78 78 52 C90 34 102 26 110 22" fill="none" stroke="#7bd4b9" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="48" cy="82" r="7" fill="#e98036"/>
+</svg>

@@ -2,7 +2,7 @@
 
 > A compensation plan is a mechanism. People respond to the mechanism, not to the intent behind it. This is the instrument that computes that response — before the plan ships.
 
-**Status:** v0.10.3 — client-side app on `main` (model, design, simulate, analyze, design-record export). Static export; not yet deployed to a public URL.
+**Status:** v0.10.4 — client-side app on `main` (model, design, simulate, analyze, design-record export). Static export; not yet deployed to a public URL.
 
 ## The problem
 
