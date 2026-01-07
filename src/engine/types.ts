@@ -61,6 +61,15 @@ export interface Plan {
   extras?: PayoutExtras | null;
 }
 
+/**
+ * §3.3a V-02 bounded-rationality dial. `exact` is the §3.3/§3.4 best response;
+ * `softmax` draws over the plan's salient efforts with temperature `tau` (currency units).
+ */
+export interface Rationality {
+  mode: "exact" | "softmax";
+  tau: Rat;
+}
+
 export type MultiplierRange = readonly [Rat, Rat];
 
 export interface SegmentRanges {
@@ -85,6 +94,8 @@ export interface ScenarioSettings {
   currencyLabel: string;
   discount: Rat;
   seasonality: readonly [Rat, Rat];
+  /** §3.3a; absent ⇒ `{ mode: "exact" }` ⇒ responses identical to §3.3/§3.4. */
+  rationality?: Rationality | null;
   mc: MonteCarloSettings;
 }
 

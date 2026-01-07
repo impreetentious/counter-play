@@ -11,7 +11,7 @@ import { computeTiming } from "@/engine/timing";
 import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 
-const appVersion = "0.11.1";
+const appVersion = "0.11.2";
 
 function fmtCurrency(value: number, currency: string): string {
   const sign = value < 0 ? "-" : "";
