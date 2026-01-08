@@ -5,7 +5,7 @@ import { simulate } from "./simulate";
 import { computeTiming } from "./timing";
 import { EngineError } from "./errors";
 import { Rat, R0 } from "./rat";
-import type { Plan, Scenario, Segment } from "./types";
+import type { Plan, Rationality, Scenario, Segment } from "./types";
 
 export type FindingType = "L-1" | "L-2" | "L-3" | "L-4" | "L-5" | "L-6" | "L-7";
 export type FindingSeverity = "info" | "warn" | "high";
@@ -89,12 +89,14 @@ function nearestFollowingNonzeroRate(plan: Plan, index: number): Rat | null {
   return null;
 }
 
-function detEffort(plan: Plan, segment: Segment): number {
-  return respondDeterministic(plan, segment).effort.toNumber();
+// §3.3a: every counterfactual runs under the scenario's active response class, so findings and
+// the simulation can never disagree; the two exact-bunching tests below read the modal play.
+function detEffort(plan: Plan, segment: Segment, rationality: Rationality | null | undefined): number {
+  return respondDeterministic(plan, segment, rationality).effort.toNumber();
 }
 
-function stochEffort(plan: Plan, segment: Segment): number {
-  return respondCARA(plan, segment).effort;
+function stochEffort(plan: Plan, segment: Segment, rationality: Rationality | null | undefined): number {
+  return respondCARA(plan, segment, rationality).effort;
 }
 
 function planHasNonzeroRate(plan: Plan): boolean {
@@ -121,12 +123,12 @@ function lintPlanForL1(plan: Plan, scenario: Scenario): Finding[] {
     let highSegments: string[] = [];
     let warnSegments: string[] = [];
     for (const segment of scenario.population) {
-      const effortCf = detEffort(counterfactualPlan, segment);
+      const effortCf = detEffort(counterfactualPlan, segment, scenario.settings.rationality);
       const revenueCf = segment.ability.toNumber() * effortCf;
       const attainCf = revenueCf / segmentQuota(plan, segment).toNumber();
       if (attainCf >= run.loAttain.toNumber() && attainCf < run.hiAttain.toNumber()) highSegments.push(segment.id);
-      const actualResponse = respondDeterministic(plan, segment);
-      if (actualResponse.attainment.eq(run.loAttain)) warnSegments.push(segment.id);
+      const actualResponse = respondDeterministic(plan, segment, scenario.settings.rationality);
+      if (actualResponse.modal.attainment.eq(run.loAttain)) warnSegments.push(segment.id);
     }
     let severity: FindingSeverity = "info";
     let segments: string[] = [];
@@ -157,8 +159,8 @@ function lintPlanForL2(plan: Plan, scenario: Scenario): Finding[] {
   let affectedHeadcount = 0;
   const totalHeadcount = scenario.population.reduce((sum, segment) => sum + segment.count, 0);
   for (const segment of scenario.population) {
-    const effortWith = isDet ? detEffort(plan, segment) : stochEffort(plan, segment);
-    const effortWithout = isDet ? detEffort(withoutBonus, segment) : stochEffort(withoutBonus, segment);
+    const effortWith = isDet ? detEffort(plan, segment, scenario.settings.rationality) : stochEffort(plan, segment, scenario.settings.rationality);
+    const effortWithout = isDet ? detEffort(withoutBonus, segment, scenario.settings.rationality) : stochEffort(withoutBonus, segment, scenario.settings.rationality);
     const movesEnough = effortWithout === 0 ? effortWith > 0 : Math.abs(effortWith - effortWithout) > 0.05 * effortWithout;
     if (movesEnough) { affected.push(segment.id); affectedHeadcount += segment.count; }
     const quota = segmentQuota(plan, segment).toNumber();
@@ -193,11 +195,11 @@ function lintPlanForL3(plan: Plan, scenario: Scenario): Finding[] {
   const totalHeadcount = scenario.population.reduce((sum, segment) => sum + segment.count, 0);
   let revenueLeft = 0;
   for (const segment of scenario.population) {
-    const effortActual = isDet ? detEffort(plan, segment) : stochEffort(plan, segment);
-    const effortUncapped = isDet ? detEffort(uncappedPlan, segment) : stochEffort(uncappedPlan, segment);
+    const effortActual = isDet ? detEffort(plan, segment, scenario.settings.rationality) : stochEffort(plan, segment, scenario.settings.rationality);
+    const effortUncapped = isDet ? detEffort(uncappedPlan, segment, scenario.settings.rationality) : stochEffort(uncappedPlan, segment, scenario.settings.rationality);
     const capAttain = cap.toNumber();
     if (isDet) {
-      const attainActual = respondDeterministic(plan, segment).attainment.toNumber();
+      const attainActual = respondDeterministic(plan, segment, scenario.settings.rationality).modal.attainment.toNumber();
       if (Math.abs(attainActual - capAttain) < 1e-9 && effortUncapped > effortActual) {
         flagged.push(segment.id);
         flaggedHeadcount += segment.count;
@@ -228,7 +230,9 @@ function lintPlanForL4(plan: Plan, scenario: Scenario): Finding[] {
   const isDet = scenario.settings.mode === "deterministic";
   const findings: Finding[] = [];
   for (const segment of scenario.population) {
-    const ce = isDet ? respondDeterministic(plan, segment).ce.toNumber() : respondCARA(plan, segment).ce;
+    const ce = isDet
+      ? respondDeterministic(plan, segment, scenario.settings.rationality).ce.toNumber()
+      : respondCARA(plan, segment, scenario.settings.rationality).ce;
     const reservation = segment.reservationCE.toNumber();
     if (ce < reservation) {
       const gap = reservation - ce;

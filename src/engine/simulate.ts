@@ -61,39 +61,53 @@ export interface PlanComparison {
   attestation: IdentityAttestation;
 }
 
-function weightedLowerQuantile(points: readonly { value: Rat; count: number }[], probability: Rat): Rat {
+/**
+ * §3.5 weighted lower quantile over exact point masses. Weights are rationals so a §3.3a
+ * mixture contributes `n_s·p_j` per component; integer headcounts reproduce the P2 rule exactly.
+ */
+function weightedLowerQuantile(points: readonly { value: Rat; weight: Rat }[], probability: Rat): Rat {
   const sorted = [...points].sort((left, right) => left.value.cmp(right.value));
   if (sorted.length === 0) return R0;
-  const total = sorted.reduce((sum, point) => sum + point.count, 0);
-  if (total === 0) return sorted[0]?.value ?? R0;
-  const scaled = probability.n * BigInt(total);
-  const target = scaled <= 0n ? 1 : Number((scaled + probability.d - 1n) / probability.d);
-  let cumulative = 0;
+  const total = sorted.reduce((sum, point) => sum.add(point.weight), R0);
+  if (total.eq(R0)) return sorted[0]?.value ?? R0;
+  const target = probability.mul(total);
+  let cumulative = R0;
   for (const point of sorted) {
-    cumulative += point.count;
-    if (cumulative >= target) return point.value;
+    cumulative = cumulative.add(point.weight);
+    if (cumulative.gte(target)) return point.value;
   }
   return sorted.at(-1)?.value ?? R0;
 }
 
 function simulatePlan(scenario: Scenario, plan: Plan): DeterministicPlanResult {
+  const rationality = scenario.settings.rationality;
   const responses = scenario.population.map((segment) => ({
     segmentId: segment.id,
     count: segment.count,
-    response: respondDeterministic(plan, segment),
+    response: respondDeterministic(plan, segment, rationality),
   }));
   const expectedRevenue = responses.reduce((sum, item) => sum.add(item.response.output.mul(Rat.from(item.count))), R0);
   const totalComp = responses.reduce((sum, item) => sum.add(item.response.payout.mul(Rat.from(item.count))), R0);
   const totalBase = scenario.population.reduce((sum, segment) => sum.add(plan.base.mul(Rat.from(segment.count))), R0);
   const totalHeadcount = scenario.population.reduce((sum, segment) => sum + segment.count, 0);
-  const quotaAttained = responses.reduce((sum, item) => sum + (item.response.attainment.gte(Rat.one()) ? item.count : 0), 0);
+  // §3.3a: a segment contributes the mixture share of its plays that clear quota, not a 0/1 flag.
+  const quotaAttained = responses.reduce((sum, item) => {
+    const share = item.response.components.reduce(
+      (inner, component) => (component.attainment.gte(Rat.one()) ? inner.add(component.probability) : inner),
+      R0,
+    );
+    return sum.add(share.mul(Rat.from(item.count)));
+  }, R0);
   const trueValue = responses.reduce((sum, item) => {
     const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
     if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
     return sum.add(segment.valueQuality.mul(item.response.output).mul(Rat.from(item.count)));
   }, R0);
   const retentionRisk = responses.filter((item) => !item.response.participation).map((item) => item.segmentId);
-  const payouts = responses.map((item) => ({ value: item.response.payout, count: item.count }));
+  const payouts = responses.flatMap((item) => item.response.components.map((component) => ({
+    value: component.payout,
+    weight: component.probability.mul(Rat.from(item.count)),
+  })));
   return {
     plan,
     responses,
@@ -101,7 +115,7 @@ function simulatePlan(scenario: Scenario, plan: Plan): DeterministicPlanResult {
       expectedRevenue,
       totalComp,
       compRatio: expectedRevenue.eq(R0) ? null : totalComp.div(expectedRevenue),
-      quotaAttainRate: Rat.from(quotaAttained, totalHeadcount),
+      quotaAttainRate: quotaAttained.div(Rat.from(totalHeadcount)),
       effectiveCommissionRate: expectedRevenue.eq(R0) ? null : totalComp.sub(totalBase).div(expectedRevenue),
       trueValue,
       retentionRisk,
@@ -131,8 +145,9 @@ function stochasticQuantile(scenario: Scenario, plan: Plan, responses: Stochasti
   const scored = responses.map((item) => {
     const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
     if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
-    const lower = payout(plan, segment, Rat.fromFloat64(item.response.output - 12 * item.response.sigma)).toNumber();
-    const upper = payout(plan, segment, Rat.fromFloat64(item.response.output + 12 * item.response.sigma)).toNumber();
+    const outputs = item.response.components.map((component) => component.output);
+    const lower = payout(plan, segment, Rat.fromFloat64(Math.min(...outputs) - 12 * item.response.sigma)).toNumber();
+    const upper = payout(plan, segment, Rat.fromFloat64(Math.max(...outputs) + 12 * item.response.sigma)).toNumber();
     return { segment, response: item.response, count: item.count, lower, upper };
   });
   let lower = Math.min(...scored.map((item) => item.lower));
@@ -150,7 +165,7 @@ function stochasticQuantile(scenario: Scenario, plan: Plan, responses: Stochasti
 }
 
 function simulateStochasticPlan(scenario: Scenario, plan: Plan): StochasticPlanResult {
-  const responses = scenario.population.map((segment) => ({ segmentId: segment.id, count: segment.count, response: respondCARA(plan, segment) }));
+  const responses = scenario.population.map((segment) => ({ segmentId: segment.id, count: segment.count, response: respondCARA(plan, segment, scenario.settings.rationality) }));
   const expectedRevenue = responses.reduce((sum, item) => sum + item.count * item.response.output, 0);
   const totalComp = responses.reduce((sum, item) => sum + item.count * item.response.payout, 0);
   const totalBase = scenario.population.reduce((sum, segment) => sum + segment.count * plan.base.toNumber(), 0);
@@ -159,9 +174,12 @@ function simulateStochasticPlan(scenario: Scenario, plan: Plan): StochasticPlanR
     const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
     if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
     const quota = segmentQuota(plan, segment).toNumber();
-    const probability = item.response.sigma === 0
-      ? (item.response.attainment >= 1 ? 1 : 0)
-      : normalIntervalProbability((quota - item.response.output) / item.response.sigma, Infinity);
+    // §3.3a: sum each play's quota-clearing probability, weighted by how often it is played.
+    const probability = item.response.components.reduce((inner, component) => inner + component.probability * (
+      item.response.sigma === 0
+        ? (component.output / quota >= 1 ? 1 : 0)
+        : normalIntervalProbability((quota - component.output) / item.response.sigma, Infinity)
+    ), 0);
     return sum + item.count * probability;
   }, 0) / totalHeadcount;
   const trueValue = responses.reduce((sum, item) => {

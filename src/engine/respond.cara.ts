@@ -2,9 +2,11 @@ import { EngineError } from "./errors";
 import { commissionPieces, kinks, marginalRate, payout, prefloorPieces, segmentQuota } from "./plan";
 import type { LinearPiece } from "./plan";
 import { deterministicCandidates, respondDeterministic } from "./respond.det";
+import type { DeterministicResponse } from "./respond.det";
 import { Rat, R0 } from "./rat";
+import { isSoftmax, modalIndex, softmaxProbabilitiesFloat } from "./softmax";
 import { logNormalCdf, logNormalInterval, normalCdf, normalIntervalProbability, truncatedNormalMoments } from "./normal";
-import type { Plan, Segment } from "./types";
+import type { Plan, Rationality, Segment } from "./types";
 
 export interface FloatDecomposition {
   base: number;
@@ -70,6 +72,18 @@ export interface PayoutPiece {
   beta: number;
 }
 
+/** §3.3a one play from the choice set, with its own payout distribution. */
+export interface StochasticComponent {
+  probability: number;
+  effort: number;
+  output: number;
+  payout: number;
+  variance: number;
+  decomposition: FloatDecomposition;
+  objective: number;
+  pieceProbabilities: number[];
+}
+
 export interface StochasticResponse {
   effort: number;
   output: number;
@@ -78,12 +92,18 @@ export interface StochasticResponse {
   payoutVariance: number;
   decomposition: FloatDecomposition;
   ce: number;
+  /** §3.3a CE⋆ − ce: what the segment burns by not playing the optimum (0 in exact mode). */
+  ceGap: number;
   marginalAtOpt: number;
   participation: boolean;
   pieceProbabilities: number[];
   sigma: number;
   eMax: number;
   recoverableDraw: RecoverableDrawReport | null;
+  /** §3.3a mixture over the choice set; exactly one entry (probability 1) in exact mode. */
+  components: StochasticComponent[];
+  /** The most-played component — "where most reps sit". */
+  modal: StochasticComponent;
 }
 
 const EPS = 1e-12;
@@ -193,6 +213,24 @@ function recoverableDrawReport(plan: Plan, segment: Segment, pieces: readonly Pa
   return { advance, carry };
 }
 
+/** §3.3a field-wise mixture of the expected decompositions (keeps I-1 an independent check). */
+function blendFloatDecompositions(components: readonly StochasticComponent[]): FloatDecomposition {
+  const weigh = (pick: (value: FloatDecomposition) => number): number =>
+    components.reduce((sum, component) => sum + component.probability * pick(component.decomposition), 0);
+  const tierCount = components[0]?.decomposition.perTier.length ?? 0;
+  return {
+    base: weigh((value) => value.base),
+    perTier: Array.from({ length: tierCount }, (_, index) =>
+      components.reduce((sum, component) => sum + component.probability * (component.decomposition.perTier[index] ?? 0), 0)),
+    bonus: weigh((value) => value.bonus),
+    spiff: weigh((value) => value.spiff),
+    clawback: weigh((value) => value.clawback),
+    drawTopUp: weigh((value) => value.drawTopUp),
+    floorTopUp: weigh((value) => value.floorTopUp),
+    total: weigh((value) => value.total),
+  };
+}
+
 function logSumExp(values: readonly number[]): number {
   const pivot = Math.max(...values);
   if (!Number.isFinite(pivot)) return pivot;
@@ -291,31 +329,56 @@ function isGloballyLinear(plan: Plan): boolean {
   return plan.tiers.length === 1 && !plan.bonus && !plan.cap;
 }
 
-/** Closed-form CARA-normal response with the pinned deterministic global optimizer. */
-export function respondCARA(plan: Plan, segment: Segment): StochasticResponse {
-  const sigma = toNumber(segment.noiseSD);
-  if (sigma === 0) {
-    const response = respondDeterministic(plan, segment);
-    const decomposition = {
-      base: toNumber(response.decomposition.base),
-      perTier: response.decomposition.perTier.map(toNumber),
-      bonus: toNumber(response.decomposition.bonus),
-      spiff: toNumber(response.decomposition.spiff),
-      clawback: toNumber(response.decomposition.clawback),
-      drawTopUp: toNumber(response.decomposition.drawTopUp),
-      floorTopUp: toNumber(response.decomposition.floorTopUp),
-      total: toNumber(response.decomposition.total),
-    };
+function toFloatDecomposition(decomposition: DeterministicResponse["decomposition"]): FloatDecomposition {
+  return {
+    base: toNumber(decomposition.base),
+    perTier: decomposition.perTier.map(toNumber),
+    bonus: toNumber(decomposition.bonus),
+    spiff: toNumber(decomposition.spiff),
+    clawback: toNumber(decomposition.clawback),
+    drawTopUp: toNumber(decomposition.drawTopUp),
+    floorTopUp: toNumber(decomposition.floorTopUp),
+    total: toNumber(decomposition.total),
+  };
+}
+
+/** σ = 0 point-mass fallback (§3.4): the exact response, converted at the float boundary. */
+function pointMassResponse(plan: Plan, segment: Segment, rationality: Rationality | null | undefined): StochasticResponse {
+  const response = respondDeterministic(plan, segment, rationality);
+  const pieces = payoutPieces(plan, segment);
+  const components: StochasticComponent[] = response.components.map((component) => {
+    const output = toNumber(component.output);
     return {
-      effort: toNumber(response.effort), output: toNumber(response.output), attainment: toNumber(response.attainment), payout: toNumber(response.payout), payoutVariance: 0,
-      decomposition, ce: toNumber(response.ce), marginalAtOpt: toNumber(response.marginalAtOpt), participation: response.participation,
-      pieceProbabilities: payoutPieces(plan, segment).map((piece) => (piece.lower < toNumber(response.output) && toNumber(response.output) <= piece.upper ? 1 : 0)),
-      sigma, eMax: stochasticCeiling(plan, segment),
-      recoverableDraw: response.recoverableDraw
-        ? { advance: toNumber(response.recoverableDraw.advance), carry: toNumber(response.recoverableDraw.carry) }
-        : null,
+      probability: toNumber(component.probability),
+      effort: toNumber(component.effort),
+      output,
+      payout: toNumber(component.payout),
+      variance: 0,
+      decomposition: toFloatDecomposition(component.decomposition),
+      objective: toNumber(component.objective),
+      pieceProbabilities: pieces.map((piece) => (piece.lower < output && output <= piece.upper ? 1 : 0)),
     };
-  }
+  });
+  const modal = components[modalIndex(response.components.map((component) => component.probability))] ?? components[0];
+  if (!modal) throw new EngineError("INTERNAL_INVARIANT", "A response always has at least one component.");
+  return {
+    effort: toNumber(response.effort), output: toNumber(response.output), attainment: toNumber(response.attainment),
+    payout: toNumber(response.payout), payoutVariance: 0, decomposition: toFloatDecomposition(response.decomposition),
+    ce: toNumber(response.ce), ceGap: toNumber(response.ceGap), marginalAtOpt: toNumber(response.marginalAtOpt),
+    participation: response.participation,
+    pieceProbabilities: pieces.map((_, index) => components.reduce((sum, component) => sum + component.probability * (component.pieceProbabilities[index] ?? 0), 0)),
+    sigma: 0, eMax: stochasticCeiling(plan, segment),
+    recoverableDraw: response.recoverableDraw
+      ? { advance: toNumber(response.recoverableDraw.advance), carry: toNumber(response.recoverableDraw.carry) }
+      : null,
+    components, modal,
+  };
+}
+
+/** Closed-form CARA-normal response with the pinned deterministic global optimizer. */
+export function respondCARA(plan: Plan, segment: Segment, rationality?: Rationality | null): StochasticResponse {
+  const sigma = toNumber(segment.noiseSD);
+  if (sigma === 0) return pointMassResponse(plan, segment, rationality);
 
   const pieces = payoutPieces(plan, segment);
   const eMax = stochasticCeiling(plan, segment);
@@ -348,33 +411,72 @@ export function respondCARA(plan: Plan, segment: Segment): StochasticResponse {
     }
   }
 
-  const mean = ability * best.effort;
-  const decomposition = expectedDecomposition(plan, segment, mean, sigma);
-  const moments = pieceMoments(pieces, mean, sigma);
-  const total = decomposition.total;
-  const normalized = { ...decomposition, total };
+  // §3.3a choice set: the plan's salient efforts plus this mode's own optimum (exact mode plays it alone).
+  const choices = isSoftmax(rationality)
+    ? [...new Set([...deterministicCandidates(plan, segment).map(toNumber).filter((effort) => effort >= 0), best.effort])].sort((left, right) => left - right)
+    : [best.effort];
+  const objectives = choices.map((effort) => (effort === best.effort ? best.ce : evaluate(effort)));
+  const probabilities = isSoftmax(rationality) ? softmaxProbabilitiesFloat(objectives, toNumber(rationality.tau)) : [1];
+  const components: StochasticComponent[] = choices.map((effort, index) => {
+    const mean = ability * effort;
+    const decomposition = expectedDecomposition(plan, segment, mean, sigma);
+    const moments = pieceMoments(pieces, mean, sigma);
+    return {
+      probability: probabilities[index] ?? 0,
+      effort,
+      output: mean,
+      payout: decomposition.total,
+      variance: moments.variance,
+      decomposition,
+      objective: objectives[index] ?? best.ce,
+      pieceProbabilities: moments.probabilities,
+    };
+  });
+
+  const modal = components[modalIndex(probabilities)] ?? components[0];
+  if (!modal) throw new EngineError("INTERNAL_INVARIANT", "A response always has at least one component.");
+  const single = components.length === 1 ? modal : null;
+  const weigh = (pick: (component: StochasticComponent) => number): number =>
+    components.reduce((sum, component) => sum + component.probability * pick(component), 0);
+
+  const output = single ? single.output : weigh((component) => component.output);
+  const payoutMean = single ? single.payout : weigh((component) => component.payout);
+  const ce = single ? single.objective : weigh((component) => component.objective);
   const quota = toNumber(segmentQuota(plan, segment));
-  const marginal = toNumber(marginalRate(plan, segment, Rat.fromFloat64(mean)));
+  const carries = components.map((component) => recoverableDrawReport(plan, segment, pieces, component.output, sigma));
+  const advance = carries.find((report) => report !== null) ?? null;
+
   return {
-    effort: best.effort,
-    output: mean,
-    attainment: mean / quota,
-    payout: total,
-    payoutVariance: moments.variance,
-    decomposition: normalized,
-    ce: best.ce,
-    marginalAtOpt: marginal,
-    participation: best.ce >= toNumber(segment.reservationCE),
-    pieceProbabilities: moments.probabilities,
+    effort: single ? single.effort : weigh((component) => component.effort),
+    output,
+    attainment: output / quota,
+    payout: payoutMean,
+    // Mixture variance: E[Var | j] + Var[E | j] (§3.3a).
+    payoutVariance: single ? single.variance : Math.max(0, weigh((component) => component.variance + component.payout * component.payout) - payoutMean * payoutMean),
+    decomposition: single ? single.decomposition : blendFloatDecompositions(components),
+    ce,
+    ceGap: Math.max(...objectives) - ce,
+    marginalAtOpt: toNumber(marginalRate(plan, segment, Rat.fromFloat64(modal.output))),
+    participation: ce >= toNumber(segment.reservationCE),
+    pieceProbabilities: single ? single.pieceProbabilities : pieces.map((_, index) => weigh((component) => component.pieceProbabilities[index] ?? 0)),
     sigma,
     eMax,
-    recoverableDraw: recoverableDrawReport(plan, segment, pieces, mean, sigma),
+    recoverableDraw: advance
+      ? { advance: advance.advance, carry: components.reduce((sum, component, index) => sum + component.probability * (carries[index]?.carry ?? 0), 0) }
+      : null,
+    components,
+    modal,
   };
 }
 
-/** Analytic P(W ≤ payoff) for a monotone plan, including plateaus and bonus jumps. */
+/**
+ * Analytic P(W ≤ payoff) for a monotone plan, including plateaus and bonus jumps.
+ * Under a §3.3a mixture this is the component-weighted sum; `q_w` depends on `W` alone.
+ */
 export function payoutCdf(plan: Plan, segment: Segment, response: StochasticResponse, payoff: number): number {
-  if (response.sigma === 0) return response.payout <= payoff ? 1 : 0;
+  if (response.sigma === 0) {
+    return response.components.reduce((sum, component) => sum + component.probability * (component.payout <= payoff ? 1 : 0), 0);
+  }
   let supremum = -Infinity;
   for (const piece of payoutPieces(plan, segment)) {
     if (piece.beta === 0) {
@@ -386,5 +488,6 @@ export function payoutCdf(plan: Plan, segment: Segment, response: StochasticResp
   }
   if (supremum === -Infinity) return 0;
   if (supremum === Infinity) return 1;
-  return normalCdf((supremum - response.output) / response.sigma);
+  const edge = supremum;
+  return response.components.reduce((sum, component) => sum + component.probability * normalCdf((edge - component.output) / response.sigma), 0);
 }
