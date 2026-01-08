@@ -1,5 +1,6 @@
 import { kinks, payout, segmentQuota } from "./plan";
 import { respondDeterministic } from "./respond.det";
+import { scaleAbility } from "./multitask";
 import { Rat, R0 } from "./rat";
 import type { Plan, Scenario, Segment } from "./types";
 
@@ -34,8 +35,8 @@ export interface TimingResult {
 }
 
 function perPeriodResponse(plan: Plan, segment: Segment, seasonality: Rat): { effort: Rat; output: Rat } {
-  const boosted: Segment = { ...segment, ability: segment.ability.mul(seasonality) };
-  const response = respondDeterministic(plan, boosted);
+  // §3.3b: demand scales both task abilities, so the effective cost per unit of revenue is unchanged.
+  const response = respondDeterministic(plan, scaleAbility(segment, seasonality));
   return { effort: response.effort, output: response.output };
 }
 

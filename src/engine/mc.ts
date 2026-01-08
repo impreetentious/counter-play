@@ -1,4 +1,5 @@
 import { createSplitMix64 } from "./rng";
+import { scaleAbility } from "./multitask";
 import { simulate, type SimulationResult } from "./simulate";
 import { Rat } from "./rat";
 import { engineVersion } from "./version";
@@ -124,8 +125,13 @@ function applyMultiplierToSegment(segment: Segment, param: "a" | "k" | "sigma" |
   }
 }
 
+/**
+ * §3.11 global demand multiplier. It scales both §3.3b task abilities — a demand shock moves the
+ * whole selling opportunity, not one activity — and consumes no extra RNG, so the canonical draw
+ * order that O-G's bit-replay depends on is untouched. Per-segment ranges stay on task 1 only.
+ */
 function scaleDemand(segment: Segment, multiplier: Rat): Segment {
-  return { ...segment, ability: segment.ability.mul(multiplier) };
+  return scaleAbility(segment, multiplier);
 }
 
 function rangeMultiplier(range: MultiplierRange, u: number): Rat {

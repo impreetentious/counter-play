@@ -3,6 +3,7 @@ import { normalIntervalProbability } from "./normal";
 import { payout, segmentQuota } from "./plan";
 import { payoutCdf, respondCARA, type StochasticResponse } from "./respond.cara";
 import { respondDeterministic, type DeterministicResponse } from "./respond.det";
+import { trueValueOf } from "./multitask";
 import { Rat, R0 } from "./rat";
 import { EngineError } from "./errors";
 import type { Plan, Scenario } from "./types";
@@ -101,7 +102,8 @@ function simulatePlan(scenario: Scenario, plan: Plan): DeterministicPlanResult {
   const trueValue = responses.reduce((sum, item) => {
     const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
     if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
-    return sum.add(segment.valueQuality.mul(item.response.output).mul(Rat.from(item.count)));
+    // §3.3b: true value reads the task allocation when a second task exists; γ·q otherwise.
+    return sum.add(trueValueOf(segment, item.response.output, item.response.multitask).mul(Rat.from(item.count)));
   }, R0);
   const retentionRisk = responses.filter((item) => !item.response.participation).map((item) => item.segmentId);
   const payouts = responses.flatMap((item) => item.response.components.map((component) => ({
@@ -185,7 +187,10 @@ function simulateStochasticPlan(scenario: Scenario, plan: Plan): StochasticPlanR
   const trueValue = responses.reduce((sum, item) => {
     const segment = scenario.population.find((candidate) => candidate.id === item.segmentId);
     if (!segment) throw new EngineError("INTERNAL_INVARIANT", "Response references a missing segment.");
-    return sum + item.count * segment.valueQuality.toNumber() * item.response.output;
+    const value = item.response.multitask
+      ? item.response.multitask.valueDelivered
+      : segment.valueQuality.toNumber() * item.response.output;
+    return sum + item.count * value;
   }, 0);
   const retentionRisk = responses.filter((item) => !item.response.participation).map((item) => item.segmentId);
   return {

@@ -2,6 +2,7 @@ import { EngineError } from "./errors";
 import { decompose, marginalRate, payout, kinks, attainment as planAttainment } from "./plan";
 import { Rat, R0 } from "./rat";
 import { isSoftmax, modalIndex, softmaxProbabilitiesExact } from "./softmax";
+import { effectiveSegment, multitaskReport, type MultitaskReport } from "./multitask";
 import type { PayoutDecomposition } from "./plan";
 import type { Plan, Rationality, Segment } from "./types";
 
@@ -34,6 +35,8 @@ export interface DeterministicResponse {
   marginalAtOpt: Rat;
   participation: boolean;
   recoverableDraw: RecoverableDrawReport | null;
+  /** §3.3b task allocation and distortion; null when the segment sets no second task. */
+  multitask: MultitaskReport | null;
   /** §3.3a mixture over the choice set; exactly one entry (probability 1) in exact mode. */
   components: DeterministicComponent[];
   /** The most-played component — "where most reps sit". */
@@ -143,13 +146,16 @@ function exactBestEffort(plan: Plan, segment: Segment): Rat {
  * §3.3a softmax dial the response is the logit mixture over the same candidate set.
  */
 export function respondDeterministic(plan: Plan, segment: Segment, rationality?: Rationality | null): DeterministicResponse {
+  // §3.3b: the multitask problem is this same solve on a costK-rescaled segment; with no second
+  // task `effectiveSegment` returns the segment itself, so nothing below can move.
+  const solving = effectiveSegment(segment);
   const components: DeterministicComponent[] = [];
   if (isSoftmax(rationality)) {
-    const plays = deterministicCandidates(plan, segment).map((effort) => componentAt(plan, segment, effort, R0));
+    const plays = deterministicCandidates(plan, solving).map((effort) => componentAt(plan, solving, effort, R0));
     const probabilities = softmaxProbabilitiesExact(plays.map((play) => play.objective), rationality.tau);
     plays.forEach((play, index) => components.push({ ...play, probability: probabilities[index] ?? R0 }));
   } else {
-    components.push(componentAt(plan, segment, exactBestEffort(plan, segment), Rat.one()));
+    components.push(componentAt(plan, solving, exactBestEffort(plan, solving), Rat.one()));
   }
 
   const modal = components[modalIndex(components.map((component) => component.probability))] ?? components[0];
@@ -173,6 +179,7 @@ export function respondDeterministic(plan: Plan, segment: Segment, rationality?:
     marginalAtOpt: marginalRate(plan, segment, modal.output),
     participation: ce.gte(segment.reservationCE),
     recoverableDraw: recoverableReport(plan, components),
+    multitask: multitaskReport(segment, components.map((component) => ({ probability: component.probability, output: component.output }))),
     components,
     modal,
   };

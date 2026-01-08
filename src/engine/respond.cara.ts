@@ -5,6 +5,7 @@ import { deterministicCandidates, respondDeterministic } from "./respond.det";
 import type { DeterministicResponse } from "./respond.det";
 import { Rat, R0 } from "./rat";
 import { isSoftmax, modalIndex, softmaxProbabilitiesFloat } from "./softmax";
+import { effectiveSegment, multitaskReportFromFloats, toFloatReport, type MultitaskReportFloat } from "./multitask";
 import { logNormalCdf, logNormalInterval, normalCdf, normalIntervalProbability, truncatedNormalMoments } from "./normal";
 import type { Plan, Rationality, Segment } from "./types";
 
@@ -100,6 +101,8 @@ export interface StochasticResponse {
   sigma: number;
   eMax: number;
   recoverableDraw: RecoverableDrawReport | null;
+  /** §3.3b task allocation and distortion; null when the segment sets no second task. */
+  multitask: MultitaskReportFloat | null;
   /** §3.3a mixture over the choice set; exactly one entry (probability 1) in exact mode. */
   components: StochasticComponent[];
   /** The most-played component — "where most reps sit". */
@@ -343,7 +346,7 @@ function toFloatDecomposition(decomposition: DeterministicResponse["decompositio
 }
 
 /** σ = 0 point-mass fallback (§3.4): the exact response, converted at the float boundary. */
-function pointMassResponse(plan: Plan, segment: Segment, rationality: Rationality | null | undefined): StochasticResponse {
+function pointMassResponse(plan: Plan, segment: Segment, solving: Segment, rationality: Rationality | null | undefined): StochasticResponse {
   const response = respondDeterministic(plan, segment, rationality);
   const pieces = payoutPieces(plan, segment);
   const components: StochasticComponent[] = response.components.map((component) => {
@@ -367,25 +370,29 @@ function pointMassResponse(plan: Plan, segment: Segment, rationality: Rationalit
     ce: toNumber(response.ce), ceGap: toNumber(response.ceGap), marginalAtOpt: toNumber(response.marginalAtOpt),
     participation: response.participation,
     pieceProbabilities: pieces.map((_, index) => components.reduce((sum, component) => sum + component.probability * (component.pieceProbabilities[index] ?? 0), 0)),
-    sigma: 0, eMax: stochasticCeiling(plan, segment),
+    sigma: 0, eMax: stochasticCeiling(plan, solving),
     recoverableDraw: response.recoverableDraw
       ? { advance: toNumber(response.recoverableDraw.advance), carry: toNumber(response.recoverableDraw.carry) }
       : null,
+    multitask: response.multitask ? toFloatReport(response.multitask) : null,
     components, modal,
   };
 }
 
 /** Closed-form CARA-normal response with the pinned deterministic global optimizer. */
 export function respondCARA(plan: Plan, segment: Segment, rationality?: Rationality | null): StochasticResponse {
-  const sigma = toNumber(segment.noiseSD);
-  if (sigma === 0) return pointMassResponse(plan, segment, rationality);
+  // §3.3b: multitasking reduces to this same solve on a costK-rescaled segment (identity when
+  // the segment sets no second task), so the CARA path needs no separate two-task optimizer.
+  const solving = effectiveSegment(segment);
+  const sigma = toNumber(solving.noiseSD);
+  if (sigma === 0) return pointMassResponse(plan, segment, solving, rationality);
 
-  const pieces = payoutPieces(plan, segment);
-  const eMax = stochasticCeiling(plan, segment);
-  const riskNeutral = useRiskNeutral(plan, segment, eMax);
-  const evaluate = (effort: number) => evaluateCe(plan, segment, pieces, effort, riskNeutral);
-  const ability = toNumber(segment.ability);
-  const costK = toNumber(segment.costK);
+  const pieces = payoutPieces(plan, solving);
+  const eMax = stochasticCeiling(plan, solving);
+  const riskNeutral = useRiskNeutral(plan, solving, eMax);
+  const evaluate = (effort: number) => evaluateCe(plan, solving, pieces, effort, riskNeutral);
+  const ability = toNumber(solving.ability);
+  const costK = toNumber(solving.costK);
   let best: { effort: number; ce: number };
 
   if (isGloballyLinear(plan)) {
@@ -395,7 +402,7 @@ export function respondCARA(plan: Plan, segment: Segment, rationality?: Rational
   } else {
     const seeded = new Set<number>();
     for (let index = 0; index < 512; index += 1) seeded.add(eMax * index / 511);
-    for (const candidate of deterministicCandidates(plan, segment)) seeded.add(toNumber(candidate));
+    for (const candidate of deterministicCandidates(plan, solving)) seeded.add(toNumber(candidate));
     const evaluated = [...seeded]
       .filter((candidate) => candidate >= 0 && candidate <= eMax)
       .sort((left, right) => left - right)
@@ -413,13 +420,13 @@ export function respondCARA(plan: Plan, segment: Segment, rationality?: Rational
 
   // §3.3a choice set: the plan's salient efforts plus this mode's own optimum (exact mode plays it alone).
   const choices = isSoftmax(rationality)
-    ? [...new Set([...deterministicCandidates(plan, segment).map(toNumber).filter((effort) => effort >= 0), best.effort])].sort((left, right) => left - right)
+    ? [...new Set([...deterministicCandidates(plan, solving).map(toNumber).filter((effort) => effort >= 0), best.effort])].sort((left, right) => left - right)
     : [best.effort];
   const objectives = choices.map((effort) => (effort === best.effort ? best.ce : evaluate(effort)));
   const probabilities = isSoftmax(rationality) ? softmaxProbabilitiesFloat(objectives, toNumber(rationality.tau)) : [1];
   const components: StochasticComponent[] = choices.map((effort, index) => {
     const mean = ability * effort;
-    const decomposition = expectedDecomposition(plan, segment, mean, sigma);
+    const decomposition = expectedDecomposition(plan, solving, mean, sigma);
     const moments = pieceMoments(pieces, mean, sigma);
     return {
       probability: probabilities[index] ?? 0,
@@ -442,8 +449,8 @@ export function respondCARA(plan: Plan, segment: Segment, rationality?: Rational
   const output = single ? single.output : weigh((component) => component.output);
   const payoutMean = single ? single.payout : weigh((component) => component.payout);
   const ce = single ? single.objective : weigh((component) => component.objective);
-  const quota = toNumber(segmentQuota(plan, segment));
-  const carries = components.map((component) => recoverableDrawReport(plan, segment, pieces, component.output, sigma));
+  const quota = toNumber(segmentQuota(plan, solving));
+  const carries = components.map((component) => recoverableDrawReport(plan, solving, pieces, component.output, sigma));
   const advance = carries.find((report) => report !== null) ?? null;
 
   return {
@@ -456,7 +463,7 @@ export function respondCARA(plan: Plan, segment: Segment, rationality?: Rational
     decomposition: single ? single.decomposition : blendFloatDecompositions(components),
     ce,
     ceGap: Math.max(...objectives) - ce,
-    marginalAtOpt: toNumber(marginalRate(plan, segment, Rat.fromFloat64(modal.output))),
+    marginalAtOpt: toNumber(marginalRate(plan, solving, Rat.fromFloat64(modal.output))),
     participation: ce >= toNumber(segment.reservationCE),
     pieceProbabilities: single ? single.pieceProbabilities : pieces.map((_, index) => weigh((component) => component.pieceProbabilities[index] ?? 0)),
     sigma,
@@ -464,6 +471,7 @@ export function respondCARA(plan: Plan, segment: Segment, rationality?: Rational
     recoverableDraw: advance
       ? { advance: advance.advance, carry: components.reduce((sum, component, index) => sum + component.probability * (carries[index]?.carry ?? 0), 0) }
       : null,
+    multitask: multitaskReportFromFloats(segment, components.map((component) => ({ probability: component.probability, output: component.output }))),
     components,
     modal,
   };
