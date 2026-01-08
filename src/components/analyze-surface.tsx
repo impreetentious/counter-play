@@ -14,6 +14,8 @@ const explainerTemplates: Record<FindingType, (evidence: Record<string, unknown>
   "L-5": (evidence, _plan) => `Goodhart wedge: plan ${evidence.plan_high_revenue} leads on revenue but plan ${evidence.plan_high_value} leads on true value — the measured winner is not the actual winner.`,
   "L-6": (evidence) => `Payout function is not monotone: a higher-revenue outcome pays less than a lower-revenue one at $${Number(evidence.q_flip_currency).toFixed(0)} — the plan is misconfigured.`,
   "L-7": (evidence) => `Boundary gaming: segments would shift $${evidence.z_star_currency} of revenue across the period boundary for $${evidence.pay_gain_currency} of pay gain.`,
+  "L-8": (evidence) => `Quota resets on what reps produce (${evidence.lambda_pct} weight, ${evidence.growth}× growth). A rep who prices that in withholds $${Number(evidence.withheld_currency).toFixed(0)} of revenue across ${evidence.periods} periods — the plan pays for output today by taxing it tomorrow.`,
+  "L-9": (evidence) => `Pooling ${evidence.credit_share_pct} of credit across ${evidence.team_size} reps leaves each one keeping ${evidence.phi_pct} of their own marginal output. Equilibrium effort falls ${evidence.effort_gap_pct} short of the individual best response — $${Number(evidence.revenue_gap_currency).toFixed(0)} of revenue never gets produced.`,
 };
 
 const deepLinkTargets: Record<FindingType, string> = {
@@ -24,6 +26,8 @@ const deepLinkTargets: Record<FindingType, string> = {
   "L-5": "Simulate",
   "L-6": "Design",
   "L-7": "Analyze",
+  "L-8": "Analyze / Horizon",
+  "L-9": "Analyze / Team",
 };
 
 function severityBadge(severity: Finding["severity"]): string {

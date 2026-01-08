@@ -3,11 +3,13 @@ import { respondDeterministic } from "./respond.det";
 import { respondCARA } from "./respond.cara";
 import { simulate } from "./simulate";
 import { computeTiming } from "./timing";
+import { computeHorizon } from "./horizon";
+import { computeTeam } from "./team";
 import { EngineError } from "./errors";
 import { Rat, R0 } from "./rat";
 import type { Plan, Rationality, Scenario, Segment } from "./types";
 
-export type FindingType = "L-1" | "L-2" | "L-3" | "L-4" | "L-5" | "L-6" | "L-7";
+export type FindingType = "L-1" | "L-2" | "L-3" | "L-4" | "L-5" | "L-6" | "L-7" | "L-8" | "L-9";
 export type FindingSeverity = "info" | "warn" | "high";
 
 export interface Finding {
@@ -249,12 +251,28 @@ function lintPlanForL4(plan: Plan, scenario: Scenario): Finding[] {
   return findings;
 }
 
+/** §3.3b distortion index per segment under a plan; 0 for every segment with no second task. */
+function distortionBySegment(plan: Plan, scenario: Scenario): Array<{ id: string; index: number }> {
+  const isDet = scenario.settings.mode === "deterministic";
+  return scenario.population.map((segment) => {
+    if (!segment.secondTask) return { id: segment.id, index: 0 };
+    const index = isDet
+      ? (respondDeterministic(plan, segment, scenario.settings.rationality).multitask?.distortionIndex.toNumber() ?? 0)
+      : (respondCARA(plan, segment, scenario.settings.rationality).multitask?.distortionIndex ?? 0);
+    return { id: segment.id, index };
+  });
+}
+
 function lintScenarioForL5(scenario: Scenario): Finding[] {
   const findings: Finding[] = [];
   if (scenario.plans.length === 1) {
     const plan = scenario.plans[0]!;
-    const wedgeSegments = scenario.population.filter((segment) => !segment.valueQuality.eq(Rat.one())).map((segment) => segment.id);
+    const gammaSegments = scenario.population.filter((segment) => !segment.valueQuality.eq(Rat.one())).map((segment) => segment.id);
+    // §3.3b: the wedge is now computed, not just flagged — a second task can distort at γ = 1.
+    const distorted = distortionBySegment(plan, scenario).filter((entry) => entry.index > 0);
+    const wedgeSegments = [...new Set([...gammaSegments, ...distorted.map((entry) => entry.id)])];
     if (wedgeSegments.length > 0) {
+      const worst = distorted.reduce((max, entry) => Math.max(max, entry.index), 0);
       findings.push({
         id: `${plan.id}-L5-single`,
         type: "L-5",
@@ -262,7 +280,16 @@ function lintScenarioForL5(scenario: Scenario): Finding[] {
         planId: plan.id,
         segments: wedgeSegments,
         plans: [plan.id],
-        evidence: { gamma_neq_one_segments: wedgeSegments },
+        evidence: {
+          gamma_neq_one_segments: gammaSegments,
+          ...(distorted.length > 0
+            ? {
+              distorted_segments: distorted.map((entry) => entry.id),
+              max_distortion_pct: `${Math.round(worst * 100)}%`,
+              value_efficiency_pct: `${Math.round(Math.sqrt(Math.max(0, 1 - worst)) * 100)}%`,
+            }
+            : {}),
+        },
       });
     }
     return findings;
@@ -316,6 +343,68 @@ function lintPlanForL7(plan: Plan, scenario: Scenario): Finding[] {
   }];
 }
 
+/** §3.10a L-8: fires only when a horizon is configured, so the frozen goldens stay silent. */
+function lintPlanForL8(plan: Plan, scenario: Scenario): Finding[] {
+  const horizon = computeHorizon(scenario);
+  if (!horizon) return [];
+  const planResult = horizon.plans.find((entry) => entry.planId === plan.id);
+  if (!planResult || !planResult.withheldRevenue.gt(R0)) return [];
+  const naive = planResult.naiveProducedRevenue;
+  const ratio = naive.eq(R0) ? 0 : planResult.withheldRevenue.toNumber() / naive.toNumber();
+  const affected = planResult.perSegment.filter((entry) => entry.withheldRevenue.gt(R0));
+  const drift = affected.reduce((max, entry) => Math.min(max, entry.attainmentDrift.toNumber()), 0);
+  return [{
+    id: `${plan.id}-L8`,
+    type: "L-8",
+    severity: ratio >= 0.05 ? "high" : "warn",
+    planId: plan.id,
+    segments: affected.map((entry) => entry.segmentId),
+    evidence: {
+      lambda_pct: `${Math.round(horizon.ratchet.weight.toNumber() * 100)}%`,
+      growth: horizon.ratchet.growth.toNumber().toString(),
+      periods: horizon.periods,
+      withheld_currency: planResult.withheldRevenue.toNumber(),
+      withheld_pct: `${Math.round(ratio * 100)}%`,
+      terminal_quota: affected[0]?.terminalQuota.toNumber() ?? 0,
+      shadow_rate: affected[0]?.periods[0]?.shadowRate.toNumber().toString() ?? "0",
+      attainment_drift: drift,
+    },
+  }];
+}
+
+/** §3.14 L-9: fires only on a configured split-credit team, so the frozen goldens stay silent. */
+function lintPlanForL9(plan: Plan, scenario: Scenario): Finding[] {
+  const team = computeTeam(scenario);
+  if (!team || team.mode !== "split") return [];
+  const planResult = team.plans.find((entry) => entry.planId === plan.id);
+  if (!planResult) return [];
+  const affected = planResult.perSegment.filter((entry) =>
+    entry.individualRevenue > 0 && entry.individualRevenue - entry.equilibriumRevenue > 0.05 * entry.individualRevenue);
+  if (affected.length === 0) return [];
+  const individual = planResult.individualRevenue.toNumber();
+  const ratio = individual === 0 ? 0 : planResult.revenueGap.toNumber() / individual;
+  const worst = affected.reduce((min, entry) => Math.min(min, entry.creditWeight ?? 1), 1);
+  const effortGap = affected.reduce(
+    (max, entry) => Math.max(max, entry.individualEffort === 0 ? 0 : 1 - entry.equilibriumEffort / entry.individualEffort),
+    0,
+  );
+  return [{
+    id: `${plan.id}-L9`,
+    type: "L-9",
+    severity: ratio >= 0.25 ? "high" : "warn",
+    planId: plan.id,
+    segments: affected.map((entry) => entry.segmentId),
+    evidence: {
+      credit_share_pct: `${Math.round((team.creditShare?.toNumber() ?? 0) * 100)}%`,
+      team_size: team.size,
+      phi_pct: `${Math.round(worst * 100)}%`,
+      effort_gap_pct: `${Math.round(effortGap * 100)}%`,
+      revenue_gap_currency: planResult.revenueGap.toNumber(),
+      equilibria_count: affected[0]?.equilibriaCount ?? 1,
+    },
+  }];
+}
+
 function lintPlanForL6(plan: Plan, scenario: Scenario): Finding[] {
   const findings: Finding[] = [];
   for (const segment of scenario.population) {
@@ -351,6 +440,8 @@ export function lintScenario(scenario: Scenario): Finding[] {
     findings.push(...lintPlanForL4(plan, scenario));
     findings.push(...lintPlanForL6(plan, scenario));
     findings.push(...lintPlanForL7(plan, scenario));
+    findings.push(...lintPlanForL8(plan, scenario));
+    findings.push(...lintPlanForL9(plan, scenario));
   }
   findings.push(...lintScenarioForL5(scenario));
   return findings.sort((left, right) => {

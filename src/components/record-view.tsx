@@ -11,7 +11,7 @@ import { computeTiming } from "@/engine/timing";
 import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 
-const appVersion = "0.12.2";
+const appVersion = "0.12.3";
 
 function fmtCurrency(value: number, currency: string): string {
   const sign = value < 0 ? "-" : "";
@@ -43,6 +43,8 @@ const findingLabel: Record<FindingType, string> = {
   "L-5": "Goodhart wedge",
   "L-6": "Pay inversion",
   "L-7": "Boundary gaming",
+  "L-8": "Ratchet suppression",
+  "L-9": "Team free-riding",
 };
 
 export function RecordView(): React.JSX.Element {
