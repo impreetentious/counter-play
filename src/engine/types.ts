@@ -2,6 +2,19 @@ import type { Rat } from "./rat";
 
 export type Mode = "deterministic" | "stochastic";
 
+/**
+ * §3.3b V-03 second task. `ability = 0` is the fully unmeasured activity; `valuePerEffort` is in
+ * currency per unit of task-2 effort (not per revenue unit, which an unmeasured task cannot have).
+ */
+export interface SecondTask {
+  /** a₂ — measured revenue per unit of task-2 effort. */
+  ability: Rat;
+  /** v₂ — true value per unit of task-2 effort. */
+  valuePerEffort: Rat;
+  /** ψ ∈ [0, 0.95] — cost substitutability; 0 = independent activities. */
+  costSubstitution: Rat;
+}
+
 export interface Segment {
   id: string;
   label: string;
@@ -14,6 +27,8 @@ export interface Segment {
   quotaMult: Rat;
   valueQuality: Rat;
   movable: Rat;
+  /** §3.3b; absent ⇒ responses identical to §3.3/§3.4. */
+  secondTask?: SecondTask | null;
 }
 
 export interface Tier {
@@ -88,6 +103,22 @@ export interface MonteCarloSettings {
   };
 }
 
+/** §3.10a V-04 N-period horizon with a dynamic quota rule. */
+export interface Horizon {
+  periods: number;
+  seasonality: Rat[];
+  ratchet: { weight: Rat; growth: Rat };
+  response: "myopic" | "ratchetAware";
+}
+
+/** §3.14 V-05 team credit / rank-order tournament group. */
+export interface TeamSettings {
+  mode: "split" | "tournament";
+  size: number;
+  split?: { creditShare: Rat } | null;
+  tournament?: { prize: Rat; winners: number } | null;
+}
+
 export interface ScenarioSettings {
   mode: Mode;
   periodLabel: string;
@@ -96,6 +127,10 @@ export interface ScenarioSettings {
   seasonality: readonly [Rat, Rat];
   /** §3.3a; absent ⇒ `{ mode: "exact" }` ⇒ responses identical to §3.3/§3.4. */
   rationality?: Rationality | null;
+  /** §3.10a; absent ⇒ the §3.10 two-period module is the whole timing story. */
+  horizon?: Horizon | null;
+  /** §3.14; absent ⇒ no equilibrium module runs. */
+  team?: TeamSettings | null;
   mc: MonteCarloSettings;
 }
 
