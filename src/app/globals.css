@@ -129,11 +129,13 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .plan-panel { background: var(--surface); padding: 20px; border: 1px solid var(--line); }
 .plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; margin-bottom: 20px; }
 .plan-grid label { display: block; color: var(--muted); font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
-.tier-block, .bonus-block, .cap-block, .extras-block { border: 1px solid var(--line); padding: 16px 18px; margin-bottom: 20px; }
-.tier-block legend, .bonus-block legend, .cap-block legend, .extras-block legend { padding: 0 6px; color: var(--muted); font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.tier-block, .bonus-block, .cap-block, .extras-block, .rationality-block { border: 1px solid var(--line); padding: 16px 18px; margin-bottom: 20px; }
+.tier-block legend, .bonus-block legend, .cap-block legend, .extras-block legend, .rationality-block legend { padding: 0 6px; color: var(--muted); font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; }
 .extras-block .inline-toggle { display: flex; margin-top: 4px; }
 .fieldset-help { color: var(--muted); font-size: 0.86rem; margin: 8px 0 12px; }
 .field-note { color: var(--muted); font-size: 0.82rem; margin: 6px 0 10px; }
+.rationality-block { margin-top: 24px; }
+.rationality-tau { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; max-width: 32ch; }
 .inline-toggle { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 
 .issue-list { list-style: disc; margin: 12px 0 0 24px; color: var(--error-ink); font-size: 0.85rem; }

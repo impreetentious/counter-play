@@ -44,6 +44,8 @@ export interface StoreState {
   setActivePlanId(id: string): void;
   setMode(mode: "deterministic" | "stochastic"): void;
   setDiscount(value: string): void;
+  setRationalityMode(mode: "exact" | "softmax"): void;
+  setRationalityTau(value: string): void;
   setSeasonality(value: [string, string]): void;
   setNotes(notes: string): void;
   mcResult: McResult | null;
@@ -62,6 +64,9 @@ export interface StoreState {
 export type ExtraKey = "drawNonRecoverable" | "drawRecoverable" | "spiff" | "clawback" | "payFloor";
 export type ExtraScalarKey = "drawNonRecoverable" | "drawRecoverable" | "payFloor";
 export type ExtraLumpKey = "spiff" | "clawback";
+
+// §3.3a default temperature (currency units), adopted when the rationality dial is switched on.
+const DEFAULT_TAU = "5000";
 
 // §3.2a defaults used when a primitive is switched on in the Design surface.
 const EXTRA_DEFAULTS: { [K in ExtraKey]: NonNullable<PayoutExtrasJson[K]> } = {
@@ -276,6 +281,20 @@ export const useScenarioStore = create<StoreState>((set, get) => ({
   setDiscount(value) {
     const scenario = get().scenario;
     const next: ScenarioJson = { ...scenario, settings: { ...scenario.settings, discount: value } };
+    set(commit(next, get().activePlanId));
+  },
+  setRationalityMode(mode) {
+    const scenario = get().scenario;
+    if ((scenario.settings.rationality?.mode ?? "exact") === mode) return;
+    // The block is written only once the dial is touched, so untouched scenarios stay byte-identical.
+    const tau = scenario.settings.rationality?.tau ?? DEFAULT_TAU;
+    const next: ScenarioJson = { ...scenario, settings: { ...scenario.settings, rationality: { mode, tau } } };
+    set(commit(next, get().activePlanId));
+  },
+  setRationalityTau(value) {
+    const scenario = get().scenario;
+    const mode = scenario.settings.rationality?.mode ?? "exact";
+    const next: ScenarioJson = { ...scenario, settings: { ...scenario.settings, rationality: { mode, tau: value } } };
     set(commit(next, get().activePlanId));
   },
   setSeasonality(value) {

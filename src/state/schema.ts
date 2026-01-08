@@ -7,6 +7,7 @@ import type {
   MultiplierRange,
   PayoutExtras,
   Plan,
+  Rationality,
   Scenario,
   ScenarioSettings,
   Segment,
@@ -58,6 +59,11 @@ export interface PlanJson {
   extras?: PayoutExtrasJson | null;
 }
 
+export interface RationalityJson {
+  mode: "exact" | "softmax";
+  tau: string;
+}
+
 export interface ScenarioJson {
   schemaVersion: 1;
   population: SegmentJson[];
@@ -68,6 +74,7 @@ export interface ScenarioJson {
     currencyLabel: string;
     discount: string;
     seasonality: [string, string];
+    rationality?: RationalityJson | null;
     mc: {
       seed: number;
       N: number;
@@ -202,12 +209,19 @@ const rangesSchema = z.object({
   perSegment: z.record(id, segmentRangesSchema).optional(),
 }).strict();
 
+// §3.3a V-02 rationality dial; optional/nullable so absence ⇒ the exact best response.
+const rationalitySchema = z.object({
+  mode: z.enum(["exact", "softmax"]),
+  tau: decimal({ min: R0, max: Rat.from(1_000_000_000_000), minExclusive: true, label: "Temperature" }),
+}).strict();
+
 const settingsSchema = z.object({
   mode: z.enum(["deterministic", "stochastic"]),
   periodLabel: z.string().min(1).max(40),
   currencyLabel: z.string().min(1).max(12),
   discount,
   seasonality: z.tuple([decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Seasonality" }), decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Seasonality" })]),
+  rationality: rationalitySchema.nullable().optional(),
   mc: z.object({
     seed: z.number().int().min(0).max(maxUint32),
     N: z.number().int().min(100).max(5000),
@@ -298,11 +312,18 @@ function toRanges(json: ScenarioJson["settings"]["mc"]["ranges"]): MonteCarloSet
   return { ...(json.demand ? { demand: toRange(json.demand) } : {}), ...(perSegment ? { perSegment } : {}) };
 }
 
+function toRationality(json: RationalityJson | null | undefined): Rationality | null {
+  return json ? { mode: json.mode, tau: toRat(json.tau) } : null;
+}
+
 function toSettings(json: ScenarioJson["settings"]): ScenarioSettings {
+  const { rationality: _wireRationality, ...rest } = json;
+  const rationality = toRationality(json.rationality);
   return {
-    ...json,
+    ...rest,
     discount: toRat(json.discount),
     seasonality: [toRat(json.seasonality[0]), toRat(json.seasonality[1])],
+    ...(rationality ? { rationality } : {}),
     mc: { ...json.mc, ranges: toRanges(json.mc.ranges) },
   };
 }
@@ -405,6 +426,9 @@ export function serializeScenario(scenario: Scenario): ScenarioJson {
       currencyLabel: scenario.settings.currencyLabel,
       discount: decimalOf(scenario.settings.discount),
       seasonality: [decimalOf(scenario.settings.seasonality[0]), decimalOf(scenario.settings.seasonality[1])],
+      ...(scenario.settings.rationality
+        ? { rationality: { mode: scenario.settings.rationality.mode, tau: decimalOf(scenario.settings.rationality.tau) } }
+        : {}),
       mc: {
         seed: scenario.settings.mc.seed,
         N: scenario.settings.mc.N,

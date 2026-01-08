@@ -71,6 +71,28 @@ describe("scenario wire schema", () => {
     expect(serializeScenario(parseScenario(wire))).toEqual(wire);
   });
 
+  it("round-trips the V-02 rationality dial and omits it when untouched", () => {
+    // an untouched scenario never gains the block (byte-stable for pre-V-02 scenarios)
+    expect(serializeScenario(parseScenario(scenario)).settings).not.toHaveProperty("rationality");
+
+    const bounded: ScenarioJson = {
+      ...scenario,
+      settings: { ...scenario.settings, rationality: { mode: "softmax", tau: "5000" } },
+    };
+    const parsed = parseScenario(bounded);
+    expect(parsed.settings.rationality?.mode).toBe("softmax");
+    expect(parsed.settings.rationality?.tau.toDecimalString()).toBe("5000");
+    const wire = serializeScenario(parsed);
+    expect(wire.settings.rationality).toEqual({ mode: "softmax", tau: "5000" });
+    expect(serializeScenario(parseScenario(wire))).toEqual(wire);
+  });
+
+  it("rejects a zero or negative temperature", () => {
+    for (const tau of ["0", "-1"]) {
+      expect(() => parseScenario({ ...scenario, settings: { ...scenario.settings, rationality: { mode: "softmax", tau } } })).toThrow(EngineError);
+    }
+  });
+
   it("validates extras bounds", () => {
     const bad: ScenarioJson = {
       ...scenario,
