@@ -49,6 +49,12 @@ export function BoundaryPanel(): React.JSX.Element | null {
           gaming even when the two periods have identical demand — pulling forward is worth <code>(1 − δ)·r₁</code> per
           unit. End-to-end gaming above the effective cap is not modelled in v1.
         </p>
+        {scenario.settings.rationality?.mode === "softmax" ? (
+          <p className="boundary-description">
+            The rationality dial does not reach this panel: per-period efforts and the shift optimum stay on the exact best
+            response (§3.3a scope boundary), so these numbers read the same whether or not bounded rationality is on.
+          </p>
+        ) : null}
       </header>
 
       <div className="boundary-controls">

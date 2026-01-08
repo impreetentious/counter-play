@@ -11,7 +11,7 @@ import { computeTiming } from "@/engine/timing";
 import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 
-const appVersion = "0.11.4";
+const appVersion = "0.11.5";
 
 function fmtCurrency(value: number, currency: string): string {
   const sign = value < 0 ? "-" : "";
@@ -93,6 +93,10 @@ export function RecordView(): React.JSX.Element {
         <h2 id="cover-heading">Compensation Design Record</h2>
         <dl className="record-meta">
           <div><dt>Mode</dt><dd>{scenario.settings.mode}</dd></div>
+          <div>
+            <dt>Response class</dt>
+            <dd>{scenario.settings.rationality?.mode === "softmax" ? `bounded (softmax, τ=${scenario.settings.rationality.tau})` : "exact best response"}</dd>
+          </div>
           <div><dt>Period</dt><dd>{scenario.settings.periodLabel}</dd></div>
           <div><dt>Currency</dt><dd>{scenario.settings.currencyLabel}</dd></div>
           <div><dt>Engine</dt><dd>v{engineVersion}</dd></div>

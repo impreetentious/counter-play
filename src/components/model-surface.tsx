@@ -19,6 +19,49 @@ const explainers: Record<keyof SegmentJson, string> = {
 
 const numericFields: Array<keyof SegmentJson> = ["count", "ability", "costK", "riskAversion", "noiseSD", "reservationCE", "quotaMult", "valueQuality", "movable"];
 
+/** §3.3a V-02: the population's response class — exact best response, or a bounded softmax draw. */
+function RationalityDial(): React.JSX.Element {
+  const rationality = useScenarioStore((state) => state.scenario.settings.rationality);
+  const currency = useScenarioStore((state) => state.scenario.settings.currencyLabel);
+  const issuesList = useScenarioStore((state) => state.issues);
+  const setRationalityMode = useScenarioStore((state) => state.setRationalityMode);
+  const setRationalityTau = useScenarioStore((state) => state.setRationalityTau);
+  const mode = rationality?.mode ?? "exact";
+  const tauIssues = findIssuesForPath({ issues: issuesList }, "settings.rationality.tau");
+
+  return (
+    <fieldset className="rationality-block">
+      <legend>Rep rationality</legend>
+      <p className="field-note">
+        Exact assumes every rep finds the plan&rsquo;s optimal effort. Bounded assumes they choose among the plan&rsquo;s salient
+        plays — zero effort, each tier&rsquo;s own optimum, each threshold — with noise, so the modeled response is deliberately
+        <strong> not the exact optimum</strong>. Boundary gaming stays on the exact response; every other surface follows this dial.
+      </p>
+      <div role="group" aria-label="Response class" className="mode-toggle">
+        <button type="button" aria-pressed={mode === "exact"} onClick={() => setRationalityMode("exact")}>Exact best response</button>
+        <button type="button" aria-pressed={mode === "softmax"} onClick={() => setRationalityMode("softmax")}>Bounded (softmax)</button>
+      </div>
+      {mode === "softmax" ? (
+        <div className="rationality-tau">
+          <label htmlFor="rationality-tau">Temperature τ ({currency})</label>
+          <input
+            id="rationality-tau"
+            inputMode="decimal"
+            value={rationality?.tau ?? ""}
+            aria-invalid={tauIssues.length > 0 || undefined}
+            aria-describedby="rationality-tau-help"
+            onChange={(event) => setRationalityTau(event.target.value)}
+          />
+          <span id="rationality-tau-help" className="field-note">
+            Certainty-equivalent differences far below τ are invisible to the rep; differences far above it are decisive.
+          </span>
+        </div>
+      ) : null}
+      {tauIssues.length > 0 ? <p role="alert" className="surface-error">{tauIssues[0]?.message}</p> : null}
+    </fieldset>
+  );
+}
+
 export function ModelSurface(): React.JSX.Element {
   const scenario = useScenarioStore((state) => state.scenario);
   const domain = useScenarioStore((state) => state.domain);
@@ -103,6 +146,7 @@ export function ModelSurface(): React.JSX.Element {
           </tbody>
         </table>
       </div>
+      <RationalityDial />
       {issuesList.length > 0 ? (
         <ul className="issue-list" role="list">
           {issuesList.filter((issue) => issue.path.startsWith("population")).slice(0, 6).map((issue) => (

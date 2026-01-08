@@ -2,7 +2,7 @@
 
 > A compensation plan is a mechanism. People respond to the mechanism, not to the intent behind it. This is the instrument that computes that response — before the plan ships.
 
-**Status:** v0.11.4 — client-side app on `main` (model, design, simulate, analyze, design-record export). §12 v1.x build queue open — V-01 payout primitives shipped (v0.11.0–v0.11.1); static export; not yet deployed to a public URL.
+**Status:** v0.11.5 — client-side app: model, design, simulate, analyze, and export a design record. Static export; not yet deployed to a public URL.
 
 ## The problem
 
@@ -26,7 +26,7 @@ Not an incentive-compensation-management or commission-tracking tool. It does no
 
 - **Client-side only.** No backend, no accounts, no analytics, no cookies. Scenarios persist locally, share by URL, and export as JSON you own.
 - **Exact where it matters.** Solver-critical arithmetic runs on big-integer rationals; floating point appears only where the math contract explicitly justifies it.
-- **Theory-anchored.** The engine is grounded in principal-agent economics — Holmström–Milgrom linear contracts and the deal-timing literature (Oyer 1998; Larkin 2014) — with metric-vs-value divergence surfaced as a Goodhart wedge report; multitasking and tournament engines are deliberately out of v1. It is tested against the closed-form results wherever they exist.
+- **Theory-anchored.** The engine is grounded in principal-agent economics — Holmström–Milgrom linear contracts and the deal-timing literature (Oyer 1998; Larkin 2014) — with metric-vs-value divergence surfaced as a Goodhart wedge report. Full multitasking and tournament engines are not modelled. It is tested against the closed-form results wherever they exist.
 - **Replayable.** Every random element is seeded. Every run re-derives and displays a global payout-conservation identity. Counterfactuals are comparable across runs.
 - **Accessible.** Light and dark themes; WCAG 2.1 AA intent, with a recorded audit before any stronger claim.
 
@@ -55,18 +55,18 @@ npm run build
 npm run test:e2e
 ```
 
-Or `npm run test:all` when that script is available in your checkout.
+Or `npm run test:all` to run all of the above in sequence.
 
 ## References
 
 The engine's design draws on a specific slice of the principal-agent literature. This is a working bibliography — not an exhaustive review.
 
-- Holmström, B. & Milgrom, P. (1987). Aggregation and linearity in the provision of intertemporal incentives. *Econometrica* 55(2). doi:[10.2307/1913238](https://doi.org/10.2307/1913238) — anchors the CARA-normal linear-contract path (O-B family).
-- Holmström, B. & Milgrom, P. (1991). Multitask principal–agent analyses. *Journal of Law, Economics, & Organization* 7 (special issue). — informs the L-5 Goodhart wedge report; the full multitask engine is deferred to v1.x.
-- Oyer, P. (1998). Fiscal year ends and nonlinear incentive contracts: the effect on business seasonality. *Quarterly Journal of Economics* 113(1). doi:[10.1162/003355398555559](https://doi.org/10.1162/003355398555559) — anchors bonus-cliff bunching (O-C, L-2) and accelerator-driven timing games (O-F, O-F2, L-7).
-- Steenburgh, T. (2008). Effort or timing: the effect of lump-sum bonuses on the output of sales agents. *Quantitative Marketing and Economics* 6(3). doi:[10.1007/s11129-008-9039-7](https://doi.org/10.1007/s11129-008-9039-7) — anchors the bonus-cliff decomposition of effort vs timing (O-C, L-2).
-- Larkin, I. (2014). The cost of high-powered incentives: employee gaming in enterprise software sales. *Journal of Labor Economics* 32(2). doi:[10.1086/673371](https://doi.org/10.1086/673371) — anchors accelerator-driven deal-closure timing gaming (O-F, O-F2, L-7).
-- Lazear, E. P. & Rosen, S. (1981). Rank-order tournaments as optimum labor contracts. *Journal of Political Economy* 89(5). — informs a v1.x tournament engine (not implemented in v1).
+- Holmström, B. & Milgrom, P. (1987). Aggregation and linearity in the provision of intertemporal incentives. *Econometrica* 55(2). doi:[10.2307/1913238](https://doi.org/10.2307/1913238) — anchors the CARA-normal linear-contract path.
+- Holmström, B. & Milgrom, P. (1991). Multitask principal–agent analyses. *Journal of Law, Economics, & Organization* 7 (special issue). — informs the Goodhart wedge report; the full multitask engine is not implemented.
+- Oyer, P. (1998). Fiscal year ends and nonlinear incentive contracts: the effect on business seasonality. *Quarterly Journal of Economics* 113(1). doi:[10.1162/003355398555559](https://doi.org/10.1162/003355398555559) — anchors bonus-cliff bunching and accelerator-driven timing games.
+- Steenburgh, T. (2008). Effort or timing: the effect of lump-sum bonuses on the output of sales agents. *Quantitative Marketing and Economics* 6(3). doi:[10.1007/s11129-008-9039-7](https://doi.org/10.1007/s11129-008-9039-7) — anchors the bonus-cliff decomposition of effort vs timing.
+- Larkin, I. (2014). The cost of high-powered incentives: employee gaming in enterprise software sales. *Journal of Labor Economics* 32(2). doi:[10.1086/673371](https://doi.org/10.1086/673371) — anchors accelerator-driven deal-closure timing gaming.
+- Lazear, E. P. & Rosen, S. (1981). Rank-order tournaments as optimum labor contracts. *Journal of Political Economy* 89(5). — informs a possible tournament engine; not implemented.
 
 ## License
 

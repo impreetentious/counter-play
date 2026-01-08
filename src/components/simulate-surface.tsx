@@ -76,12 +76,16 @@ function StochKpiCard({ plan, active }: { plan: StochasticPlanResult; active: bo
   );
 }
 
-function ResponseTableDet({ result }: { result: DeterministicPlanResult }): React.JSX.Element {
+function ResponseTableDet({ result, bounded }: { result: DeterministicPlanResult; bounded: boolean }): React.JSX.Element {
   return (
     <table className="response-table">
-      <caption>Per-segment best responses ({result.plan.label})</caption>
+      <caption>Per-segment {bounded ? "bounded responses" : "best responses"} ({result.plan.label})</caption>
       <thead>
-        <tr><th>Segment</th><th>Effort e*</th><th>Attainment x*</th><th>Pay</th><th>CE</th><th>Participation</th></tr>
+        <tr>
+          <th>Segment</th><th>{bounded ? "Mean effort" : "Effort e*"}</th><th>Attainment x*</th><th>Pay</th><th>CE</th>
+          {bounded ? <th>CE gap</th> : null}
+          <th>Participation</th>
+        </tr>
       </thead>
       <tbody>
         {result.responses.map((row) => (
@@ -91,6 +95,7 @@ function ResponseTableDet({ result }: { result: DeterministicPlanResult }): Reac
             <td>{nicePercent(row.response.attainment.toNumber())}</td>
             <td>{niceCurrency(row.response.payout.toNumber())}</td>
             <td>{niceCurrency(row.response.ce.toNumber())}</td>
+            {bounded ? <td>{niceCurrency(row.response.ceGap.toNumber())}</td> : null}
             <td>{row.response.participation ? "Yes" : "No"}</td>
           </tr>
         ))}
@@ -99,12 +104,16 @@ function ResponseTableDet({ result }: { result: DeterministicPlanResult }): Reac
   );
 }
 
-function ResponseTableStoch({ result }: { result: StochasticPlanResult }): React.JSX.Element {
+function ResponseTableStoch({ result, bounded }: { result: StochasticPlanResult; bounded: boolean }): React.JSX.Element {
   return (
     <table className="response-table">
-      <caption>Per-segment best responses ({result.plan.label})</caption>
+      <caption>Per-segment {bounded ? "bounded responses" : "best responses"} ({result.plan.label})</caption>
       <thead>
-        <tr><th>Segment</th><th>Effort e*</th><th>Mean revenue</th><th>Mean pay</th><th>CE</th><th>Participation</th></tr>
+        <tr>
+          <th>Segment</th><th>{bounded ? "Mean effort" : "Effort e*"}</th><th>Mean revenue</th><th>Mean pay</th><th>CE</th>
+          {bounded ? <th>CE gap</th> : null}
+          <th>Participation</th>
+        </tr>
       </thead>
       <tbody>
         {result.responses.map((row) => (
@@ -114,6 +123,7 @@ function ResponseTableStoch({ result }: { result: StochasticPlanResult }): React
             <td>{niceCurrency(row.response.output)}</td>
             <td>{niceCurrency(row.response.payout)}</td>
             <td>{niceCurrency(row.response.ce)}</td>
+            {bounded ? <td>{niceCurrency(row.response.ceGap)}</td> : null}
             <td>{row.response.participation ? "Yes" : "No"}</td>
           </tr>
         ))}
@@ -195,6 +205,8 @@ export function SimulateSurface(): React.JSX.Element {
     );
   }
 
+  // §3.3a: under the softmax dial each segment plays a mixture, so the tables report means and the gap.
+  const bounded = scenario.settings.rationality?.mode === "softmax";
   const comparisons: PlanComparison[] = result.mode === "deterministic" && result.plans.length > 1
     ? result.plans.slice(1).map((plan) => comparePlans(result, result.plans[0]!.plan.id, plan.plan.id))
     : [];
@@ -214,6 +226,13 @@ export function SimulateSurface(): React.JSX.Element {
         </div>
       </header>
       <IdentityBadge attestations={result.attestations} mode={result.mode} engineVersion={engineVersion} />
+      {bounded ? (
+        <p className="surface-summary">
+          Bounded rationality is on (τ = {scenario.settings.rationality?.tau} {scenario.settings.currencyLabel}): each segment
+          spreads over the plan&rsquo;s salient plays instead of solving for the optimum, so efforts and pay below are mixture
+          means and <strong>CE gap</strong> is the certainty-equivalent the segment burns by not playing the optimum.
+        </p>
+      ) : null}
       <div className="kpi-grid">
         {result.mode === "deterministic"
           ? result.plans.map((plan) => <DetKpiCard key={plan.plan.id} plan={plan} active={plan.plan.id === activePlan.plan.id} />)
@@ -251,8 +270,8 @@ export function SimulateSurface(): React.JSX.Element {
           points={result.mode === "deterministic" ? pfpFromDet(domain!, activePlan as DeterministicPlanResult) : pfpFromStoch(domain!, activePlan as StochasticPlanResult)}
         />
         {result.mode === "deterministic"
-          ? <ResponseTableDet result={activePlan as DeterministicPlanResult} />
-          : <ResponseTableStoch result={activePlan as StochasticPlanResult} />}
+          ? <ResponseTableDet result={activePlan as DeterministicPlanResult} bounded={bounded} />
+          : <ResponseTableStoch result={activePlan as StochasticPlanResult} bounded={bounded} />}
       </div>
       {result.mode === "deterministic" ? (
         <div className="compare-block">
