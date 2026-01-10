@@ -4,6 +4,7 @@ import { useScenarioStore, findIssuesForPath } from "@/state/store";
 import type { SegmentJson } from "@/state/schema";
 
 const explainers: Record<keyof SegmentJson, string> = {
+  secondTask: "The optional quality task shares the rep's effort budget with revenue work.",
   id: "Stable identifier used by charts and share links.",
   label: "Short display name — appears in tables and the design record.",
   count: "How many reps this segment represents; drives every aggregate.",

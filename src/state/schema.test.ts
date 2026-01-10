@@ -100,4 +100,66 @@ describe("scenario wire schema", () => {
     };
     expect(() => parseScenario(bad)).toThrow(EngineError); // threshold must be > 0
   });
+
+  it("round-trips the §3.3b second task and drops it when unset", () => {
+    const withTask: ScenarioJson = {
+      ...scenario,
+      population: [{ ...scenario.population[0]!, secondTask: { ability: "0", valuePerEffort: "300000", costSubstitution: "0.5" } }],
+    };
+    const wire = serializeScenario(parseScenario(withTask));
+    expect(wire.population[0]?.secondTask).toEqual({ ability: "0", valuePerEffort: "300000", costSubstitution: "0.5" });
+    expect(serializeScenario(parseScenario(wire))).toEqual(wire);
+    expect(serializeScenario(parseScenario(scenario)).population[0]).not.toHaveProperty("secondTask");
+  });
+
+  it("rejects a cost substitution above the §3.0 ceiling", () => {
+    const bad: ScenarioJson = {
+      ...scenario,
+      population: [{ ...scenario.population[0]!, secondTask: { ability: "0", valuePerEffort: "1", costSubstitution: "0.96" } }],
+    };
+    expect(() => parseScenario(bad)).toThrow(EngineError);
+  });
+
+  it("round-trips the §3.10a horizon and drops it when unset", () => {
+    const horizon = {
+      periods: 3,
+      seasonality: ["1", "1.2", "0.9"],
+      ratchet: { weight: "0.5", growth: "1" },
+      response: "ratchetAware" as const,
+    };
+    const wire = serializeScenario(parseScenario({ ...scenario, settings: { ...scenario.settings, horizon } }));
+    expect(wire.settings.horizon).toEqual(horizon);
+    expect(serializeScenario(parseScenario(wire))).toEqual(wire);
+    expect(serializeScenario(parseScenario(scenario)).settings).not.toHaveProperty("horizon");
+  });
+
+  it("rejects a horizon whose demand vector does not match its period count", () => {
+    const bad = {
+      ...scenario,
+      settings: {
+        ...scenario.settings,
+        horizon: { periods: 4, seasonality: ["1", "1"], ratchet: { weight: "0.5", growth: "1" }, response: "myopic" as const },
+      },
+    };
+    expect(() => parseScenario(bad)).toThrow(EngineError);
+  });
+
+  it("round-trips the §3.14 team block and drops it when unset", () => {
+    const team = { mode: "split" as const, size: 4, split: { creditShare: "0.5" } };
+    const wire = serializeScenario(parseScenario({ ...scenario, settings: { ...scenario.settings, team } }));
+    expect(wire.settings.team).toEqual(team);
+    expect(serializeScenario(parseScenario(wire))).toEqual(wire);
+    expect(serializeScenario(parseScenario(scenario)).settings).not.toHaveProperty("team");
+  });
+
+  it("rejects a tournament that everybody wins", () => {
+    const bad = {
+      ...scenario,
+      settings: {
+        ...scenario.settings,
+        team: { mode: "tournament" as const, size: 3, tournament: { prize: "20000", winners: 3 } },
+      },
+    };
+    expect(() => parseScenario(bad)).toThrow(EngineError);
+  });
 });

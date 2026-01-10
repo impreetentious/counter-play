@@ -3,6 +3,7 @@ import { EngineError } from "@/engine/errors";
 import { Rat, R0 } from "@/engine/rat";
 import type {
   Bonus,
+  Horizon,
   MonteCarloSettings,
   MultiplierRange,
   PayoutExtras,
@@ -10,11 +11,19 @@ import type {
   Rationality,
   Scenario,
   ScenarioSettings,
+  SecondTask,
   Segment,
   SegmentRanges,
+  TeamSettings,
   ThresholdLump,
   Tier,
 } from "@/engine/types";
+
+export interface SecondTaskJson {
+  ability: string;
+  valuePerEffort: string;
+  costSubstitution: string;
+}
 
 export interface SegmentJson {
   id: string;
@@ -28,6 +37,7 @@ export interface SegmentJson {
   quotaMult: string;
   valueQuality: string;
   movable: string;
+  secondTask?: SecondTaskJson | null;
 }
 
 export interface TierJson {
@@ -64,6 +74,20 @@ export interface RationalityJson {
   tau: string;
 }
 
+export interface HorizonJson {
+  periods: number;
+  seasonality: string[];
+  ratchet: { weight: string; growth: string };
+  response: "myopic" | "ratchetAware";
+}
+
+export interface TeamJson {
+  mode: "split" | "tournament";
+  size: number;
+  split?: { creditShare: string } | null;
+  tournament?: { prize: string; winners: number } | null;
+}
+
 export interface ScenarioJson {
   schemaVersion: 1;
   population: SegmentJson[];
@@ -75,6 +99,8 @@ export interface ScenarioJson {
     discount: string;
     seasonality: [string, string];
     rationality?: RationalityJson | null;
+    horizon?: HorizonJson | null;
+    team?: TeamJson | null;
     mc: {
       seed: number;
       N: number;
@@ -177,6 +203,13 @@ const planSchema = z.object({
   }
 });
 
+// §3.3b V-03 second task; optional/nullable so absence ⇒ the §3.3 single-task response.
+const secondTaskSchema = z.object({
+  ability: money,
+  valuePerEffort: money,
+  costSubstitution: decimal({ min: R0, max: Rat.from(19, 20), label: "Cost substitution" }),
+}).strict();
+
 const segmentSchema = z.object({
   id,
   label,
@@ -189,6 +222,7 @@ const segmentSchema = z.object({
   quotaMult: decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Quota multiplier" }),
   valueQuality: decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Value quality" }),
   movable,
+  secondTask: secondTaskSchema.nullable().optional(),
 }).strict();
 
 const multiplierRange = z.tuple([rangeMultiplier, rangeMultiplier]).superRefine((pair, ctx) => {
@@ -215,6 +249,43 @@ const rationalitySchema = z.object({
   tau: decimal({ min: R0, max: Rat.from(1_000_000_000_000), minExclusive: true, label: "Temperature" }),
 }).strict();
 
+// §3.10a V-04 horizon; absent ⇒ the §3.10 two-period module is the whole timing story.
+const horizonSchema = z.object({
+  periods: z.number().int().min(2).max(12),
+  seasonality: z.array(decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Seasonality" })).min(2).max(12),
+  ratchet: z.object({
+    weight: decimal({ min: R0, max: Rat.from(9, 10), label: "Ratchet weight" }),
+    growth: decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Ratchet growth" }),
+  }).strict(),
+  response: z.enum(["myopic", "ratchetAware"]),
+}).strict().superRefine((horizon, ctx) => {
+  if (horizon.seasonality.length !== horizon.periods) {
+    ctx.addIssue({ code: "custom", path: ["seasonality"], message: "Give exactly one demand multiplier per period." });
+  }
+});
+
+// §3.14 V-05 team block; absent ⇒ no equilibrium module runs.
+const teamSchema = z.object({
+  mode: z.enum(["split", "tournament"]),
+  size: z.number().int().min(2).max(50),
+  split: z.object({ creditShare: decimal({ min: R0, max: Rat.one(), label: "Credit share" }) }).strict().nullable().optional(),
+  tournament: z.object({
+    prize: money,
+    winners: z.number().int().min(1).max(49),
+  }).strict().nullable().optional(),
+}).strict().superRefine((team, ctx) => {
+  if (team.mode === "split" && !team.split) {
+    ctx.addIssue({ code: "custom", path: ["split"], message: "Split-credit mode needs a credit share." });
+  }
+  if (team.mode === "tournament") {
+    if (!team.tournament) {
+      ctx.addIssue({ code: "custom", path: ["tournament"], message: "Tournament mode needs a prize and a winner count." });
+    } else if (team.tournament.winners > team.size - 1) {
+      ctx.addIssue({ code: "custom", path: ["tournament", "winners"], message: "At least one rep in the group must lose." });
+    }
+  }
+});
+
 const settingsSchema = z.object({
   mode: z.enum(["deterministic", "stochastic"]),
   periodLabel: z.string().min(1).max(40),
@@ -222,6 +293,8 @@ const settingsSchema = z.object({
   discount,
   seasonality: z.tuple([decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Seasonality" }), decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Seasonality" })]),
   rationality: rationalitySchema.nullable().optional(),
+  horizon: horizonSchema.nullable().optional(),
+  team: teamSchema.nullable().optional(),
   mc: z.object({
     seed: z.number().int().min(0).max(maxUint32),
     N: z.number().int().min(100).max(5000),
@@ -261,9 +334,20 @@ function toRat(value: string): Rat {
   return Rat.fromDecimalString(value);
 }
 
+function toSecondTask(json: SecondTaskJson | null | undefined): SecondTask | null {
+  if (!json) return null;
+  return {
+    ability: toRat(json.ability),
+    valuePerEffort: toRat(json.valuePerEffort),
+    costSubstitution: toRat(json.costSubstitution),
+  };
+}
+
 function toSegment(json: SegmentJson): Segment {
+  const secondTask = toSecondTask(json.secondTask);
   return {
     ...json,
+    ...(secondTask ? { secondTask } : { secondTask: null }),
     ability: toRat(json.ability),
     costK: toRat(json.costK),
     riskAversion: toRat(json.riskAversion),
@@ -316,14 +400,38 @@ function toRationality(json: RationalityJson | null | undefined): Rationality | 
   return json ? { mode: json.mode, tau: toRat(json.tau) } : null;
 }
 
+function toHorizon(json: HorizonJson | null | undefined): Horizon | null {
+  if (!json) return null;
+  return {
+    periods: json.periods,
+    seasonality: json.seasonality.map(toRat),
+    ratchet: { weight: toRat(json.ratchet.weight), growth: toRat(json.ratchet.growth) },
+    response: json.response,
+  };
+}
+
+function toTeam(json: TeamJson | null | undefined): TeamSettings | null {
+  if (!json) return null;
+  return {
+    mode: json.mode,
+    size: json.size,
+    split: json.split ? { creditShare: toRat(json.split.creditShare) } : null,
+    tournament: json.tournament ? { prize: toRat(json.tournament.prize), winners: json.tournament.winners } : null,
+  };
+}
+
 function toSettings(json: ScenarioJson["settings"]): ScenarioSettings {
-  const { rationality: _wireRationality, ...rest } = json;
+  const { rationality: _wireRationality, horizon: _wireHorizon, team: _wireTeam, ...rest } = json;
   const rationality = toRationality(json.rationality);
+  const horizon = toHorizon(json.horizon);
+  const team = toTeam(json.team);
   return {
     ...rest,
     discount: toRat(json.discount),
     seasonality: [toRat(json.seasonality[0]), toRat(json.seasonality[1])],
     ...(rationality ? { rationality } : {}),
+    ...(horizon ? { horizon } : {}),
+    ...(team ? { team } : {}),
     mc: { ...json.mc, ranges: toRanges(json.mc.ranges) },
   };
 }
@@ -358,9 +466,22 @@ function decimalOf(value: Rat): string {
   return value.toDecimalString();
 }
 
-function fromSegment(segment: Segment): SegmentJson {
+/** Omits the block entirely when unset, so single-task segments stay byte-identical on the wire. */
+function fromSecondTask(secondTask: SecondTask | null | undefined): SecondTaskJson | undefined {
+  if (!secondTask) return undefined;
   return {
-    ...segment,
+    ability: decimalOf(secondTask.ability),
+    valuePerEffort: decimalOf(secondTask.valuePerEffort),
+    costSubstitution: decimalOf(secondTask.costSubstitution),
+  };
+}
+
+function fromSegment(segment: Segment): SegmentJson {
+  const { secondTask: _domainSecondTask, ...rest } = segment;
+  const secondTask = fromSecondTask(segment.secondTask);
+  return {
+    ...rest,
+    ...(secondTask ? { secondTask } : {}),
     ability: decimalOf(segment.ability),
     costK: decimalOf(segment.costK),
     riskAversion: decimalOf(segment.riskAversion),
@@ -428,6 +549,31 @@ export function serializeScenario(scenario: Scenario): ScenarioJson {
       seasonality: [decimalOf(scenario.settings.seasonality[0]), decimalOf(scenario.settings.seasonality[1])],
       ...(scenario.settings.rationality
         ? { rationality: { mode: scenario.settings.rationality.mode, tau: decimalOf(scenario.settings.rationality.tau) } }
+        : {}),
+      ...(scenario.settings.horizon
+        ? {
+          horizon: {
+            periods: scenario.settings.horizon.periods,
+            seasonality: scenario.settings.horizon.seasonality.map(decimalOf),
+            ratchet: {
+              weight: decimalOf(scenario.settings.horizon.ratchet.weight),
+              growth: decimalOf(scenario.settings.horizon.ratchet.growth),
+            },
+            response: scenario.settings.horizon.response,
+          },
+        }
+        : {}),
+      ...(scenario.settings.team
+        ? {
+          team: {
+            mode: scenario.settings.team.mode,
+            size: scenario.settings.team.size,
+            ...(scenario.settings.team.split ? { split: { creditShare: decimalOf(scenario.settings.team.split.creditShare) } } : {}),
+            ...(scenario.settings.team.tournament
+              ? { tournament: { prize: decimalOf(scenario.settings.team.tournament.prize), winners: scenario.settings.team.tournament.winners } }
+              : {}),
+          },
+        }
         : {}),
       mc: {
         seed: scenario.settings.mc.seed,
