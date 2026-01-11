@@ -1,10 +1,9 @@
 "use client";
 
 import { useScenarioStore, findIssuesForPath } from "@/state/store";
-import type { SegmentJson } from "@/state/schema";
+import type { SecondTaskJson, SegmentJson } from "@/state/schema";
 
-const explainers: Record<keyof SegmentJson, string> = {
-  secondTask: "The optional quality task shares the rep's effort budget with revenue work.",
+const explainers: Record<Exclude<keyof SegmentJson, "secondTask">, string> = {
   id: "Stable identifier used by charts and share links.",
   label: "Short display name — appears in tables and the design record.",
   count: "How many reps this segment represents; drives every aggregate.",
@@ -18,7 +17,58 @@ const explainers: Record<keyof SegmentJson, string> = {
   movable: "Fraction of pipeline this segment can shift across the period boundary.",
 };
 
-const numericFields: Array<keyof SegmentJson> = ["count", "ability", "costK", "riskAversion", "noiseSD", "reservationCE", "quotaMult", "valueQuality", "movable"];
+const numericFields: Array<Exclude<keyof SegmentJson, "secondTask">> = ["count", "ability", "costK", "riskAversion", "noiseSD", "reservationCE", "quotaMult", "valueQuality", "movable"];
+
+const secondTaskFields: Array<{ key: keyof SecondTaskJson; label: string; hint: string }> = [
+  { key: "ability", label: "Task-2 ability a₂", hint: "Measured revenue per unit of task-2 effort. Leave at 0 for work the plan never sees." },
+  { key: "valuePerEffort", label: "Task-2 value v₂", hint: "True business value per unit of task-2 effort, in currency." },
+  { key: "costSubstitution", label: "Cost substitution ψ", hint: "0 = the two activities are independent; higher means pushing one crowds out the other." },
+];
+
+/** §3.3b V-03: the second activity the plan cannot tell apart but the business values differently. */
+function MultitaskBlock(): React.JSX.Element {
+  const population = useScenarioStore((state) => state.scenario.population);
+  const toggleSecondTask = useScenarioStore((state) => state.toggleSecondTask);
+  const setSecondTaskField = useScenarioStore((state) => state.setSecondTaskField);
+
+  return (
+    <fieldset className="rationality-block">
+      <legend>Multitasking</legend>
+      <p className="field-note">
+        Give a segment a second activity and the plan stops being the whole story: reps put effort where the plan pays,
+        not where the value is. Effort cost is shared across both tasks, so sharpening one set of incentives can crowd the
+        other out entirely. Segments without a second task respond exactly as before.
+      </p>
+      <ul className="multitask-list" role="list">
+        {population.map((segment) => (
+          <li key={segment.id} className="multitask-row">
+            <div className="multitask-row-head">
+              <span>{segment.label}</span>
+              <button type="button" aria-pressed={Boolean(segment.secondTask)} onClick={() => toggleSecondTask(segment.id)}>
+                {segment.secondTask ? "Remove second task" : "Add second task"}
+              </button>
+            </div>
+            {segment.secondTask ? (
+              <div className="multitask-fields">
+                {secondTaskFields.map((field) => (
+                  <label key={field.key} className="mc-numeric">
+                    <span>{field.label}</span>
+                    <input
+                      inputMode="decimal"
+                      value={segment.secondTask?.[field.key] ?? ""}
+                      title={field.hint}
+                      onChange={(event) => setSecondTaskField(segment.id, field.key, event.target.value)}
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </fieldset>
+  );
+}
 
 /** §3.3a V-02: the population's response class — exact best response, or a bounded softmax draw. */
 function RationalityDial(): React.JSX.Element {
@@ -148,6 +198,7 @@ export function ModelSurface(): React.JSX.Element {
         </table>
       </div>
       <RationalityDial />
+      <MultitaskBlock />
       {issuesList.length > 0 ? (
         <ul className="issue-list" role="list">
           {issuesList.filter((issue) => issue.path.startsWith("population")).slice(0, 6).map((issue) => (
