@@ -76,7 +76,13 @@ function StochKpiCard({ plan, active }: { plan: StochasticPlanResult; active: bo
   );
 }
 
+/** §3.3b: `√(1 − distortionIndex)` is the share of achievable value the allocation actually buys. */
+function valueEfficiency(distortionIndex: number): string {
+  return `${(Math.sqrt(Math.max(0, 1 - distortionIndex)) * 100).toFixed(1)}%`;
+}
+
 function ResponseTableDet({ result, bounded }: { result: DeterministicPlanResult; bounded: boolean }): React.JSX.Element {
+  const multitask = result.responses.some((row) => row.response.multitask);
   return (
     <table className="response-table">
       <caption>Per-segment {bounded ? "bounded responses" : "best responses"} ({result.plan.label})</caption>
@@ -84,6 +90,7 @@ function ResponseTableDet({ result, bounded }: { result: DeterministicPlanResult
         <tr>
           <th>Segment</th><th>{bounded ? "Mean effort" : "Effort e*"}</th><th>Attainment x*</th><th>Pay</th><th>CE</th>
           {bounded ? <th>CE gap</th> : null}
+          {multitask ? <><th>Task split</th><th>Value efficiency</th></> : null}
           <th>Participation</th>
         </tr>
       </thead>
@@ -96,6 +103,16 @@ function ResponseTableDet({ result, bounded }: { result: DeterministicPlanResult
             <td>{niceCurrency(row.response.payout.toNumber())}</td>
             <td>{niceCurrency(row.response.ce.toNumber())}</td>
             {bounded ? <td>{niceCurrency(row.response.ceGap.toNumber())}</td> : null}
+            {multitask ? (
+              <>
+                <td>
+                  {row.response.multitask
+                    ? `${row.response.multitask.effortTask1.toNumber().toFixed(3)} / ${row.response.multitask.effortTask2.toNumber().toFixed(3)}`
+                    : "—"}
+                </td>
+                <td>{row.response.multitask ? valueEfficiency(row.response.multitask.distortionIndex.toNumber()) : "—"}</td>
+              </>
+            ) : null}
             <td>{row.response.participation ? "Yes" : "No"}</td>
           </tr>
         ))}
@@ -105,6 +122,7 @@ function ResponseTableDet({ result, bounded }: { result: DeterministicPlanResult
 }
 
 function ResponseTableStoch({ result, bounded }: { result: StochasticPlanResult; bounded: boolean }): React.JSX.Element {
+  const multitask = result.responses.some((row) => row.response.multitask);
   return (
     <table className="response-table">
       <caption>Per-segment {bounded ? "bounded responses" : "best responses"} ({result.plan.label})</caption>
@@ -112,6 +130,7 @@ function ResponseTableStoch({ result, bounded }: { result: StochasticPlanResult;
         <tr>
           <th>Segment</th><th>{bounded ? "Mean effort" : "Effort e*"}</th><th>Mean revenue</th><th>Mean pay</th><th>CE</th>
           {bounded ? <th>CE gap</th> : null}
+          {multitask ? <><th>Task split</th><th>Value efficiency</th></> : null}
           <th>Participation</th>
         </tr>
       </thead>
@@ -124,6 +143,16 @@ function ResponseTableStoch({ result, bounded }: { result: StochasticPlanResult;
             <td>{niceCurrency(row.response.payout)}</td>
             <td>{niceCurrency(row.response.ce)}</td>
             {bounded ? <td>{niceCurrency(row.response.ceGap)}</td> : null}
+            {multitask ? (
+              <>
+                <td>
+                  {row.response.multitask
+                    ? `${row.response.multitask.effortTask1.toFixed(3)} / ${row.response.multitask.effortTask2.toFixed(3)}`
+                    : "—"}
+                </td>
+                <td>{row.response.multitask ? valueEfficiency(row.response.multitask.distortionIndex) : "—"}</td>
+              </>
+            ) : null}
             <td>{row.response.participation ? "Yes" : "No"}</td>
           </tr>
         ))}

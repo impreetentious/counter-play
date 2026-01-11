@@ -51,6 +51,39 @@ test.describe("workspace P4", () => {
     await expect(page.locator("#rationality-tau")).toHaveCount(0);
   });
 
+  test("the V-03 second task adds a task split and a value-efficiency reading", async ({ page }) => {
+    await page.goto("/");
+    const add = page.getByRole("button", { name: "Add second task" }).first();
+    await expect(add).toHaveAttribute("aria-pressed", "false");
+    await add.click();
+
+    await page.getByRole("tab", { name: /Simulate/ }).click();
+    await expect(page.getByRole("columnheader", { name: "Task split" }).first()).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Value efficiency" }).first()).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("tab", { name: /Model/ }).click();
+    await expect(page.getByRole("button", { name: "Remove second task" }).first()).toBeVisible();
+  });
+
+  test("the V-04 horizon and V-05 team panels switch on and report", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("tab", { name: /Analyze/ }).click();
+
+    await page.getByRole("button", { name: "Model an N-period horizon" }).click();
+    await expect(page.getByRole("button", { name: "Ratchet-aware" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("table.boundary-table caption").filter({ hasText: "quota path" }).first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Model team play" }).click();
+    await expect(page.getByRole("button", { name: "Split credit" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("columnheader", { name: "Equilibrium effort" }).first()).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("tab", { name: /Analyze/ }).click();
+    await expect(page.getByRole("button", { name: "Turn off the horizon" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Turn off team play" })).toBeVisible();
+  });
+
   test("template picker asks before replacing a customised scenario", async ({ page }) => {
     await page.goto("/");
     await page.locator("#segment-seg-1-label").fill("Junior team");

@@ -11,7 +11,7 @@ import { computeTiming } from "@/engine/timing";
 import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 
-const appVersion = "0.12.5";
+const appVersion = "0.12.6";
 
 function fmtCurrency(value: number, currency: string): string {
   const sign = value < 0 ? "-" : "";
@@ -98,6 +98,32 @@ export function RecordView(): React.JSX.Element {
           <div>
             <dt>Response class</dt>
             <dd>{scenario.settings.rationality?.mode === "softmax" ? `bounded (softmax, τ=${scenario.settings.rationality.tau})` : "exact best response"}</dd>
+          </div>
+          <div>
+            <dt>Multitasking</dt>
+            <dd>
+              {scenario.population.some((segment) => segment.secondTask)
+                ? `two-task allocation on ${scenario.population.filter((segment) => segment.secondTask).length} segment(s)`
+                : "single task"}
+            </dd>
+          </div>
+          <div>
+            <dt>Horizon</dt>
+            <dd>
+              {scenario.settings.horizon
+                ? `${scenario.settings.horizon.periods} periods, ratchet λ=${scenario.settings.horizon.ratchet.weight}, ${scenario.settings.horizon.response === "ratchetAware" ? "ratchet-aware" : "myopic"} reps`
+                : "two-period timing only"}
+            </dd>
+          </div>
+          <div>
+            <dt>Team play</dt>
+            <dd>
+              {scenario.settings.team
+                ? scenario.settings.team.mode === "split"
+                  ? `split credit, n=${scenario.settings.team.size}, s=${scenario.settings.team.split?.creditShare ?? "0"}`
+                  : `tournament, n=${scenario.settings.team.size}, prize ${scenario.settings.team.tournament?.prize ?? "0"}`
+                : "individual credit"}
+            </dd>
           </div>
           <div><dt>Period</dt><dd>{scenario.settings.periodLabel}</dd></div>
           <div><dt>Currency</dt><dd>{scenario.settings.currencyLabel}</dd></div>
