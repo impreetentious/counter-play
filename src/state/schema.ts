@@ -17,6 +17,7 @@ import type {
   TeamSettings,
   ThresholdLump,
   Tier,
+  AppLocale,
 } from "@/engine/types";
 
 export interface SecondTaskJson {
@@ -96,6 +97,7 @@ export interface ScenarioJson {
     mode: "deterministic" | "stochastic";
     periodLabel: string;
     currencyLabel: string;
+    locale?: AppLocale | null;
     discount: string;
     seasonality: [string, string];
     rationality?: RationalityJson | null;
@@ -290,6 +292,7 @@ const settingsSchema = z.object({
   mode: z.enum(["deterministic", "stochastic"]),
   periodLabel: z.string().min(1).max(40),
   currencyLabel: z.string().min(1).max(12),
+  locale: z.enum(["en-US", "en-GB", "de-DE"]).nullable().optional(),
   discount,
   seasonality: z.tuple([decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Seasonality" }), decimal({ min: R0, max: Rat.from(1000), minExclusive: true, label: "Seasonality" })]),
   rationality: rationalitySchema.nullable().optional(),
@@ -421,7 +424,7 @@ function toTeam(json: TeamJson | null | undefined): TeamSettings | null {
 }
 
 function toSettings(json: ScenarioJson["settings"]): ScenarioSettings {
-  const { rationality: _wireRationality, horizon: _wireHorizon, team: _wireTeam, ...rest } = json;
+  const { rationality: _wireRationality, horizon: _wireHorizon, team: _wireTeam, locale: _wireLocale, ...rest } = json;
   const rationality = toRationality(json.rationality);
   const horizon = toHorizon(json.horizon);
   const team = toTeam(json.team);
@@ -432,6 +435,7 @@ function toSettings(json: ScenarioJson["settings"]): ScenarioSettings {
     ...(rationality ? { rationality } : {}),
     ...(horizon ? { horizon } : {}),
     ...(team ? { team } : {}),
+    ...(json.locale ? { locale: json.locale } : {}),
     mc: { ...json.mc, ranges: toRanges(json.mc.ranges) },
   };
 }
@@ -545,6 +549,7 @@ export function serializeScenario(scenario: Scenario): ScenarioJson {
       mode: scenario.settings.mode,
       periodLabel: scenario.settings.periodLabel,
       currencyLabel: scenario.settings.currencyLabel,
+      ...(scenario.settings.locale ? { locale: scenario.settings.locale } : {}),
       discount: decimalOf(scenario.settings.discount),
       seasonality: [decimalOf(scenario.settings.seasonality[0]), decimalOf(scenario.settings.seasonality[1])],
       ...(scenario.settings.rationality

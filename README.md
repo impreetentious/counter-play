@@ -13,7 +13,7 @@ None of that is a surprise, and none of it needs to be a surprise. Once the plan
 - **Model** — describe the rep population as explicit, inspectable assumptions: segments with ability, effort cost, risk aversion, and quota expectations. A segment can also carry a second activity the plan cannot measure but the business still values, and reps can be assumed to play the plan approximately rather than perfectly. No live data required; this is a pre-data instrument.
 - **Design** — specify the plan precisely: base/variable mix, tiered commission curves with accelerators and decelerators, quotas, lump-sum bonuses, caps — plus the primitives that ride on top: recoverable and non-recoverable draws, clawbacks, spot bonuses, and a pay floor.
 - **Simulate** — every modeled segment best-responds to the plan. Out come the distributions that matter: attainment, payouts, total comp cost, revenue response, pay-for-performance, and — where a second activity exists — how effort splits between what is measured and what is merely valuable.
-- **Analyze** — a perverse-incentive linter flags dead zones, cliff exploits, cap-induced quit points, period-boundary gaming, quota-ratchet suppression, team free-riding, and Goodhart divergence between the measured metric and the intended one. Run the plan across a multi-period horizon where quotas reset on what reps produced; put reps in a credit-sharing team or a rank-order tournament and read the equilibrium. Monte Carlo over assumption uncertainty shows which assumption to validate first.
+- **Analyze** — a perverse-incentive linter flags dead zones, cliff exploits, cap-induced quit points, period-boundary gaming, quota-ratchet suppression, team free-riding, and Goodhart divergence between the measured metric and the intended one. Run the plan across a multi-period horizon where quotas reset on what reps produced; put reps in a credit-sharing team or a rank-order tournament and read the equilibrium. Compare nearby commission-rate schedules with an explicitly bounded local search, or load a local attainment CSV to propose refreshed assumptions. Monte Carlo over assumption uncertainty shows which assumption to validate first.
 - **Communicate** — export a self-contained, seed-stamped design record that documents the plan, the assumptions, and the computed consequences.
 
 ## What it is not
@@ -35,7 +35,7 @@ The workspace opens on a pre-loaded template scenario, so the first screen is al
 2. Adjust the population assumptions in **Model**.
 3. Shape the plan in **Design** and watch the payout curve update; optionally add a variant plan to compare against.
 4. Run **Simulate** for KPIs, distributions, and the per-segment response table.
-5. Open **Analyze** to triage linter findings (each deep-links to the chart region that shows it), check period-boundary gaming, stretch the plan across a multi-period quota ratchet, test it under split credit or a tournament, and run Monte Carlo to see which assumptions your conclusions hinge on.
+5. Open **Analyze** to triage linter findings (each deep-links to the chart region that shows it), check period-boundary gaming, stretch the plan across a multi-period quota ratchet, test it under split credit or a tournament, compare a nearby rate schedule, optionally calibrate assumptions from a local attainment CSV, and run Monte Carlo to see which assumptions your conclusions hinge on.
 6. Export the design record, save the scenario as JSON, or copy the share URL.
 
 Scenarios live in your browser's local storage. Nothing is uploaded; a share URL carries the scenario itself.
@@ -81,6 +81,8 @@ This emits a plain static site in `out/`, which serves from any static host. `np
 - **Team results sit beside the plan's numbers, never inside them.** The equilibrium under split credit or a tournament answers a different question from the individual best response, so it is reported separately rather than folded into the headline KPIs. Split credit is computed in deterministic mode only, and the tournament objective ignores risk aversion.
 - **Multi-period is a quota ratchet, not a full dynamic program.** Two to twelve periods, with each quota reset on what reps actually produced. A rep who anticipates the ratchet is modelled as looking one reset ahead, not to an unbounded horizon.
 - **Negative variable pay is possible.** Following the linear-contract convention, stochastic mode can realize negative variable pay in the far-left tail unless the plan sets a pay floor; the app says so on the distribution surfaces.
+- **Suggestions are local, not prescriptions.** The rate-schedule helper explores only a small neighbourhood with explicit cost, retention, and linter guards; it does not identify a globally optimal plan or replace the linter and uncertainty reading.
+- **Calibration is local and descriptive.** It accepts a local attainment CSV and proposes ability/noise assumptions; no files are uploaded or retained, and it is not a payroll import, causal estimate, or connector to a CRM.
 - **Accessibility.** Light and dark themes, built against WCAG 2.1 AA. It has not been independently audited.
 
 ## References
@@ -101,4 +103,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.12.6
+**Version:** v0.12.7

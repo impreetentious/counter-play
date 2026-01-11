@@ -162,4 +162,13 @@ describe("scenario wire schema", () => {
     };
     expect(() => parseScenario(bad)).toThrow(EngineError);
   });
+
+  it("round-trips the V-10 locale and preserves byte-stable old scenarios when it is unset", () => {
+    expect(serializeScenario(parseScenario(scenario)).settings).not.toHaveProperty("locale");
+    const localized = { ...scenario, settings: { ...scenario.settings, locale: "de-DE" as const } };
+    const wire = serializeScenario(parseScenario(localized));
+    expect(wire.settings.locale).toBe("de-DE");
+    expect(serializeScenario(parseScenario(wire))).toEqual(wire);
+    expect(() => parseScenario({ ...scenario, settings: { ...scenario.settings, locale: "fr-FR" } })).toThrow(EngineError);
+  });
 });

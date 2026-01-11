@@ -1,6 +1,7 @@
 import type { Rat } from "./rat";
 
 export type Mode = "deterministic" | "stochastic";
+export type AppLocale = "en-US" | "en-GB" | "de-DE";
 
 /**
  * §3.3b V-03 second task. `ability = 0` is the fully unmeasured activity; `valuePerEffort` is in
@@ -123,6 +124,8 @@ export interface ScenarioSettings {
   mode: Mode;
   periodLabel: string;
   currencyLabel: string;
+  /** V-10; absent on old scenarios means en-US. Formatting only — never touches engine input. */
+  locale?: AppLocale | null;
   discount: Rat;
   seasonality: readonly [Rat, Rat];
   /** §3.3a; absent ⇒ `{ mode: "exact" }` ⇒ responses identical to §3.3/§3.4. */
