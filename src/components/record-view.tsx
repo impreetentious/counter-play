@@ -10,18 +10,15 @@ import { simulate, type DeterministicPlanResult, type StochasticPlanResult } fro
 import { computeTiming } from "@/engine/timing";
 import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
+import { formatCompactCurrency, formatPercent, formatPreparedDate } from "@/i18n";
 
-const appVersion = "0.12.7";
+const appVersion = "0.12.8";
 
-function fmtCurrency(value: number, currency: string): string {
-  const sign = value < 0 ? "-" : "";
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `${sign}${currency}${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 1_000) return `${sign}${currency}${(abs / 1_000).toFixed(1)}k`;
-  return `${sign}${currency}${abs.toFixed(0)}`;
+function fmtCurrency(value: number, currency: string, locale?: "en-US" | "en-GB" | "de-DE" | null): string {
+  return formatCompactCurrency(value, currency, locale);
 }
 
-function fmtPercent(value: number | null): ReactNode {
+function fmtPercent(value: number | null, locale?: "en-US" | "en-GB" | "de-DE" | null): ReactNode {
   if (value === null || !Number.isFinite(value)) {
     return (
       <span
@@ -32,7 +29,7 @@ function fmtPercent(value: number | null): ReactNode {
       </span>
     );
   }
-  return `${(value * 100).toFixed(1)}%`;
+  return formatPercent(value, locale);
 }
 
 const findingLabel: Record<FindingType, string> = {
@@ -77,6 +74,7 @@ export function RecordView(): React.JSX.Element {
   const timing = useMemo(() => (domain ? computeTiming(domain) : null), [domain]);
 
   const currency = scenario.settings.currencyLabel;
+  const locale = scenario.settings.locale;
 
   return (
     <main className="record-view">
@@ -129,7 +127,7 @@ export function RecordView(): React.JSX.Element {
           <div><dt>Currency</dt><dd>{scenario.settings.currencyLabel}</dd></div>
           <div><dt>Engine</dt><dd>v{engineVersion}</dd></div>
           <div><dt>App</dt><dd>v{appVersion}</dd></div>
-          <div><dt>Prepared</dt><dd suppressHydrationWarning>{now || "—"}</dd></div>
+          <div><dt>Prepared</dt><dd suppressHydrationWarning>{now ? formatPreparedDate(now, locale) : "—"}</dd></div>
         </dl>
       </section>
 
@@ -205,8 +203,8 @@ export function RecordView(): React.JSX.Element {
             <h3 id="kpi-heading">Simulated KPIs ({simulation.mode})</h3>
             <div className="record-kpi-grid">
               {simulation.mode === "deterministic"
-                ? simulation.plans.map((plan) => <DetKpi key={plan.plan.id} plan={plan} currency={currency} />)
-                : simulation.plans.map((plan) => <StochKpi key={plan.plan.id} plan={plan} currency={currency} />)}
+                ? simulation.plans.map((plan) => <DetKpi key={plan.plan.id} plan={plan} currency={currency} locale={locale} />)
+                : simulation.plans.map((plan) => <StochKpi key={plan.plan.id} plan={plan} currency={currency} locale={locale} />)}
             </div>
             <h4>Identity attestations</h4>
             <ul className="attestation-list">
@@ -249,7 +247,7 @@ export function RecordView(): React.JSX.Element {
               <p className="muted">Discount δ={scenario.settings.discount}, seasonality (d₁, d₂)=({scenario.settings.seasonality[0]}, {scenario.settings.seasonality[1]}).</p>
               {timing.plans.map((plan) => (
                 <div key={plan.planId} className="record-timing">
-                  <p><strong>{plan.planLabel}</strong> — total displaced revenue {fmtCurrency(plan.displacedRevenueTotal.toNumber(), currency)}, two-period expected {fmtCurrency(plan.twoPeriodExpectedRevenue.toNumber(), currency)}</p>
+                  <p><strong>{plan.planLabel}</strong> — total displaced revenue {fmtCurrency(plan.displacedRevenueTotal.toNumber(), currency, locale)}, two-period expected {fmtCurrency(plan.twoPeriodExpectedRevenue.toNumber(), currency, locale)}</p>
                 </div>
               ))}
             </section>
@@ -270,8 +268,8 @@ export function RecordView(): React.JSX.Element {
                   { label: "True value", key: "trueValue", kind: "currency" },
                 ];
                 const cell = (kind: "currency" | "percent", value: number | null) => kind === "currency"
-                  ? (value === null ? "—" : fmtCurrency(value, currency))
-                  : fmtPercent(value);
+                  ? (value === null ? "—" : fmtCurrency(value, currency, locale))
+                  : fmtPercent(value, locale);
                 return (
                   <div key={plan.planId} className="record-mc-plan">
                     <h4>{plan.planLabel}</h4>
@@ -326,34 +324,34 @@ export function RecordView(): React.JSX.Element {
   );
 }
 
-function DetKpi({ plan, currency }: { plan: DeterministicPlanResult; currency: string }): React.JSX.Element {
+function DetKpi({ plan, currency, locale }: { plan: DeterministicPlanResult; currency: string; locale?: "en-US" | "en-GB" | "de-DE" | null }): React.JSX.Element {
   return (
     <article className="kpi-card">
       <header><p className="eyebrow">Plan</p><h4>{plan.plan.label}</h4></header>
       <dl>
-        <div><dt>Expected revenue</dt><dd>{fmtCurrency(plan.kpis.expectedRevenue.toNumber(), currency)}</dd></div>
-        <div><dt>Total comp</dt><dd>{fmtCurrency(plan.kpis.totalComp.toNumber(), currency)}</dd></div>
-        <div><dt>Comp ratio</dt><dd>{fmtPercent(plan.kpis.compRatio?.toNumber() ?? null)}</dd></div>
-        <div><dt>Quota attain</dt><dd>{fmtPercent(plan.kpis.quotaAttainRate.toNumber())}</dd></div>
-        <div><dt>Effective comm rate</dt><dd>{fmtPercent(plan.kpis.effectiveCommissionRate?.toNumber() ?? null)}</dd></div>
-        <div><dt>True value</dt><dd>{fmtCurrency(plan.kpis.trueValue.toNumber(), currency)}</dd></div>
+        <div><dt>Expected revenue</dt><dd>{fmtCurrency(plan.kpis.expectedRevenue.toNumber(), currency, locale)}</dd></div>
+        <div><dt>Total comp</dt><dd>{fmtCurrency(plan.kpis.totalComp.toNumber(), currency, locale)}</dd></div>
+        <div><dt>Comp ratio</dt><dd>{fmtPercent(plan.kpis.compRatio?.toNumber() ?? null, locale)}</dd></div>
+        <div><dt>Quota attain</dt><dd>{fmtPercent(plan.kpis.quotaAttainRate.toNumber(), locale)}</dd></div>
+        <div><dt>Effective comm rate</dt><dd>{fmtPercent(plan.kpis.effectiveCommissionRate?.toNumber() ?? null, locale)}</dd></div>
+        <div><dt>True value</dt><dd>{fmtCurrency(plan.kpis.trueValue.toNumber(), currency, locale)}</dd></div>
       </dl>
       {plan.kpis.retentionRisk.length > 0 ? <p className="retention-flag">Retention risk: {plan.kpis.retentionRisk.join(", ")}</p> : null}
     </article>
   );
 }
 
-function StochKpi({ plan, currency }: { plan: StochasticPlanResult; currency: string }): React.JSX.Element {
+function StochKpi({ plan, currency, locale }: { plan: StochasticPlanResult; currency: string; locale?: "en-US" | "en-GB" | "de-DE" | null }): React.JSX.Element {
   return (
     <article className="kpi-card">
       <header><p className="eyebrow">Plan</p><h4>{plan.plan.label}</h4></header>
       <dl>
-        <div><dt>Expected revenue</dt><dd>{fmtCurrency(plan.kpis.expectedRevenue, currency)}</dd></div>
-        <div><dt>Expected comp</dt><dd>{fmtCurrency(plan.kpis.totalComp, currency)}</dd></div>
-        <div><dt>Comp ratio</dt><dd>{fmtPercent(plan.kpis.compRatio)}</dd></div>
-        <div><dt>Quota attain</dt><dd>{fmtPercent(plan.kpis.quotaAttainRate)}</dd></div>
-        <div><dt>Effective comm rate</dt><dd>{fmtPercent(plan.kpis.effectiveCommissionRate)}</dd></div>
-        <div><dt>True value</dt><dd>{fmtCurrency(plan.kpis.trueValue, currency)}</dd></div>
+        <div><dt>Expected revenue</dt><dd>{fmtCurrency(plan.kpis.expectedRevenue, currency, locale)}</dd></div>
+        <div><dt>Expected comp</dt><dd>{fmtCurrency(plan.kpis.totalComp, currency, locale)}</dd></div>
+        <div><dt>Comp ratio</dt><dd>{fmtPercent(plan.kpis.compRatio, locale)}</dd></div>
+        <div><dt>Quota attain</dt><dd>{fmtPercent(plan.kpis.quotaAttainRate, locale)}</dd></div>
+        <div><dt>Effective comm rate</dt><dd>{fmtPercent(plan.kpis.effectiveCommissionRate, locale)}</dd></div>
+        <div><dt>True value</dt><dd>{fmtCurrency(plan.kpis.trueValue, currency, locale)}</dd></div>
       </dl>
       {plan.kpis.retentionRisk.length > 0 ? <p className="retention-flag">Retention risk: {plan.kpis.retentionRisk.join(", ")}</p> : null}
     </article>

@@ -7,6 +7,8 @@ import { loadPersistedScenario } from "@/state/persist";
 import { decodeShare } from "@/state/codec";
 import { useScenarioStore } from "@/state/store";
 import { ThemeToggle } from "./theme-toggle";
+import { LocalePicker } from "./locale-picker";
+import { localeOf, t } from "@/i18n";
 import { TemplatePicker } from "./template-picker";
 import { ModelSurface } from "./model-surface";
 import { DesignSurface } from "./design-surface";
@@ -24,6 +26,11 @@ export function WorkspaceShell(): React.JSX.Element {
   const hydrate = useScenarioStore((state) => state.hydrate);
   const hydrated = useScenarioStore((state) => state.hydrated);
   const replaceScenario = useScenarioStore((state) => state.replaceScenario);
+  const undo = useScenarioStore((state) => state.undo);
+  const redo = useScenarioStore((state) => state.redo);
+  const canUndo = useScenarioStore((state) => state.historyPast.length > 0);
+  const canRedo = useScenarioStore((state) => state.historyFuture.length > 0);
+  const locale = useScenarioStore((state) => localeOf(state.scenario.settings.locale));
 
   useEffect(() => {
     if (hydrated) return;
@@ -45,6 +52,23 @@ export function WorkspaceShell(): React.JSX.Element {
     hydrate(loadPersistedScenario());
   }, [hydrate, hydrated, replaceScenario]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo(); else undo();
+      } else if (event.ctrlKey && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [redo, undo]);
+
   return (
     <main className="workspace-shell">
       <header className="workspace-header">
@@ -52,7 +76,14 @@ export function WorkspaceShell(): React.JSX.Element {
           <p className="eyebrow">Compensation Design Instrument</p>
           <h1>{brandName}</h1>
         </div>
-        <ThemeToggle />
+        <div className="workspace-tools">
+          <div className="history-controls" role="group" aria-label="Scenario history">
+            <button type="button" onClick={undo} disabled={!canUndo} aria-label={`${t(locale, "history.undo")} (Control Z)`}>{t(locale, "history.undo")}</button>
+            <button type="button" onClick={redo} disabled={!canRedo} aria-label={`${t(locale, "history.redo")} (Control Shift Z)`}>{t(locale, "history.redo")}</button>
+          </div>
+          <LocalePicker />
+          <ThemeToggle />
+        </div>
       </header>
       <p className="workspace-intro">
         Model the incentives before the plan reaches the field. Every keystroke updates the payout preview and the engine

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { Scenario } from "@/engine/types";
+import type { AppLocale, Scenario } from "@/engine/types";
 import { EngineError } from "@/engine/errors";
 import { allocateId, parseScenario, ScenarioJsonSchema, type HorizonJson, type PayoutExtrasJson, type PlanJson, type ScenarioJson, type SecondTaskJson, type SegmentJson, type TeamJson } from "./schema";
 import { landingScenario, templates, type TemplateEntry } from "./templates";
@@ -13,21 +13,32 @@ export interface FieldIssue {
   message: string;
 }
 
+export interface CalibrationApplyProposal {
+  segmentId: string;
+  ability: string | null;
+  noiseSD: string | null;
+}
+
 export interface StoreState {
   scenario: ScenarioJson;
   domain: Scenario | null;
   domainError: string | null;
   issues: FieldIssue[];
   activePlanId: string;
+  historyPast: ScenarioJson[];
+  historyFuture: ScenarioJson[];
   hydrated: boolean;
   hydrate(persisted: ScenarioJson | null): void;
   replaceScenario(next: ScenarioJson): void;
+  undo(): void;
+  redo(): void;
   applyTemplate(template: TemplateEntry): void;
   setSegmentField<K extends keyof SegmentJson>(id: string, key: K, value: SegmentJson[K]): void;
   addSegment(): void;
   duplicateSegment(id: string): void;
   deleteSegment(id: string): void;
   setPlanField<K extends keyof PlanJson>(id: string, key: K, value: PlanJson[K]): void;
+  applyOptimizedPlanRates(planId: string, rates: string[]): void;
   setTierField(planId: string, index: number, key: "from" | "rate", value: string): void;
   addTier(planId: string): void;
   deleteTier(planId: string, index: number): void;
@@ -43,6 +54,7 @@ export interface StoreState {
   deletePlan(id: string): void;
   setActivePlanId(id: string): void;
   setMode(mode: "deterministic" | "stochastic"): void;
+  setLocale(locale: AppLocale): void;
   setDiscount(value: string): void;
   setRationalityMode(mode: "exact" | "softmax"): void;
   setRationalityTau(value: string): void;
@@ -60,6 +72,7 @@ export interface StoreState {
   setTournamentField(key: "prize" | "winners", value: string): void;
   setSeasonality(value: [string, string]): void;
   setNotes(notes: string): void;
+  applyCalibration(proposals: CalibrationApplyProposal[]): void;
   mcResult: McResult | null;
   mcTornado: TornadoResult | null;
   mcTornadoKpi: KpiKey;
@@ -125,6 +138,12 @@ function commit(next: ScenarioJson, activePlanIdCandidate?: string): Partial<Sto
   return { scenario: next, ...review, activePlanId, mcResult: null, mcTornado: null, mcError: null };
 }
 
+function differsOnlyByLocale(left: ScenarioJson, right: ScenarioJson): boolean {
+  const { locale: _leftLocale, ...leftSettings } = left.settings;
+  const { locale: _rightLocale, ...rightSettings } = right.settings;
+  return JSON.stringify({ ...left, settings: leftSettings }) === JSON.stringify({ ...right, settings: rightSettings });
+}
+
 function updateRanges(scenario: ScenarioJson, mutate: (ranges: ScenarioJson["settings"]["mc"]["ranges"]) => ScenarioJson["settings"]["mc"]["ranges"]): ScenarioJson {
   return {
     ...scenario,
@@ -167,20 +186,65 @@ function replacePlan(scenario: ScenarioJson, id: string, updater: (plan: PlanJso
 
 const initialReview = reviewScenario(landingScenario);
 
-export const useScenarioStore = create<StoreState>((set, get) => ({
+export const useScenarioStore = create<StoreState>((rawSet, get) => {
+  // V-09: every scenario-bearing store commit is journalled centrally. Individual mutations keep
+  // their compact shape; view-only updates never carry `scenario` and therefore never enter history.
+  let restoringHistory = false;
+  const set: typeof rawSet = (partial, replace) => {
+    const resolved = typeof partial === "function" ? partial(get()) : partial;
+    const candidate = resolved.scenario;
+    if (candidate && candidate !== get().scenario && !restoringHistory && !differsOnlyByLocale(get().scenario, candidate)) {
+      const state = get();
+      rawSet({
+        ...resolved,
+        historyPast: [...state.historyPast, state.scenario].slice(-50),
+        historyFuture: [],
+      });
+      return;
+    }
+    rawSet(partial);
+  };
+
+  return ({
   scenario: landingScenario,
   domain: initialReview.domain,
   domainError: initialReview.domainError,
   issues: initialReview.issues,
   activePlanId: landingScenario.plans[0]?.id ?? "plan-1",
+  historyPast: [],
+  historyFuture: [],
   hydrated: false,
   hydrate(persisted) {
     if (get().hydrated) return;
-    if (persisted) set({ hydrated: true, ...commit(persisted, persisted.plans[0]?.id) });
-    else set({ hydrated: true });
+    if (persisted) rawSet({ hydrated: true, ...commit(persisted, persisted.plans[0]?.id), historyPast: [], historyFuture: [] });
+    else rawSet({ hydrated: true, historyPast: [], historyFuture: [] });
   },
   replaceScenario(next) {
     set(commit(next, get().activePlanId));
+  },
+  undo() {
+    const state = get();
+    const previous = state.historyPast.at(-1);
+    if (!previous) return;
+    restoringHistory = true;
+    set({
+      ...commit(previous, state.activePlanId),
+      historyPast: state.historyPast.slice(0, -1),
+      historyFuture: [state.scenario, ...state.historyFuture].slice(0, 50),
+    });
+    restoringHistory = false;
+  },
+  redo() {
+    const state = get();
+    const next = state.historyFuture[0];
+    if (!next) return;
+    restoringHistory = true;
+    set({
+      ...commit(next, state.activePlanId),
+      historyPast: [...state.historyPast, state.scenario].slice(-50),
+      historyFuture: state.historyFuture.slice(1),
+    });
+    restoringHistory = false;
   },
   applyTemplate(template) {
     set(commit(template.scenario, template.scenario.plans[0]?.id));
@@ -217,6 +281,13 @@ export const useScenarioStore = create<StoreState>((set, get) => ({
   },
   setPlanField(id, key, value) {
     const next = replacePlan(get().scenario, id, (plan) => ({ ...plan, [key]: value }));
+    set(commit(next, get().activePlanId));
+  },
+  applyOptimizedPlanRates(planId, rates) {
+    const next = replacePlan(get().scenario, planId, (plan) => ({
+      ...plan,
+      tiers: plan.tiers.map((tier, index) => ({ ...tier, rate: rates[index] ?? tier.rate })),
+    }));
     set(commit(next, get().activePlanId));
   },
   setTierField(planId, index, key, value) {
@@ -313,6 +384,12 @@ export const useScenarioStore = create<StoreState>((set, get) => ({
     const scenario = get().scenario;
     if (scenario.settings.mode === mode) return;
     const next: ScenarioJson = { ...scenario, settings: { ...scenario.settings, mode } };
+    set(commit(next, get().activePlanId));
+  },
+  setLocale(locale) {
+    const scenario = get().scenario;
+    if (scenario.settings.locale === locale) return;
+    const next: ScenarioJson = { ...scenario, settings: { ...scenario.settings, locale } };
     set(commit(next, get().activePlanId));
   },
   setDiscount(value) {
@@ -432,6 +509,21 @@ export const useScenarioStore = create<StoreState>((set, get) => ({
     const next: ScenarioJson = { ...scenario, meta: { ...scenario.meta, notes } };
     set(commit(next, get().activePlanId));
   },
+  applyCalibration(proposals) {
+    const updates = new Map(proposals.map((proposal) => [proposal.segmentId, proposal]));
+    const next: ScenarioJson = {
+      ...get().scenario,
+      population: get().scenario.population.map((segment) => {
+        const proposal = updates.get(segment.id);
+        return proposal ? {
+          ...segment,
+          ...(proposal.ability ? { ability: proposal.ability } : {}),
+          ...(proposal.noiseSD ? { noiseSD: proposal.noiseSD } : {}),
+        } : segment;
+      }),
+    };
+    set(commit(next, get().activePlanId));
+  },
   mcResult: null,
   mcTornado: null,
   mcTornadoKpi: "totalComp",
@@ -490,7 +582,8 @@ export const useScenarioStore = create<StoreState>((set, get) => ({
       set({ mcRunning: false, mcError: message });
     }
   },
-}));
+  });
+});
 
 export function selectTemplates(): readonly TemplateEntry[] {
   return templates;
