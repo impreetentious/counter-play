@@ -7,6 +7,8 @@ import { McPanel } from "./mc-panel";
 import { BoundaryPanel } from "./boundary-panel";
 import { HorizonPanel } from "./horizon-panel";
 import { TeamPanel } from "./team-panel";
+import { OptimizerPanel } from "./optimizer-panel";
+import { CalibrationPanel } from "./calibration-panel";
 
 const explainerTemplates: Record<FindingType, (evidence: Record<string, unknown>, plan?: string) => string> = {
   "L-1": (evidence) => `Rates drop to zero between ${evidence.zone_lo_pct} and ${evidence.zone_hi_pct} attainment. In the counterfactual (rate = ${evidence.cf_rate} across the zone), the segments below would land inside the dead zone — signalling suppressed effort.`,
@@ -88,6 +90,8 @@ export function AnalyzeSurface(): React.JSX.Element {
           ))}
         </ul>
       )}
+      <OptimizerPanel />
+      <CalibrationPanel />
       <BoundaryPanel />
       <HorizonPanel />
       <TeamPanel />

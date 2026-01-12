@@ -93,4 +93,32 @@ test.describe("workspace P4", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.locator("#segment-seg-1-label")).toHaveValue("Junior");
   });
+
+  test("V-08 curve handles, V-09 history, and V-10 locale controls remain keyboard-operable", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("tab", { name: /Design/ }).click();
+    const rate = page.locator("#plan-plan-1-tier-0-rate");
+    await expect(rate).toHaveValue("0.05");
+    const handle = page.locator(".chart-rate-handle").first();
+    await handle.focus();
+    await page.keyboard.press("ArrowUp");
+    await expect(rate).toHaveValue("0.055");
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(rate).toHaveValue("0.05");
+    await page.getByLabel("Display language").selectOption("de-DE");
+    await expect(page.getByRole("button", { name: "Rückgängig" })).toBeVisible();
+  });
+
+  test("V-06 local search and V-07 calibration stay client-side and require explicit apply", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("tab", { name: /Analyze/ }).click();
+    await page.getByRole("button", { name: "Explore local rates" }).click();
+    await expect(page.locator(".optimizer-panel")).toContainText(/No feasible|Candidate:/);
+
+    await page.getByLabel("Import attainment CSV").setInputFiles({
+      name: "attainment.csv", mimeType: "text/csv", buffer: Buffer.from("segment,attainment\nseg-1,0.9\nseg-1,1.1\n"),
+    });
+    await expect(page.locator(".calibration-panel")).toContainText("2 local historical rows read");
+    await expect(page.getByRole("button", { name: "Apply usable proposals" })).toBeVisible();
+  });
 });

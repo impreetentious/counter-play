@@ -247,7 +247,16 @@ export function DesignSurface(): React.JSX.Element {
             {planIssues.slice(0, 6).map((issue) => <li key={`${issue.path}-${issue.message}`}>{issue.path}: {issue.message}</li>)}
           </ul>
         ) : null}
-        {domain && domainPlan ? <PayoutChart scenario={domain} plan={domainPlan} /> : <p className="chart-empty">Fix the highlighted inputs to see the payout preview.</p>}
+        {domain && domainPlan ? (
+          <PayoutChart
+            scenario={domain}
+            plan={domainPlan}
+            editable={{
+              tierFrom: (index, value) => setTierField(activePlan.id, index, "from", value),
+              tierRate: (index, value) => setTierField(activePlan.id, index, "rate", value),
+            }}
+          />
+        ) : <p className="chart-empty">Fix the highlighted inputs to see the payout preview.</p>}
       </div>
     </section>
   );
