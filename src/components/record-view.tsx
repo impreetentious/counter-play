@@ -12,7 +12,7 @@ import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 import { formatCompactCurrency, formatPercent, formatPreparedDate } from "@/i18n";
 
-const appVersion = "0.12.8";
+const appVersion = "0.12.9";
 
 function fmtCurrency(value: number, currency: string, locale?: "en-US" | "en-GB" | "de-DE" | null): string {
   return formatCompactCurrency(value, currency, locale);
