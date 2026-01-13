@@ -277,7 +277,7 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
   // V-09: every scenario-bearing store commit is journalled centrally. Individual mutations keep
   // their compact shape; view-only updates never carry `scenario` and therefore never enter history.
   let restoringHistory = false;
-  const set: typeof rawSet = (partial, replace) => {
+  const set: typeof rawSet = (partial, _replace) => {
     const resolved = typeof partial === "function" ? partial(get()) : partial;
     const candidate = resolved.scenario;
     if (

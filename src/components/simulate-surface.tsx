@@ -4,10 +4,8 @@ import { useMemo } from "react";
 import type { ReactNode } from "react";
 import type {
   DeterministicPlanResult,
-  DeterministicSimulationResult,
   PlanComparison,
   StochasticPlanResult,
-  StochasticSimulationResult,
 } from "@/engine/simulate";
 import { comparePlans, simulate } from "@/engine/simulate";
 import { engineVersion } from "@/engine/version";

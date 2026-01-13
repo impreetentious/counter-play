@@ -1,11 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import {
-  effectiveSegment,
-  multitaskReport,
-  portfolioEfficiency,
-  revenuePortfolio,
-} from "./multitask";
+import { effectiveSegment, portfolioEfficiency, revenuePortfolio } from "./multitask";
 import { respondCARA } from "./respond.cara";
 import { respondDeterministic } from "./respond.det";
 import { simulateDeterministic } from "./simulate";
