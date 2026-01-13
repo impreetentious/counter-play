@@ -18,7 +18,7 @@ None of that is a surprise, and none of it needs to be a surprise. Once the plan
 
 ## What it is not
 
-Not an incentive-compensation-management or commission-tracking tool. It does not connect to a CRM, does not ingest payroll or attainment data, and does not compute anyone's actual paycheck. ICM suites answer "given these attainment scenarios, what do we pay?" This answers the prior question: "given this plan, what will people *do*?"
+Not an incentive-compensation-management or commission-tracking tool. It does not connect to a CRM, does not ingest payroll or attainment data, and does not compute anyone's actual paycheck. ICM suites answer "given these attainment scenarios, what do we pay?" This answers the prior question: "given this plan, what will people _do_?"
 
 ## How it is built
 
@@ -89,13 +89,13 @@ This emits a plain static site in `out/`, which serves from any static host. `np
 
 The engine's design draws on a specific slice of the principal-agent literature. This is a working bibliography — not an exhaustive review.
 
-- Holmström, B. & Milgrom, P. (1987). Aggregation and linearity in the provision of intertemporal incentives. *Econometrica* 55(2). doi:[10.2307/1913238](https://doi.org/10.2307/1913238) — anchors the CARA-normal linear-contract path.
-- Holmström, B. & Milgrom, P. (1991). Multitask principal–agent analyses. *Journal of Law, Economics, & Organization* 7 (special issue). — anchors the two-task effort-allocation model behind the Goodhart wedge.
-- Oyer, P. (1998). Fiscal year ends and nonlinear incentive contracts: the effect on business seasonality. *Quarterly Journal of Economics* 113(1). doi:[10.1162/003355398555559](https://doi.org/10.1162/003355398555559) — anchors bonus-cliff bunching and accelerator-driven timing games.
-- Steenburgh, T. (2008). Effort or timing: the effect of lump-sum bonuses on the output of sales agents. *Quantitative Marketing and Economics* 6(3). doi:[10.1007/s11129-008-9039-7](https://doi.org/10.1007/s11129-008-9039-7) — anchors the bonus-cliff decomposition of effort vs timing.
-- Larkin, I. (2014). The cost of high-powered incentives: employee gaming in enterprise software sales. *Journal of Labor Economics* 32(2). doi:[10.1086/673371](https://doi.org/10.1086/673371) — anchors accelerator-driven deal-closure timing gaming.
-- Lazear, E. P. & Rosen, S. (1981). Rank-order tournaments as optimum labor contracts. *Journal of Political Economy* 89(5). — anchors the rank-order tournament equilibrium.
-- Weitzman, M. L. (1980). The "ratchet principle" and performance incentives. *Bell Journal of Economics* 11(1). — anchors the multi-period quota ratchet.
+- Holmström, B. & Milgrom, P. (1987). Aggregation and linearity in the provision of intertemporal incentives. _Econometrica_ 55(2). doi:[10.2307/1913238](https://doi.org/10.2307/1913238) — anchors the CARA-normal linear-contract path.
+- Holmström, B. & Milgrom, P. (1991). Multitask principal–agent analyses. _Journal of Law, Economics, & Organization_ 7 (special issue). — anchors the two-task effort-allocation model behind the Goodhart wedge.
+- Oyer, P. (1998). Fiscal year ends and nonlinear incentive contracts: the effect on business seasonality. _Quarterly Journal of Economics_ 113(1). doi:[10.1162/003355398555559](https://doi.org/10.1162/003355398555559) — anchors bonus-cliff bunching and accelerator-driven timing games.
+- Steenburgh, T. (2008). Effort or timing: the effect of lump-sum bonuses on the output of sales agents. _Quantitative Marketing and Economics_ 6(3). doi:[10.1007/s11129-008-9039-7](https://doi.org/10.1007/s11129-008-9039-7) — anchors the bonus-cliff decomposition of effort vs timing.
+- Larkin, I. (2014). The cost of high-powered incentives: employee gaming in enterprise software sales. _Journal of Labor Economics_ 32(2). doi:[10.1086/673371](https://doi.org/10.1086/673371) — anchors accelerator-driven deal-closure timing gaming.
+- Lazear, E. P. & Rosen, S. (1981). Rank-order tournaments as optimum labor contracts. _Journal of Political Economy_ 89(5). — anchors the rank-order tournament equilibrium.
+- Weitzman, M. L. (1980). The "ratchet principle" and performance incentives. _Bell Journal of Economics_ 11(1). — anchors the multi-period quota ratchet.
 
 ## License
 
@@ -103,4 +103,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.12.10
+**Version:** v0.13.0

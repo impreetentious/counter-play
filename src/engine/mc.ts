@@ -101,7 +101,9 @@ function toKpiSample(result: SimulationResult, planIndex: number): McKpiSample {
       totalComp: kpi.totalComp.toNumber(),
       compRatio: kpi.compRatio ? kpi.compRatio.toNumber() : null,
       quotaAttainRate: kpi.quotaAttainRate.toNumber(),
-      effectiveCommissionRate: kpi.effectiveCommissionRate ? kpi.effectiveCommissionRate.toNumber() : null,
+      effectiveCommissionRate: kpi.effectiveCommissionRate
+        ? kpi.effectiveCommissionRate.toNumber()
+        : null,
       trueValue: kpi.trueValue.toNumber(),
     };
   }
@@ -116,12 +118,20 @@ function toKpiSample(result: SimulationResult, planIndex: number): McKpiSample {
   return { ...kpi };
 }
 
-function applyMultiplierToSegment(segment: Segment, param: "a" | "k" | "sigma" | "gamma", multiplier: Rat): Segment {
+function applyMultiplierToSegment(
+  segment: Segment,
+  param: "a" | "k" | "sigma" | "gamma",
+  multiplier: Rat,
+): Segment {
   switch (param) {
-    case "a": return { ...segment, ability: segment.ability.mul(multiplier) };
-    case "k": return { ...segment, costK: segment.costK.mul(multiplier) };
-    case "sigma": return { ...segment, noiseSD: segment.noiseSD.mul(multiplier) };
-    case "gamma": return { ...segment, valueQuality: segment.valueQuality.mul(multiplier) };
+    case "a":
+      return { ...segment, ability: segment.ability.mul(multiplier) };
+    case "k":
+      return { ...segment, costK: segment.costK.mul(multiplier) };
+    case "sigma":
+      return { ...segment, noiseSD: segment.noiseSD.mul(multiplier) };
+    case "gamma":
+      return { ...segment, valueQuality: segment.valueQuality.mul(multiplier) };
   }
 }
 
@@ -218,12 +228,14 @@ function generateDraw(rng: ReturnType<typeof createSplitMix64>, scenario: Scenar
 
 /** Weighted lower quantile (§3.11 type-1) — sort ascending, take ⌈p·N⌉ − 1. */
 export function lowerQuantile(sortedAscending: readonly number[], probability: number): number {
-  if (sortedAscending.length === 0) throw new EngineError("INTERNAL_INVARIANT", "Cannot quantile an empty sample.");
+  if (sortedAscending.length === 0)
+    throw new EngineError("INTERNAL_INVARIANT", "Cannot quantile an empty sample.");
   const n = sortedAscending.length;
   const rawIndex = Math.ceil(probability * n) - 1;
   const clamped = Math.min(Math.max(rawIndex, 0), n - 1);
   const value = sortedAscending[clamped];
-  if (value === undefined) throw new EngineError("INTERNAL_INVARIANT", "Quantile index out of range.");
+  if (value === undefined)
+    throw new EngineError("INTERNAL_INVARIANT", "Quantile index out of range.");
   return value;
 }
 
@@ -242,7 +254,10 @@ function summarizeDraws(planId: string, planLabel: string, draws: McKpiSample[])
       const value = draw[key];
       if (typeof value === "number" && Number.isFinite(value)) values.push(value);
     }
-    if (values.length === 0) { quantiles[key] = null; continue; }
+    if (values.length === 0) {
+      quantiles[key] = null;
+      continue;
+    }
     values.sort((left, right) => left - right);
     quantiles[key] = {
       p10: lowerQuantile(values, 0.1),

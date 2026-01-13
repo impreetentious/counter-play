@@ -17,20 +17,26 @@ export interface EncodedShare {
 function toBase64Url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  const base64 = typeof btoa === "function" ? btoa(binary) : Buffer.from(binary, "binary").toString("base64");
+  const base64 =
+    typeof btoa === "function" ? btoa(binary) : Buffer.from(binary, "binary").toString("base64");
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 function fromBase64Url(text: string): Uint8Array {
   const padded = text.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((text.length + 3) % 4);
-  const binary = typeof atob === "function" ? atob(padded) : Buffer.from(padded, "base64").toString("binary");
+  const binary =
+    typeof atob === "function" ? atob(padded) : Buffer.from(padded, "base64").toString("binary");
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
   return bytes;
 }
 
 function hasCompressionStream(): boolean {
-  return typeof CompressionStream !== "undefined" && typeof DecompressionStream !== "undefined" && typeof Response !== "undefined";
+  return (
+    typeof CompressionStream !== "undefined" &&
+    typeof DecompressionStream !== "undefined" &&
+    typeof Response !== "undefined"
+  );
 }
 
 function bytesStream(input: Uint8Array): ReadableStream {
@@ -43,15 +49,22 @@ function bytesStream(input: Uint8Array): ReadableStream {
 }
 
 async function deflateRaw(input: Uint8Array): Promise<Uint8Array> {
-  const compressed = bytesStream(input).pipeThrough(new CompressionStream("deflate-raw") as unknown as ReadableWritablePair);
+  const compressed = bytesStream(input).pipeThrough(
+    new CompressionStream("deflate-raw") as unknown as ReadableWritablePair,
+  );
   return new Uint8Array(await new Response(compressed).arrayBuffer());
 }
 
 async function inflateRaw(input: Uint8Array, maxBytes: number): Promise<Uint8Array> {
-  const decompressed = bytesStream(input).pipeThrough(new DecompressionStream("deflate-raw") as unknown as ReadableWritablePair);
+  const decompressed = bytesStream(input).pipeThrough(
+    new DecompressionStream("deflate-raw") as unknown as ReadableWritablePair,
+  );
   const bytes = new Uint8Array(await new Response(decompressed).arrayBuffer());
   if (bytes.byteLength > maxBytes) {
-    throw new EngineError("INVALID_INPUT", "Shared scenario is larger than the 512 KB decoded limit.");
+    throw new EngineError(
+      "INVALID_INPUT",
+      "Shared scenario is larger than the 512 KB decoded limit.",
+    );
   }
   return bytes;
 }
@@ -88,12 +101,18 @@ export async function decodeShare(fragment: string): Promise<ScenarioJson> {
   const trimmed = fragment.startsWith("#") ? fragment.slice(1) : fragment;
   if (trimmed.length === 0) throw new EngineError("INVALID_INPUT", "The share link is empty.");
   if (trimmed.length > MAX_HASH_BYTES) {
-    throw new EngineError("INVALID_INPUT", "Share link exceeds the 8 KB fragment limit; use JSON export instead.");
+    throw new EngineError(
+      "INVALID_INPUT",
+      "Share link exceeds the 8 KB fragment limit; use JSON export instead.",
+    );
   }
   let payloadBytes: Uint8Array;
   if (trimmed.startsWith(HASH_PREFIX_COMPRESSED)) {
     if (!hasCompressionStream()) {
-      throw new EngineError("INVALID_INPUT", "This browser cannot decompress the share link; import the scenario JSON instead.");
+      throw new EngineError(
+        "INVALID_INPUT",
+        "This browser cannot decompress the share link; import the scenario JSON instead.",
+      );
     }
     const deflated = fromBase64Url(trimmed.slice(HASH_PREFIX_COMPRESSED.length));
     payloadBytes = await inflateRaw(deflated, MAX_DECOMPRESSED_BYTES);
@@ -120,7 +139,8 @@ export function exportScenarioJsonString(scenario: ScenarioJson): string {
 
 /** Parses a JSON string into a validated wire scenario, applying the schemaVersion migration rules from §3.7. */
 export function importScenarioJsonString(text: string): ScenarioJson {
-  if (typeof text !== "string") throw new EngineError("INVALID_INPUT", "Scenario JSON must be a string.");
+  if (typeof text !== "string")
+    throw new EngineError("INVALID_INPUT", "Scenario JSON must be a string.");
   if (text.length > MAX_IMPORT_BYTES) {
     throw new EngineError("INVALID_INPUT", "Scenario file exceeds the 1 MB import limit.");
   }
@@ -133,7 +153,12 @@ export function importScenarioJsonString(text: string): ScenarioJson {
   parseScenario(parsed);
   const validated = ScenarioJsonSchema.safeParse(parsed);
   if (!validated.success) {
-    throw new EngineError("INVALID_INPUT", validated.error.issues.map((issue) => `${issue.path.join(".") || "scenario"}: ${issue.message}`).join("; "));
+    throw new EngineError(
+      "INVALID_INPUT",
+      validated.error.issues
+        .map((issue) => `${issue.path.join(".") || "scenario"}: ${issue.message}`)
+        .join("; "),
+    );
   }
   return validated.data as ScenarioJson;
 }

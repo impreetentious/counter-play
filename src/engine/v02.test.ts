@@ -13,13 +13,27 @@ import type { Plan, Rationality, Scenario, Segment } from "./types";
 // evaluated independently — never read back from the implementation (§9).
 // a = 100, k = 100, Q_s = 100, B = 10, one tier r = 0.1 ⇒ C = {0, 0.1}, f = (10, 10.5).
 const segment: Segment = {
-  id: "seg-1", label: "Core", count: 1, ability: Rat.from(100), costK: Rat.from(100), riskAversion: R0,
-  noiseSD: R0, reservationCE: R0, quotaMult: Rat.one(), valueQuality: Rat.one(), movable: R0,
+  id: "seg-1",
+  label: "Core",
+  count: 1,
+  ability: Rat.from(100),
+  costK: Rat.from(100),
+  riskAversion: R0,
+  noiseSD: R0,
+  reservationCE: R0,
+  quotaMult: Rat.one(),
+  valueQuality: Rat.one(),
+  movable: R0,
 };
 
 const basePlan: Plan = {
-  id: "plan-1", label: "Base", base: Rat.from(10), quota: Rat.from(100),
-  tiers: [{ from: R0, rate: Rat.from(1, 10) }], bonus: null, cap: null,
+  id: "plan-1",
+  label: "Base",
+  base: Rat.from(10),
+  quota: Rat.from(100),
+  tiers: [{ from: R0, rate: Rat.from(1, 10) }],
+  bonus: null,
+  cap: null,
 };
 
 // C = {0, 0.1, 1}: the bonus threshold q = 100 adds a third salient play with f(1) = 10.
@@ -29,8 +43,8 @@ const softmax = (tau: Rat): Rationality => ({ mode: "softmax", tau });
 const HALF = Rat.from(1, 2);
 
 // Closed forms from §3.3a, gap 0.5 at τ = 0.5 ⇒ weights (e⁻¹, 1).
-const P_ZERO = 0.26894142136999510;
-const P_FOC = 0.73105857863000490;
+const P_ZERO = 0.2689414213699951;
+const P_FOC = 0.7310585786300049;
 const P3_TAIL = 0.21194155761708544;
 const P3_FOC = 0.57611688476582912;
 
@@ -40,8 +54,11 @@ function scenarioWith(plan: Plan, rationality: Rationality | null): Scenario {
     population: [segment],
     plans: [plan],
     settings: {
-      mode: "deterministic", periodLabel: "quarter", currencyLabel: "$",
-      discount: Rat.one(), seasonality: [Rat.one(), Rat.one()],
+      mode: "deterministic",
+      periodLabel: "quarter",
+      currencyLabel: "$",
+      discount: Rat.one(),
+      seasonality: [Rat.one(), Rat.one()],
       ...(rationality ? { rationality } : {}),
       mc: { seed: 1, N: 500, ranges: {} },
     },
@@ -64,21 +81,29 @@ describe("V-02 softmax weights", () => {
   });
 
   it("sums to exactly one for any temperature and objective set", () => {
-    fc.assert(fc.property(
-      fc.array(fc.integer({ min: -500, max: 500 }), { minLength: 1, maxLength: 12 }),
-      fc.integer({ min: 1, max: 10_000 }),
-      (values, tauScale) => {
-        const probabilities = softmaxProbabilitiesExact(values.map((value) => Rat.from(value)), Rat.from(tauScale, 100));
-        expect(probabilities.reduce((sum, value) => sum.add(value), R0).eq(Rat.one())).toBe(true);
-      },
-    ));
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: -500, max: 500 }), { minLength: 1, maxLength: 12 }),
+        fc.integer({ min: 1, max: 10_000 }),
+        (values, tauScale) => {
+          const probabilities = softmaxProbabilitiesExact(
+            values.map((value) => Rat.from(value)),
+            Rat.from(tauScale, 100),
+          );
+          expect(probabilities.reduce((sum, value) => sum.add(value), R0).eq(Rat.one())).toBe(true);
+        },
+      ),
+    );
   });
 });
 
 describe("V-02 deterministic mixture (G1, G2)", () => {
   it("G1 — two salient plays split by the logistic", () => {
     const response = respondDeterministic(basePlan, segment, softmax(HALF));
-    expect(response.components.map((component) => component.effort.serialize())).toEqual(["0/1", "1/10"]);
+    expect(response.components.map((component) => component.effort.serialize())).toEqual([
+      "0/1",
+      "1/10",
+    ]);
     expect(response.components[0]?.probability.toNumber()).toBeCloseTo(P_ZERO, 12);
     expect(response.components[1]?.probability.toNumber()).toBeCloseTo(P_FOC, 12);
     expect(response.effort.toNumber()).toBeCloseTo(0.073105857863000487, 12);
@@ -90,9 +115,15 @@ describe("V-02 deterministic mixture (G1, G2)", () => {
 
   it("G2 — a bonus cliff adds a third play and the mixture spreads over it", () => {
     const response = respondDeterministic(cliffPlan, segment, softmax(HALF));
-    expect(response.components.map((component) => component.effort.serialize())).toEqual(["0/1", "1/10", "1/1"]);
+    expect(response.components.map((component) => component.effort.serialize())).toEqual([
+      "0/1",
+      "1/10",
+      "1/1",
+    ]);
     expect(response.components.map((component) => component.probability.toNumber())).toEqual([
-      expect.closeTo(P3_TAIL, 12), expect.closeTo(P3_FOC, 12), expect.closeTo(P3_TAIL, 12),
+      expect.closeTo(P3_TAIL, 12),
+      expect.closeTo(P3_FOC, 12),
+      expect.closeTo(P3_TAIL, 12),
     ]);
     expect(response.effort.toNumber()).toBeCloseTo(0.26955324609366837, 12);
     expect(response.payout.toNumber()).toBeCloseTo(21.173194765620103, 12);
@@ -102,9 +133,15 @@ describe("V-02 deterministic mixture (G1, G2)", () => {
 
   it("conserves the I-1 payout identity exactly across the mixture", () => {
     const response = respondDeterministic(cliffPlan, segment, softmax(HALF));
-    const attestation = checkPayoutConservation([{ count: 3, payout: response.payout, decomposition: response.decomposition }]);
+    const attestation = checkPayoutConservation([
+      { count: 3, payout: response.payout, decomposition: response.decomposition },
+    ]);
     expect(attestation.pass).toBe(true);
-    expect(response.components.reduce((sum, component) => sum.add(component.probability), R0).eq(Rat.one())).toBe(true);
+    expect(
+      response.components
+        .reduce((sum, component) => sum.add(component.probability), R0)
+        .eq(Rat.one()),
+    ).toBe(true);
   });
 });
 
@@ -120,13 +157,17 @@ describe("V-02 temperature limits (G3)", () => {
 
   it("τ → ∞ approaches the uniform draw over the plan's salient plays", () => {
     const hot = respondDeterministic(cliffPlan, segment, softmax(Rat.from(1_000_000_000)));
-    expect(hot.effort.toNumber()).toBeCloseTo(0.36666666666666670, 8);
-    for (const component of hot.components) expect(component.probability.toNumber()).toBeCloseTo(1 / 3, 8);
+    expect(hot.effort.toNumber()).toBeCloseTo(0.3666666666666667, 8);
+    for (const component of hot.components)
+      expect(component.probability.toNumber()).toBeCloseTo(1 / 3, 8);
   });
 
   it("the dial is off by default — no rationality block leaves every response untouched", () => {
     const plain = respondDeterministic(cliffPlan, segment);
-    const explicit = respondDeterministic(cliffPlan, segment, { mode: "exact", tau: Rat.from(5000) });
+    const explicit = respondDeterministic(cliffPlan, segment, {
+      mode: "exact",
+      tau: Rat.from(5000),
+    });
     expect(plain.effort.eq(explicit.effort)).toBe(true);
     expect(plain.components).toHaveLength(1);
     expect(plain.components[0]?.probability.eq(Rat.one())).toBe(true);
@@ -147,10 +188,14 @@ describe("V-02 population KPIs under a mixture", () => {
   });
 
   it("leaves the exact-mode run byte-identical", () => {
-    const dialed = simulateDeterministic(scenarioWith(cliffPlan, { mode: "exact", tau: Rat.from(5000) }));
+    const dialed = simulateDeterministic(
+      scenarioWith(cliffPlan, { mode: "exact", tau: Rat.from(5000) }),
+    );
     const plain = simulateDeterministic(scenarioWith(cliffPlan, null));
     expect(dialed.plans[0]?.kpis.totalComp.eq(plain.plans[0]?.kpis.totalComp ?? R0)).toBe(true);
-    expect(dialed.plans[0]?.kpis.quotaAttainRate.eq(plain.plans[0]?.kpis.quotaAttainRate ?? R0)).toBe(true);
+    expect(
+      dialed.plans[0]?.kpis.quotaAttainRate.eq(plain.plans[0]?.kpis.quotaAttainRate ?? R0),
+    ).toBe(true);
   });
 });
 
@@ -187,9 +232,11 @@ describe("V-02 scope boundaries", () => {
   });
 
   it("never reports a negative CE gap", () => {
-    fc.assert(fc.property(fc.integer({ min: 1, max: 100_000 }), (tauScale) => {
-      const response = respondDeterministic(cliffPlan, segment, softmax(Rat.from(tauScale, 100)));
-      expect(response.ceGap.gte(R0)).toBe(true);
-    }));
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 100_000 }), (tauScale) => {
+        const response = respondDeterministic(cliffPlan, segment, softmax(Rat.from(tauScale, 100)));
+        expect(response.ceGap.gte(R0)).toBe(true);
+      }),
+    );
   });
 });

@@ -29,7 +29,8 @@ function formatRate(value: number | null): string {
 }
 
 function formatKpi(value: number | null, kpi: KpiKey, currency: string): string {
-  if (kpi === "quotaAttainRate" || kpi === "compRatio" || kpi === "effectiveCommissionRate") return formatRate(value);
+  if (kpi === "quotaAttainRate" || kpi === "compRatio" || kpi === "effectiveCommissionRate")
+    return formatRate(value);
   return formatCompact(value, currency);
 }
 
@@ -44,7 +45,16 @@ interface RangeRowProps {
   disabledHint?: string;
 }
 
-function RangeRow({ label, hint, active, value, onToggle, onChange, disabled, disabledHint }: RangeRowProps): React.JSX.Element {
+function RangeRow({
+  label,
+  hint,
+  active,
+  value,
+  onToggle,
+  onChange,
+  disabled,
+  disabledHint,
+}: RangeRowProps): React.JSX.Element {
   const [lo, setLo] = useState(value?.[0] ?? "0.9");
   const [hi, setHi] = useState(value?.[1] ?? "1.1");
   useEffect(() => {
@@ -126,7 +136,9 @@ function SegmentRangeGroup({ segment, ranges, isDet }: SegmentRangeGroupProps): 
             hint={`Multiplier applied to ${segment.label}'s ${param}.`}
             active={active}
             value={value}
-            onToggle={(next) => setSegmentRange(segment.id, param, next ? (value ?? ["0.9", "1.1"]) : null)}
+            onToggle={(next) =>
+              setSegmentRange(segment.id, param, next ? (value ?? ["0.9", "1.1"]) : null)
+            }
             onChange={(range) => setSegmentRange(segment.id, param, range)}
             disabled={disabled}
             disabledHint="σ has no effect in deterministic mode. Range is preserved but skipped for this run."
@@ -147,7 +159,15 @@ interface QuantileBarProps {
   format(value: number): string;
 }
 
-function QuantileBar({ label, p10, p50, p90, min, max, format }: QuantileBarProps): React.JSX.Element {
+function QuantileBar({
+  label,
+  p10,
+  p50,
+  p90,
+  min,
+  max,
+  format,
+}: QuantileBarProps): React.JSX.Element {
   const range = max - min || 1;
   const leftPct = ((p10 - min) / range) * 100;
   const widthPct = ((p90 - p10) / range) * 100;
@@ -155,7 +175,11 @@ function QuantileBar({ label, p10, p50, p90, min, max, format }: QuantileBarProp
   return (
     <div className="mc-band-row">
       <div className="mc-band-label">{label}</div>
-      <div className="mc-band-track" role="img" aria-label={`${label}: P10 ${format(p10)}, P50 ${format(p50)}, P90 ${format(p90)}`}>
+      <div
+        className="mc-band-track"
+        role="img"
+        aria-label={`${label}: P10 ${format(p10)}, P50 ${format(p50)}, P90 ${format(p90)}`}
+      >
         <div className="mc-band-fill" style={{ left: `${leftPct}%`, width: `${widthPct}%` }} />
         <div className="mc-band-median" style={{ left: `${midPct}%` }} />
       </div>
@@ -168,7 +192,11 @@ function QuantileBar({ label, p10, p50, p90, min, max, format }: QuantileBarProp
   );
 }
 
-function tornadoDomain(bars: readonly { perPlan: readonly { base: number | null; low: number | null; high: number | null }[] }[]): { min: number; max: number } {
+function tornadoDomain(
+  bars: readonly {
+    perPlan: readonly { base: number | null; low: number | null; high: number | null }[];
+  }[],
+): { min: number; max: number } {
   let min = Infinity;
   let max = -Infinity;
   for (const bar of bars) {
@@ -181,7 +209,10 @@ function tornadoDomain(bars: readonly { perPlan: readonly { base: number | null;
     }
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) return { min: 0, max: 1 };
-  if (min === max) { const spread = Math.max(Math.abs(min) * 0.1, 1); return { min: min - spread, max: max + spread }; }
+  if (min === max) {
+    const spread = Math.max(Math.abs(min) * 0.1, 1);
+    return { min: min - spread, max: max + spread };
+  }
   return { min, max };
 }
 
@@ -205,7 +236,10 @@ export function McPanel(): React.JSX.Element {
   const demandRange = scenario.settings.mc.ranges.demand ?? null;
   const perSegment = scenario.settings.mc.ranges.perSegment ?? {};
 
-  const domainForTornado = useMemo(() => (mcTornado ? tornadoDomain(mcTornado.bars) : { min: 0, max: 1 }), [mcTornado]);
+  const domainForTornado = useMemo(
+    () => (mcTornado ? tornadoDomain(mcTornado.bars) : { min: 0, max: 1 }),
+    [mcTornado],
+  );
   const formatForKpi = (value: number): string => formatKpi(value, mcTornadoKpi, currency);
 
   const [seedDraft, setSeedDraft] = useState(String(scenario.settings.mc.seed));
@@ -223,9 +257,10 @@ export function McPanel(): React.JSX.Element {
           <h3 id="mc-panel-heading">Assumption uncertainty</h3>
         </div>
         <p className="mc-panel-description">
-          Sweep uncertain multipliers over your population and demand. Ranges are uniform on their bounds; every draw is
-          the same across plans (common random numbers). σ ranges are inert in deterministic mode — they still consume
-          the same RNG sequence so the seed remains reproducible across mode switches.
+          Sweep uncertain multipliers over your population and demand. Ranges are uniform on their
+          bounds; every draw is the same across plans (common random numbers). σ ranges are inert in
+          deterministic mode — they still consume the same RNG sequence so the seed remains
+          reproducible across mode switches.
         </p>
       </header>
 
@@ -242,7 +277,8 @@ export function McPanel(): React.JSX.Element {
             onChange={(event) => setSeedDraft(event.target.value)}
             onBlur={() => {
               const parsed = Number(seedDraft);
-              if (Number.isInteger(parsed) && parsed >= 0 && parsed <= 2 ** 32 - 1) setMcSeed(parsed);
+              if (Number.isInteger(parsed) && parsed >= 0 && parsed <= 2 ** 32 - 1)
+                setMcSeed(parsed);
               else setSeedDraft(String(scenario.settings.mc.seed));
             }}
           />
@@ -285,22 +321,34 @@ export function McPanel(): React.JSX.Element {
         />
         <div className="mc-per-segment">
           {scenario.population.map((segment) => (
-            <SegmentRangeGroup key={segment.id} segment={segment} ranges={perSegment[segment.id]} isDet={isDet} />
+            <SegmentRangeGroup
+              key={segment.id}
+              segment={segment}
+              ranges={perSegment[segment.id]}
+              isDet={isDet}
+            />
           ))}
         </div>
       </div>
 
-      {mcError ? <p role="alert" className="surface-error">{mcError}</p> : null}
+      {mcError ? (
+        <p role="alert" className="surface-error">
+          {mcError}
+        </p>
+      ) : null}
 
       {mcResult ? (
         <section className="mc-results" aria-label="Monte Carlo results">
           <header className="mc-stamp">
             <h4>Bands</h4>
             <p className="mc-stamp-line">
-              Stamp: seed <code>{mcResult.stamp.seed}</code> · N <code>{mcResult.stamp.N}</code>
-              {" "}· engine <code>v{mcResult.stamp.engineVersion}</code> · mode <code>{mcResult.stamp.mode}</code>
+              Stamp: seed <code>{mcResult.stamp.seed}</code> · N <code>{mcResult.stamp.N}</code> ·
+              engine <code>v{mcResult.stamp.engineVersion}</code> · mode{" "}
+              <code>{mcResult.stamp.mode}</code>
             </p>
-            <p className="mc-stamp-note">Reproduces exactly on the same engine version and platform.</p>
+            <p className="mc-stamp-note">
+              Reproduces exactly on the same engine version and platform.
+            </p>
           </header>
 
           {mcResult.plans.map((plan) => (
@@ -308,10 +356,17 @@ export function McPanel(): React.JSX.Element {
               <h5>{plan.planLabel}</h5>
               {KPI_KEYS.map((kpi) => {
                 const quantiles = plan.quantiles[kpi];
-                if (!quantiles) return (
-                  <p key={kpi} className="mc-band-empty">{kpiLabels[kpi]}: —</p>
-                );
-                const draws = plan.draws.map((sample) => sample[kpi]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+                if (!quantiles)
+                  return (
+                    <p key={kpi} className="mc-band-empty">
+                      {kpiLabels[kpi]}: —
+                    </p>
+                  );
+                const draws = plan.draws
+                  .map((sample) => sample[kpi])
+                  .filter(
+                    (value): value is number => typeof value === "number" && Number.isFinite(value),
+                  );
                 const min = draws.length ? Math.min(...draws) : quantiles.p10;
                 const max = draws.length ? Math.max(...draws) : quantiles.p90;
                 const format = (value: number): string => formatKpi(value, kpi, currency);
@@ -332,13 +387,20 @@ export function McPanel(): React.JSX.Element {
                 <summary>Raw draws (first 20)</summary>
                 <table>
                   <thead>
-                    <tr><th>#</th>{KPI_KEYS.map((kpi) => <th key={kpi}>{kpiLabels[kpi]}</th>)}</tr>
+                    <tr>
+                      <th>#</th>
+                      {KPI_KEYS.map((kpi) => (
+                        <th key={kpi}>{kpiLabels[kpi]}</th>
+                      ))}
+                    </tr>
                   </thead>
                   <tbody>
                     {plan.draws.slice(0, 20).map((draw, index) => (
                       <tr key={index}>
                         <td>{index + 1}</td>
-                        {KPI_KEYS.map((kpi) => <td key={kpi}>{formatKpi(draw[kpi], kpi, currency)}</td>)}
+                        {KPI_KEYS.map((kpi) => (
+                          <td key={kpi}>{formatKpi(draw[kpi], kpi, currency)}</td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
@@ -355,17 +417,27 @@ export function McPanel(): React.JSX.Element {
             <h4>Tornado</h4>
             <label>
               <span>Sensitivity KPI</span>
-              <select value={mcTornadoKpi} onChange={(event) => setTornadoKpi(event.target.value as KpiKey)}>
-                {KPI_KEYS.map((kpi) => <option key={kpi} value={kpi}>{kpiLabels[kpi]}</option>)}
+              <select
+                value={mcTornadoKpi}
+                onChange={(event) => setTornadoKpi(event.target.value as KpiKey)}
+              >
+                {KPI_KEYS.map((kpi) => (
+                  <option key={kpi} value={kpi}>
+                    {kpiLabels[kpi]}
+                  </option>
+                ))}
               </select>
             </label>
           </header>
           <p className="mc-tornado-note">
-            One parameter at a time, others at base. Bars use exact lo/hi endpoints (§3.11); ordering is canonical
-            (demand → segments in scenario order, params <code>a, k, σ, γ</code>).
+            One parameter at a time, others at base. Bars use exact lo/hi endpoints (§3.11);
+            ordering is canonical (demand → segments in scenario order, params{" "}
+            <code>a, k, σ, γ</code>).
           </p>
           {mcTornado.bars.length === 0 ? (
-            <p className="mc-tornado-empty">Enable at least one range above to compute a tornado.</p>
+            <p className="mc-tornado-empty">
+              Enable at least one range above to compute a tornado.
+            </p>
           ) : (
             mcTornado.bars.map((bar) => (
               <div key={bar.id} className="mc-tornado-bar" role="group" aria-label={bar.label}>
@@ -401,12 +473,22 @@ interface TornadoRowProps {
   format(value: number): string;
 }
 
-function TornadoRow({ label, base, low, high, min, max, format }: TornadoRowProps): React.JSX.Element {
+function TornadoRow({
+  label,
+  base,
+  low,
+  high,
+  min,
+  max,
+  format,
+}: TornadoRowProps): React.JSX.Element {
   if (base === null || low === null || high === null) {
     return (
       <div className="mc-tornado-row">
         <div className="mc-tornado-plan">{label}</div>
-        <div className="mc-tornado-track" aria-hidden="true"><div className="mc-tornado-empty-tick" /></div>
+        <div className="mc-tornado-track" aria-hidden="true">
+          <div className="mc-tornado-empty-tick" />
+        </div>
         <div className="mc-tornado-values">no effect</div>
       </div>
     );

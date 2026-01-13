@@ -39,13 +39,19 @@ export function TeamPanel(): React.JSX.Element {
           <h3 id="team-heading">Split credit and tournaments</h3>
         </div>
         <p className="boundary-description">
-          This is the one place reps play against each other rather than against the plan. Pooled credit leaves each rep
-          only <code>φ = 1 − s(n − 1)/n</code> of their own marginal output, which is the free-riding problem exactly; a
-          rank-order prize pushes the other way. These equilibrium numbers sit <strong>beside</strong> the KPIs on
-          Simulate — they never replace them, because the two answer different questions.
+          This is the one place reps play against each other rather than against the plan. Pooled
+          credit leaves each rep only <code>φ = 1 − s(n − 1)/n</code> of their own marginal output,
+          which is the free-riding problem exactly; a rank-order prize pushes the other way. These
+          equilibrium numbers sit <strong>beside</strong> the KPIs on Simulate — they never replace
+          them, because the two answer different questions.
         </p>
         <div className="boundary-controls">
-          <button type="button" className="button-primary" aria-pressed={Boolean(wire)} onClick={toggleTeam}>
+          <button
+            type="button"
+            className="button-primary"
+            aria-pressed={Boolean(wire)}
+            onClick={toggleTeam}
+          >
             {wire ? "Turn off team play" : "Model team play"}
           </button>
         </div>
@@ -54,27 +60,59 @@ export function TeamPanel(): React.JSX.Element {
       {wire ? (
         <div className="boundary-controls">
           <div role="group" aria-label="Team mode" className="mode-toggle">
-            <button type="button" aria-pressed={wire.mode === "split"} onClick={() => setTeamMode("split")}>Split credit</button>
-            <button type="button" aria-pressed={wire.mode === "tournament"} onClick={() => setTeamMode("tournament")}>Tournament</button>
+            <button
+              type="button"
+              aria-pressed={wire.mode === "split"}
+              onClick={() => setTeamMode("split")}
+            >
+              Split credit
+            </button>
+            <button
+              type="button"
+              aria-pressed={wire.mode === "tournament"}
+              onClick={() => setTeamMode("tournament")}
+            >
+              Tournament
+            </button>
           </div>
           <label className="mc-numeric">
             <span>Group size n</span>
-            <input type="number" min={2} max={50} value={wire.size} onChange={(event) => setTeamSize(Number(event.target.value))} />
+            <input
+              type="number"
+              min={2}
+              max={50}
+              value={wire.size}
+              onChange={(event) => setTeamSize(Number(event.target.value))}
+            />
           </label>
           {wire.mode === "split" ? (
             <label className="mc-numeric">
               <span>Pooled credit s</span>
-              <input inputMode="decimal" value={wire.split?.creditShare ?? ""} onChange={(event) => setCreditShare(event.target.value)} />
+              <input
+                inputMode="decimal"
+                value={wire.split?.creditShare ?? ""}
+                onChange={(event) => setCreditShare(event.target.value)}
+              />
             </label>
           ) : (
             <>
               <label className="mc-numeric">
                 <span>Prize P ({currency})</span>
-                <input inputMode="decimal" value={wire.tournament?.prize ?? ""} onChange={(event) => setTournamentField("prize", event.target.value)} />
+                <input
+                  inputMode="decimal"
+                  value={wire.tournament?.prize ?? ""}
+                  onChange={(event) => setTournamentField("prize", event.target.value)}
+                />
               </label>
               <label className="mc-numeric">
                 <span>Winners w</span>
-                <input type="number" min={1} max={Math.max(1, wire.size - 1)} value={wire.tournament?.winners ?? 1} onChange={(event) => setTournamentField("winners", event.target.value)} />
+                <input
+                  type="number"
+                  min={1}
+                  max={Math.max(1, wire.size - 1)}
+                  value={wire.tournament?.winners ?? 1}
+                  onChange={(event) => setTournamentField("winners", event.target.value)}
+                />
               </label>
             </>
           )}
@@ -83,56 +121,67 @@ export function TeamPanel(): React.JSX.Element {
 
       {wire && team
         ? team.plans.map((plan) => (
-          <div key={plan.planId} className="boundary-plan">
-            <header>
-              <h4>{plan.planLabel}</h4>
-              <p className="boundary-plan-summary">
-                Independent <strong>{formatCurrency(plan.individualRevenue.toNumber(), currency)}</strong>
-                {" "}· equilibrium <strong>{formatCurrency(plan.equilibriumRevenue.toNumber(), currency)}</strong>
-                {" "}· gap <strong>{formatCurrency(plan.revenueGap.toNumber(), currency)}</strong>
-              </p>
-            </header>
-            <table className="boundary-table">
-              <caption>Per-segment equilibrium against the independent best response</caption>
-              <thead>
-                <tr>
-                  <th>Segment</th>
-                  <th>φ</th>
-                  <th>Individual effort</th>
-                  <th>Equilibrium effort</th>
-                  <th>Individual revenue</th>
-                  <th>Equilibrium revenue</th>
-                  <th>Equilibria</th>
-                </tr>
-              </thead>
-              <tbody>
-                {plan.perSegment.map((entry) => (
-                  <tr key={entry.segmentId}>
-                    <td>{entry.segmentLabel}</td>
-                    <td>{formatPercent(entry.creditWeight)}</td>
-                    <td>{entry.individualEffort.toFixed(3)}</td>
-                    <td>
-                      {entry.unavailable ? "—" : entry.equilibriumEffort.toFixed(3)}
-                      {!entry.unavailable && !entry.converged ? " (not converged)" : ""}
-                    </td>
-                    <td>{formatCurrency(entry.individualRevenue, currency)}</td>
-                    <td>{entry.unavailable ? "—" : formatCurrency(entry.equilibriumRevenue, currency)}</td>
-                    <td>{entry.unavailable ? "—" : entry.equilibriaCount}</td>
+            <div key={plan.planId} className="boundary-plan">
+              <header>
+                <h4>{plan.planLabel}</h4>
+                <p className="boundary-plan-summary">
+                  Independent{" "}
+                  <strong>{formatCurrency(plan.individualRevenue.toNumber(), currency)}</strong> ·
+                  equilibrium{" "}
+                  <strong>{formatCurrency(plan.equilibriumRevenue.toNumber(), currency)}</strong> ·
+                  gap <strong>{formatCurrency(plan.revenueGap.toNumber(), currency)}</strong>
+                </p>
+              </header>
+              <table className="boundary-table">
+                <caption>Per-segment equilibrium against the independent best response</caption>
+                <thead>
+                  <tr>
+                    <th>Segment</th>
+                    <th>φ</th>
+                    <th>Individual effort</th>
+                    <th>Equilibrium effort</th>
+                    <th>Individual revenue</th>
+                    <th>Equilibrium revenue</th>
+                    <th>Equilibria</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {plan.perSegment.map((entry) => (
+                    <tr key={entry.segmentId}>
+                      <td>{entry.segmentLabel}</td>
+                      <td>{formatPercent(entry.creditWeight)}</td>
+                      <td>{entry.individualEffort.toFixed(3)}</td>
+                      <td>
+                        {entry.unavailable ? "—" : entry.equilibriumEffort.toFixed(3)}
+                        {!entry.unavailable && !entry.converged ? " (not converged)" : ""}
+                      </td>
+                      <td>{formatCurrency(entry.individualRevenue, currency)}</td>
+                      <td>
+                        {entry.unavailable
+                          ? "—"
+                          : formatCurrency(entry.equilibriumRevenue, currency)}
+                      </td>
+                      <td>{entry.unavailable ? "—" : entry.equilibriaCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {plan.perSegment
+                .filter((entry) => entry.unavailable)
+                .map((entry) => (
+                  <p className="field-note" key={`${entry.segmentId}-note`}>
+                    {entry.segmentLabel}: {entry.unavailable}
+                  </p>
                 ))}
-              </tbody>
-            </table>
-            {plan.perSegment.filter((entry) => entry.unavailable).map((entry) => (
-              <p className="field-note" key={`${entry.segmentId}-note`}>{entry.segmentLabel}: {entry.unavailable}</p>
-            ))}
-            {plan.perSegment.some((entry) => entry.equilibriaCount > 1) ? (
-              <p className="field-note">
-                More than one symmetric equilibrium exists here — everyone clears the cliff together, or nobody does. The
-                table reports the one the group would prefer; the other is equally stable.
-              </p>
-            ) : null}
-          </div>
-        ))
+              {plan.perSegment.some((entry) => entry.equilibriaCount > 1) ? (
+                <p className="field-note">
+                  More than one symmetric equilibrium exists here — everyone clears the cliff
+                  together, or nobody does. The table reports the one the group would prefer; the
+                  other is equally stable.
+                </p>
+              ) : null}
+            </div>
+          ))
         : null}
     </section>
   );

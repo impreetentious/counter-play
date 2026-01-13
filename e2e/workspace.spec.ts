@@ -15,7 +15,9 @@ test.describe("workspace P4", () => {
     await expect(page.locator(".population-summary")).toContainText("21 reps total");
 
     await page.getByRole("tab", { name: /Design/ }).click();
-    await expect(page.getByRole("heading", { name: "Plan structure and payout preview" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Plan structure and payout preview" }),
+    ).toBeVisible();
     const firstTierRate = page.locator("#plan-plan-1-tier-0-rate");
     await firstTierRate.fill("not-a-number");
     await expect(page.locator(".surface-error")).toBeVisible();
@@ -40,7 +42,9 @@ test.describe("workspace P4", () => {
     await tau.fill("12000");
 
     await page.getByRole("tab", { name: /Simulate/ }).click();
-    await expect(page.locator(".response-table caption").first()).toContainText("bounded responses");
+    await expect(page.locator(".response-table caption").first()).toContainText(
+      "bounded responses",
+    );
     await expect(page.getByRole("columnheader", { name: "CE gap" }).first()).toBeVisible();
 
     await page.reload();
@@ -51,7 +55,9 @@ test.describe("workspace P4", () => {
     await expect(page.locator("#rationality-tau")).toHaveCount(0);
   });
 
-  test("the V-03 second task adds a task split and a value-efficiency reading", async ({ page }) => {
+  test("the V-03 second task adds a task split and a value-efficiency reading", async ({
+    page,
+  }) => {
     await page.goto("/");
     const add = page.getByRole("button", { name: "Add second task" }).first();
     await expect(add).toHaveAttribute("aria-pressed", "false");
@@ -59,7 +65,9 @@ test.describe("workspace P4", () => {
 
     await page.getByRole("tab", { name: /Simulate/ }).click();
     await expect(page.getByRole("columnheader", { name: "Task split" }).first()).toBeVisible();
-    await expect(page.getByRole("columnheader", { name: "Value efficiency" }).first()).toBeVisible();
+    await expect(
+      page.getByRole("columnheader", { name: "Value efficiency" }).first(),
+    ).toBeVisible();
 
     await page.reload();
     await page.getByRole("tab", { name: /Model/ }).click();
@@ -71,12 +79,22 @@ test.describe("workspace P4", () => {
     await page.getByRole("tab", { name: /Analyze/ }).click();
 
     await page.getByRole("button", { name: "Model an N-period horizon" }).click();
-    await expect(page.getByRole("button", { name: "Ratchet-aware" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("table.boundary-table caption").filter({ hasText: "quota path" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ratchet-aware" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(
+      page.locator("table.boundary-table caption").filter({ hasText: "quota path" }).first(),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Model team play" }).click();
-    await expect(page.getByRole("button", { name: "Split credit" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("columnheader", { name: "Equilibrium effort" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Split credit" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(
+      page.getByRole("columnheader", { name: "Equilibrium effort" }).first(),
+    ).toBeVisible();
 
     await page.reload();
     await page.getByRole("tab", { name: /Analyze/ }).click();
@@ -94,7 +112,9 @@ test.describe("workspace P4", () => {
     await expect(page.locator("#segment-seg-1-label")).toHaveValue("Junior");
   });
 
-  test("V-08 curve handles, V-09 history, and V-10 locale controls remain keyboard-operable", async ({ page }) => {
+  test("V-08 curve handles, V-09 history, and V-10 locale controls remain keyboard-operable", async ({
+    page,
+  }) => {
     await page.goto("/");
     await page.getByRole("tab", { name: /Design/ }).click();
     const rate = page.locator("#plan-plan-1-tier-0-rate");
@@ -109,14 +129,18 @@ test.describe("workspace P4", () => {
     await expect(page.getByRole("button", { name: "Rückgängig" })).toBeVisible();
   });
 
-  test("V-06 local search and V-07 calibration stay client-side and require explicit apply", async ({ page }) => {
+  test("V-06 local search and V-07 calibration stay client-side and require explicit apply", async ({
+    page,
+  }) => {
     await page.goto("/");
     await page.getByRole("tab", { name: /Analyze/ }).click();
     await page.getByRole("button", { name: "Explore local rates" }).click();
     await expect(page.locator(".optimizer-panel")).toContainText(/No feasible|Candidate:/);
 
     await page.getByLabel("Import attainment CSV").setInputFiles({
-      name: "attainment.csv", mimeType: "text/csv", buffer: Buffer.from("segment,attainment\nseg-1,0.9\nseg-1,1.1\n"),
+      name: "attainment.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("segment,attainment\nseg-1,0.9\nseg-1,1.1\n"),
     });
     await expect(page.locator(".calibration-panel")).toContainText("2 local historical rows read");
     await expect(page.getByRole("button", { name: "Apply usable proposals" })).toBeVisible();

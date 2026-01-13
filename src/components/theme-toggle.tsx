@@ -29,7 +29,8 @@ export function ThemeToggle(): React.JSX.Element {
 
   useEffect(() => {
     const stored = readTheme();
-    const resolved = stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const resolved =
+      stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     applyTheme(resolved);
     setTheme(resolved);
   }, []);
@@ -46,7 +47,12 @@ export function ThemeToggle(): React.JSX.Element {
   }
 
   return (
-    <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label="Toggle color theme">
+    <button
+      className="theme-toggle"
+      type="button"
+      onClick={toggleTheme}
+      aria-label="Toggle color theme"
+    >
       <span aria-hidden="true">{theme === "dark" ? "◐" : "◑"}</span>
       {theme === "dark" ? "Dark" : "Light"}
     </button>

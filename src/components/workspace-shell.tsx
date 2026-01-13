@@ -34,7 +34,10 @@ export function WorkspaceShell(): React.JSX.Element {
 
   useEffect(() => {
     if (hydrated) return;
-    const fragment = typeof window !== "undefined" && window.location.hash.length > 1 ? window.location.hash.slice(1) : "";
+    const fragment =
+      typeof window !== "undefined" && window.location.hash.length > 1
+        ? window.location.hash.slice(1)
+        : "";
     if (fragment.startsWith("s=") || fragment.startsWith("s0=")) {
       // A share link takes precedence over autosave — mark hydrated so autosave doesn't clobber later.
       hydrate(null);
@@ -59,7 +62,8 @@ export function WorkspaceShell(): React.JSX.Element {
       if (!(event.metaKey || event.ctrlKey)) return;
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
-        if (event.shiftKey) redo(); else undo();
+        if (event.shiftKey) redo();
+        else undo();
       } else if (event.ctrlKey && event.key.toLowerCase() === "y") {
         event.preventDefault();
         redo();
@@ -78,38 +82,56 @@ export function WorkspaceShell(): React.JSX.Element {
         </div>
         <div className="workspace-tools">
           <div className="history-controls" role="group" aria-label="Scenario history">
-            <button type="button" onClick={undo} disabled={!canUndo} aria-label={`${t(locale, "history.undo")} (Control Z)`}>{t(locale, "history.undo")}</button>
-            <button type="button" onClick={redo} disabled={!canRedo} aria-label={`${t(locale, "history.redo")} (Control Shift Z)`}>{t(locale, "history.redo")}</button>
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+              aria-label={`${t(locale, "history.undo")} (Control Z)`}
+            >
+              {t(locale, "history.undo")}
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={!canRedo}
+              aria-label={`${t(locale, "history.redo")} (Control Shift Z)`}
+            >
+              {t(locale, "history.redo")}
+            </button>
           </div>
           <LocalePicker />
           <ThemeToggle />
         </div>
       </header>
       <p className="workspace-intro">
-        Model the incentives before the plan reaches the field. Every keystroke updates the payout preview and the engine
-        runs exactly against your assumptions.
+        Model the incentives before the plan reaches the field. Every keystroke updates the payout
+        preview and the engine runs exactly against your assumptions.
       </p>
       <TemplatePicker />
       <nav aria-label="Workspace surfaces">
-      <div role="tablist" aria-label="Workspace surfaces" className="surface-tabs">
-        {surfaces.map((surface, index) => (
-          <button
-            key={surface}
-            type="button"
-            role="tab"
-            aria-selected={active === surface}
-            aria-controls={`surface-${surface.toLowerCase()}`}
-            id={`tab-${surface.toLowerCase()}`}
-            className={active === surface ? "surface-tab active" : "surface-tab"}
-            onClick={() => setActive(surface)}
-          >
-            <span className="tab-index">0{index + 1}</span>
-            {surface}
-          </button>
-        ))}
-      </div>
+        <div role="tablist" aria-label="Workspace surfaces" className="surface-tabs">
+          {surfaces.map((surface, index) => (
+            <button
+              key={surface}
+              type="button"
+              role="tab"
+              aria-selected={active === surface}
+              aria-controls={`surface-${surface.toLowerCase()}`}
+              id={`tab-${surface.toLowerCase()}`}
+              className={active === surface ? "surface-tab active" : "surface-tab"}
+              onClick={() => setActive(surface)}
+            >
+              <span className="tab-index">0{index + 1}</span>
+              {surface}
+            </button>
+          ))}
+        </div>
       </nav>
-      {shareLoadNotice ? <p className="share-status ok" role="status">{shareLoadNotice}</p> : null}
+      {shareLoadNotice ? (
+        <p className="share-status ok" role="status">
+          {shareLoadNotice}
+        </p>
+      ) : null}
       <ErrorBoundary>
         {active === "Model" ? <ModelSurface /> : null}
         {active === "Design" ? <DesignSurface /> : null}

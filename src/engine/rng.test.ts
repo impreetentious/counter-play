@@ -25,20 +25,23 @@ describe("splitmix64 RNG", () => {
   });
 
   it("loose uniformity: sample mean and variance track theoretical values", () => {
-    fc.assert(fc.property(fc.integer({ min: 0, max: 0xffffffff }), (seed) => {
-      const rng = createSplitMix64(seed);
-      const n = 4096;
-      let sum = 0;
-      let sumSq = 0;
-      for (let i = 0; i < n; i += 1) {
-        const value = rng.nextFloat();
-        sum += value;
-        sumSq += value * value;
-      }
-      const mean = sum / n;
-      const variance = sumSq / n - mean * mean;
-      expect(Math.abs(mean - 0.5)).toBeLessThan(0.05);
-      expect(Math.abs(variance - 1 / 12)).toBeLessThan(0.02);
-    }), { numRuns: 6 });
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 0xffffffff }), (seed) => {
+        const rng = createSplitMix64(seed);
+        const n = 4096;
+        let sum = 0;
+        let sumSq = 0;
+        for (let i = 0; i < n; i += 1) {
+          const value = rng.nextFloat();
+          sum += value;
+          sumSq += value * value;
+        }
+        const mean = sum / n;
+        const variance = sumSq / n - mean * mean;
+        expect(Math.abs(mean - 0.5)).toBeLessThan(0.05);
+        expect(Math.abs(variance - 1 / 12)).toBeLessThan(0.02);
+      }),
+      { numRuns: 6 },
+    );
   });
 });

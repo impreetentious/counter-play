@@ -4,7 +4,14 @@
  */
 export default [
   {
-    ignores: [".next/**", "out/**", "coverage/**", "node_modules/**", "test-results/**", "playwright-report/**"],
+    ignores: [
+      ".next/**",
+      "out/**",
+      "coverage/**",
+      "node_modules/**",
+      "test-results/**",
+      "playwright-report/**",
+    ],
   },
   {
     files: ["**/*.{js,mjs,cjs}"],

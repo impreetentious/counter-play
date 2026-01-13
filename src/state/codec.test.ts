@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { EngineError } from "@/engine/errors";
 import { simulateDeterministic } from "@/engine/simulate";
-import { decodeShare, encodeShare, exportScenarioJsonString, importScenarioJsonString } from "./codec";
+import {
+  decodeShare,
+  encodeShare,
+  exportScenarioJsonString,
+  importScenarioJsonString,
+} from "./codec";
 import { parseScenario, serializeScenario, type ScenarioJson } from "./schema";
 import { blankScenario, templateT1, templateT2, templateT3 } from "./templates";
 
@@ -40,7 +45,7 @@ describe("state/codec — JSON round-trip (I-4)", () => {
 
   it("rejects malformed JSON with a friendly message", () => {
     expect(() => importScenarioJsonString("{not-json")).toThrow(/valid JSON/);
-    expect(() => importScenarioJsonString("\"just a string\"")).toThrow(EngineError);
+    expect(() => importScenarioJsonString('"just a string"')).toThrow(EngineError);
   });
 
   it("rejects imports larger than the 1 MB boundary", () => {
@@ -72,7 +77,11 @@ describe("state/codec — URL share round-trip", () => {
     // Build a raw base64url payload manually so we can inject schemaVersion 2 and verify the reject.
     const bogus = { ...templateT1, schemaVersion: 2 };
     const rawBytes = new TextEncoder().encode(JSON.stringify(bogus));
-    const b64 = Buffer.from(rawBytes).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    const b64 = Buffer.from(rawBytes)
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
     await expect(decodeShare(`s0=${b64}`)).rejects.toThrow(/newer version/);
   });
 
@@ -80,6 +89,8 @@ describe("state/codec — URL share round-trip", () => {
     const share = await encodeShare(notedScenario);
     const round = await decodeShare(share.hash);
     expect(round.meta.notes).toBe("Ship this after Q3 QBR.");
-    expect(serializeScenario(parseScenario(round))).toEqual(serializeScenario(parseScenario(notedScenario)));
+    expect(serializeScenario(parseScenario(round))).toEqual(
+      serializeScenario(parseScenario(notedScenario)),
+    );
   });
 });

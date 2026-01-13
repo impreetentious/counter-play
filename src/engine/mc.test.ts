@@ -7,7 +7,11 @@ import type { ScenarioJson } from "@/state/schema";
 
 const baseTemplate = templateT1 as ScenarioJson;
 
-function scenarioWithRanges(overrides: Partial<ScenarioJson["settings"]["mc"]["ranges"]>, seed = 42, N = 120): ScenarioJson {
+function scenarioWithRanges(
+  overrides: Partial<ScenarioJson["settings"]["mc"]["ranges"]>,
+  seed = 42,
+  N = 120,
+): ScenarioJson {
   return {
     ...baseTemplate,
     settings: {
@@ -19,10 +23,14 @@ function scenarioWithRanges(overrides: Partial<ScenarioJson["settings"]["mc"]["r
 
 describe("mc — Monte Carlo replay (O-G)", () => {
   it("deep-equals two runs at the same seed, N, and ranges", () => {
-    const wire = scenarioWithRanges({
-      demand: ["0.9", "1.1"],
-      perSegment: { "seg-1": { a: ["0.95", "1.05"] } },
-    }, 42, 120);
+    const wire = scenarioWithRanges(
+      {
+        demand: ["0.9", "1.1"],
+        perSegment: { "seg-1": { a: ["0.95", "1.05"] } },
+      },
+      42,
+      120,
+    );
     const scenario = parseScenario(wire);
     const first = runMonteCarlo(scenario);
     const second = runMonteCarlo(scenario);
@@ -30,19 +38,25 @@ describe("mc — Monte Carlo replay (O-G)", () => {
   });
 
   it("consumes one float per (segment, param, draw) — order matters", () => {
-    const orderedWire = scenarioWithRanges({
-      perSegment: {
-        "seg-1": { a: ["0.9", "1.1"] },
-        "seg-2": { a: ["0.9", "1.1"] },
+    const orderedWire = scenarioWithRanges(
+      {
+        perSegment: {
+          "seg-1": { a: ["0.9", "1.1"] },
+          "seg-2": { a: ["0.9", "1.1"] },
+        },
       },
-    }, 7, 120);
+      7,
+      120,
+    );
     const reversedWire: ScenarioJson = {
       ...orderedWire,
       population: [...orderedWire.population].reverse(),
     };
     const ordered = runMonteCarlo(parseScenario(orderedWire));
     const reversed = runMonteCarlo(parseScenario(reversedWire));
-    expect(ordered.plans[0]?.draws[0]?.expectedRevenue).not.toBe(reversed.plans[0]?.draws[0]?.expectedRevenue);
+    expect(ordered.plans[0]?.draws[0]?.expectedRevenue).not.toBe(
+      reversed.plans[0]?.draws[0]?.expectedRevenue,
+    );
   });
 
   it("common random numbers apply the same draw to every plan", () => {
@@ -50,7 +64,15 @@ describe("mc — Monte Carlo replay (O-G)", () => {
       ...scenarioWithRanges({ demand: ["0.8", "1.2"] }, 11, 120),
       plans: [
         baseTemplate.plans[0]!,
-        { id: "plan-2", label: "Rich flat", base: "80000", quota: "900000", tiers: [{ from: "0", rate: "0.09" }], bonus: null, cap: null },
+        {
+          id: "plan-2",
+          label: "Rich flat",
+          base: "80000",
+          quota: "900000",
+          tiers: [{ from: "0", rate: "0.09" }],
+          bonus: null,
+          cap: null,
+        },
       ],
     };
     const result = runMonteCarlo(parseScenario(wire));
@@ -121,13 +143,16 @@ describe("mc — quantiles", () => {
 
 describe("mc — property: seeded reproducibility", () => {
   it("two runs at the same seed produce identical draws", () => {
-    fc.assert(fc.property(fc.integer({ min: 0, max: 0xffffffff }), (seed) => {
-      const wire = scenarioWithRanges({ demand: ["0.9", "1.1"] }, seed, 100);
-      const scenario = parseScenario(wire);
-      const a = runMonteCarlo(scenario);
-      const b = runMonteCarlo(scenario);
-      expect(b.plans[0]?.draws).toEqual(a.plans[0]?.draws);
-    }), { numRuns: 4 });
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 0xffffffff }), (seed) => {
+        const wire = scenarioWithRanges({ demand: ["0.9", "1.1"] }, seed, 100);
+        const scenario = parseScenario(wire);
+        const a = runMonteCarlo(scenario);
+        const b = runMonteCarlo(scenario);
+        expect(b.plans[0]?.draws).toEqual(a.plans[0]?.draws);
+      }),
+      { numRuns: 4 },
+    );
   });
 });
 

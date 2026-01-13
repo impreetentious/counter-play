@@ -20,9 +20,12 @@ function weightFromLog(logWeight: number): number {
  * normalization runs in rationals, so the returned probabilities sum to exactly one.
  */
 export function softmaxProbabilitiesExact(objectives: readonly Rat[], tau: Rat): Rat[] {
-  if (objectives.length === 0) throw new EngineError("INTERNAL_INVARIANT", "Softmax needs at least one candidate.");
+  if (objectives.length === 0)
+    throw new EngineError("INTERNAL_INVARIANT", "Softmax needs at least one candidate.");
   const best = objectives.reduce((max, value) => value.max(max));
-  const weights = objectives.map((value) => Rat.fromFloat64(weightFromLog(value.sub(best).div(tau).toNumber())));
+  const weights = objectives.map((value) =>
+    Rat.fromFloat64(weightFromLog(value.sub(best).div(tau).toNumber())),
+  );
   const total = weights.reduce((sum, weight) => sum.add(weight), R0);
   if (total.eq(R0)) throw new EngineError("INTERNAL_INVARIANT", "Softmax weights summed to zero.");
   return weights.map((weight) => weight.div(total));
@@ -30,7 +33,8 @@ export function softmaxProbabilitiesExact(objectives: readonly Rat[], tau: Rat):
 
 /** §3.3a logit probabilities on the float path (§3.4 objectives are already float64). */
 export function softmaxProbabilitiesFloat(objectives: readonly number[], tau: number): number[] {
-  if (objectives.length === 0) throw new EngineError("INTERNAL_INVARIANT", "Softmax needs at least one candidate.");
+  if (objectives.length === 0)
+    throw new EngineError("INTERNAL_INVARIANT", "Softmax needs at least one candidate.");
   const best = Math.max(...objectives);
   const weights = objectives.map((value) => weightFromLog((value - best) / tau));
   const total = weights.reduce((sum, weight) => sum + weight, 0);
@@ -47,9 +51,10 @@ export function modalIndex(probabilities: readonly (Rat | number)[]): number {
     const candidate = probabilities[index];
     const incumbent = probabilities[best];
     if (candidate === undefined || incumbent === undefined) continue;
-    const greater = typeof candidate === "number" && typeof incumbent === "number"
-      ? candidate > incumbent
-      : (candidate as Rat).gt(incumbent as Rat);
+    const greater =
+      typeof candidate === "number" && typeof incumbent === "number"
+        ? candidate > incumbent
+        : (candidate as Rat).gt(incumbent as Rat);
     if (greater) best = index;
   }
   return best;

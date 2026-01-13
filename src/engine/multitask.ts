@@ -56,11 +56,19 @@ const R2 = Rat.from(2);
 
 /** §3.3b `S` for an arbitrary productivity pair — used for both the revenue and value portfolios. */
 export function portfolioEfficiency(first: Rat, second: Rat, psi: Rat): Portfolio {
-  const discriminant = first.mul(first).sub(R2.mul(psi).mul(first).mul(second)).add(second.mul(second));
+  const discriminant = first
+    .mul(first)
+    .sub(R2.mul(psi).mul(first).mul(second))
+    .add(second.mul(second));
   const interior = first.gte(psi.mul(second)) && second.gte(psi.mul(first));
   if (interior) {
     const denominator = Rat.one().sub(psi.mul(psi));
-    return { efficiency: discriminant.div(denominator), interior: true, discriminant, cornerTask: 0 };
+    return {
+      efficiency: discriminant.div(denominator),
+      interior: true,
+      discriminant,
+      cornerTask: 0,
+    };
   }
   const cornerTask: 0 | 1 = first.gte(second) ? 0 : 1;
   const best = first.max(second);
@@ -71,7 +79,13 @@ export function portfolioEfficiency(first: Rat, second: Rat, psi: Rat): Portfoli
  * Cheapest effort split delivering `q`. Both branches agree where they meet (`ψ·max = min`),
  * so the interior formulas are used whenever the interior test passes.
  */
-export function allocate(first: Rat, second: Rat, psi: Rat, portfolio: Portfolio, target: Rat): [Rat, Rat] {
+export function allocate(
+  first: Rat,
+  second: Rat,
+  psi: Rat,
+  portfolio: Portfolio,
+  target: Rat,
+): [Rat, Rat] {
   if (portfolio.interior) {
     return [
       target.mul(first.sub(psi.mul(second))).div(portfolio.discriminant),
@@ -104,7 +118,10 @@ export function effectiveSegment(segment: Segment): Segment {
 export function scaleAbility(segment: Segment, multiplier: Rat): Segment {
   const scaled: Segment = { ...segment, ability: segment.ability.mul(multiplier) };
   if (!segment.secondTask) return scaled;
-  return { ...scaled, secondTask: { ...segment.secondTask, ability: segment.secondTask.ability.mul(multiplier) } };
+  return {
+    ...scaled,
+    secondTask: { ...segment.secondTask, ability: segment.secondTask.ability.mul(multiplier) },
+  };
 }
 
 /**
@@ -120,7 +137,11 @@ export function multitaskReport(
   if (!second) return null;
   const portfolio = revenuePortfolio(segment);
   const psi = second.costSubstitution;
-  const valuePortfolio = portfolioEfficiency(segment.valueQuality.mul(segment.ability), second.valuePerEffort, psi);
+  const valuePortfolio = portfolioEfficiency(
+    segment.valueQuality.mul(segment.ability),
+    second.valuePerEffort,
+    psi,
+  );
 
   let effortTask1 = R0;
   let effortTask2 = R0;
@@ -130,9 +151,15 @@ export function multitaskReport(
     const [first, rest] = allocate(segment.ability, second.ability, psi, portfolio, entry.output);
     effortTask1 = effortTask1.add(first.mul(entry.probability));
     effortTask2 = effortTask2.add(rest.mul(entry.probability));
-    const componentCost = segment.costK.mul(entry.output).mul(entry.output).div(portfolio.efficiency.mul(R2));
+    const componentCost = segment.costK
+      .mul(entry.output)
+      .mul(entry.output)
+      .div(portfolio.efficiency.mul(R2));
     cost = cost.add(componentCost.mul(entry.probability));
-    const componentValue = segment.valueQuality.mul(segment.ability).mul(first).add(second.valuePerEffort.mul(rest));
+    const componentValue = segment.valueQuality
+      .mul(segment.ability)
+      .mul(first)
+      .add(second.valuePerEffort.mul(rest));
     valueDelivered = valueDelivered.add(componentValue.mul(entry.probability));
   }
 
@@ -180,7 +207,10 @@ export function multitaskReportFromFloats(
   if (!segment.secondTask) return null;
   const exact = multitaskReport(
     segment,
-    entries.map((entry) => ({ probability: Rat.fromFloat64(entry.probability), output: Rat.fromFloat64(entry.output) })),
+    entries.map((entry) => ({
+      probability: Rat.fromFloat64(entry.probability),
+      output: Rat.fromFloat64(entry.output),
+    })),
   );
   return exact ? toFloatReport(exact) : null;
 }

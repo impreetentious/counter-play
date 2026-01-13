@@ -28,7 +28,12 @@ export interface OptimizerSuggestion {
   usesExactDeterministicResponse: true;
 }
 
-const MULTIPLIERS = [Rat.from(9, 10), Rat.from(19, 20), Rat.from(21, 20), Rat.from(11, 10)] as const;
+const MULTIPLIERS = [
+  Rat.from(9, 10),
+  Rat.from(19, 20),
+  Rat.from(21, 20),
+  Rat.from(11, 10),
+] as const;
 const MAX_ROUNDS = 4;
 const MAX_COMP_MULTIPLE = Rat.from(5, 4);
 
@@ -42,13 +47,17 @@ interface EvaluatedPlan {
 function clonePlanWithRate(plan: Plan, tierIndex: number, multiplier: Rat): Plan {
   return {
     ...plan,
-    tiers: plan.tiers.map((tier, index) => index === tierIndex ? { ...tier, rate: tier.rate.mul(multiplier) } : { ...tier }),
+    tiers: plan.tiers.map((tier, index) =>
+      index === tierIndex ? { ...tier, rate: tier.rate.mul(multiplier) } : { ...tier },
+    ),
     bonus: plan.bonus ? { ...plan.bonus } : null,
-    extras: plan.extras ? {
-      ...plan.extras,
-      spiff: plan.extras.spiff ? { ...plan.extras.spiff } : null,
-      clawback: plan.extras.clawback ? { ...plan.extras.clawback } : null,
-    } : null,
+    extras: plan.extras
+      ? {
+          ...plan.extras,
+          spiff: plan.extras.spiff ? { ...plan.extras.spiff } : null,
+          clawback: plan.extras.clawback ? { ...plan.extras.clawback } : null,
+        }
+      : null,
   };
 }
 
@@ -64,7 +73,9 @@ function summaryFor(scenario: Scenario, plan: Plan): OptimizerSummary {
   const result = simulateDeterministic(derived);
   const row: DeterministicPlanResult | undefined = result.plans[0];
   if (!row) throw new Error("Optimizer evaluation returned no plan.");
-  const highFindings = lintScenario(derived).filter((finding) => finding.severity === "high").length;
+  const highFindings = lintScenario(derived).filter(
+    (finding) => finding.severity === "high",
+  ).length;
   return {
     trueValue: row.kpis.trueValue,
     totalComp: row.kpis.totalComp,
@@ -75,9 +86,11 @@ function summaryFor(scenario: Scenario, plan: Plan): OptimizerSummary {
 }
 
 function feasible(summary: OptimizerSummary, baselineComp: Rat): boolean {
-  return summary.highFindings === 0
-    && summary.retentionRisk.length === 0
-    && summary.totalComp.lte(baselineComp.mul(MAX_COMP_MULTIPLE));
+  return (
+    summary.highFindings === 0 &&
+    summary.retentionRisk.length === 0 &&
+    summary.totalComp.lte(baselineComp.mul(MAX_COMP_MULTIPLE))
+  );
 }
 
 /** Returns positive when left outranks right under §3.15's deterministic score ordering. */
@@ -91,8 +104,11 @@ function compareCandidate(left: EvaluatedPlan, right: EvaluatedPlan): number {
 }
 
 function strictlyImproves(candidate: EvaluatedPlan, current: EvaluatedPlan): boolean {
-  return candidate.summary.trueValue.gt(current.summary.trueValue)
-    || (candidate.summary.trueValue.eq(current.summary.trueValue) && candidate.summary.totalComp.lt(current.summary.totalComp));
+  return (
+    candidate.summary.trueValue.gt(current.summary.trueValue) ||
+    (candidate.summary.trueValue.eq(current.summary.trueValue) &&
+      candidate.summary.totalComp.lt(current.summary.totalComp))
+  );
 }
 
 /**
@@ -123,10 +139,12 @@ export function optimizePlan(scenario: Scenario, planId: string): OptimizerSugge
         const plan = clonePlanWithRate(current.plan, tier, multiplier);
         const summary = summaryFor(scenario, plan);
         explored += 1;
-        if (feasible(summary, baseline.summary.totalComp)) candidates.push({ plan, summary, tier, multiplier });
+        if (feasible(summary, baseline.summary.totalComp))
+          candidates.push({ plan, summary, tier, multiplier });
       }
     }
-    const winner = candidates.filter((candidate) => strictlyImproves(candidate, current))
+    const winner = candidates
+      .filter((candidate) => strictlyImproves(candidate, current))
       .sort((left, right) => compareCandidate(right, left))[0];
     if (!winner) break;
     current = winner;

@@ -10,16 +10,28 @@ import { TeamPanel } from "./team-panel";
 import { OptimizerPanel } from "./optimizer-panel";
 import { CalibrationPanel } from "./calibration-panel";
 
-const explainerTemplates: Record<FindingType, (evidence: Record<string, unknown>, plan?: string) => string> = {
-  "L-1": (evidence) => `Rates drop to zero between ${evidence.zone_lo_pct} and ${evidence.zone_hi_pct} attainment. In the counterfactual (rate = ${evidence.cf_rate} across the zone), the segments below would land inside the dead zone — signalling suppressed effort.`,
-  "L-2": (evidence) => `The bonus at ${evidence.x_b_pct} attainment moves ${evidence.affected_headcount_pct} of headcount by more than 5% effort. Without it, ${evidence.crossers_pct} of headcount fall below quota — the plan depends on the bonus to reach its own line.`,
-  "L-3": (evidence) => `The segments below sit at the effective cap (${evidence.x_bar_pct}). Extending the last live rate to infinity would raise their optimal effort; the plan leaves ~$${Number(evidence.revenue_left_currency).toFixed(0)} of revenue on the table.`,
-  "L-4": (evidence) => `Retention risk: certainty-equivalent trails reservation by $${Number(evidence.ce_gap_currency).toFixed(0)}. A base increase of about $${Number(evidence.base_delta_currency).toFixed(0)} would close the gap.`,
-  "L-5": (evidence, _plan) => `Goodhart wedge: plan ${evidence.plan_high_revenue} leads on revenue but plan ${evidence.plan_high_value} leads on true value — the measured winner is not the actual winner.`,
-  "L-6": (evidence) => `Payout function is not monotone: a higher-revenue outcome pays less than a lower-revenue one at $${Number(evidence.q_flip_currency).toFixed(0)} — the plan is misconfigured.`,
-  "L-7": (evidence) => `Boundary gaming: segments would shift $${evidence.z_star_currency} of revenue across the period boundary for $${evidence.pay_gain_currency} of pay gain.`,
-  "L-8": (evidence) => `Quota resets on what reps produce (${evidence.lambda_pct} weight, ${evidence.growth}× growth). A rep who prices that in withholds $${Number(evidence.withheld_currency).toFixed(0)} of revenue across ${evidence.periods} periods — the plan pays for output today by taxing it tomorrow.`,
-  "L-9": (evidence) => `Pooling ${evidence.credit_share_pct} of credit across ${evidence.team_size} reps leaves each one keeping ${evidence.phi_pct} of their own marginal output. Equilibrium effort falls ${evidence.effort_gap_pct} short of the individual best response — $${Number(evidence.revenue_gap_currency).toFixed(0)} of revenue never gets produced.`,
+const explainerTemplates: Record<
+  FindingType,
+  (evidence: Record<string, unknown>, plan?: string) => string
+> = {
+  "L-1": (evidence) =>
+    `Rates drop to zero between ${evidence.zone_lo_pct} and ${evidence.zone_hi_pct} attainment. In the counterfactual (rate = ${evidence.cf_rate} across the zone), the segments below would land inside the dead zone — signalling suppressed effort.`,
+  "L-2": (evidence) =>
+    `The bonus at ${evidence.x_b_pct} attainment moves ${evidence.affected_headcount_pct} of headcount by more than 5% effort. Without it, ${evidence.crossers_pct} of headcount fall below quota — the plan depends on the bonus to reach its own line.`,
+  "L-3": (evidence) =>
+    `The segments below sit at the effective cap (${evidence.x_bar_pct}). Extending the last live rate to infinity would raise their optimal effort; the plan leaves ~$${Number(evidence.revenue_left_currency).toFixed(0)} of revenue on the table.`,
+  "L-4": (evidence) =>
+    `Retention risk: certainty-equivalent trails reservation by $${Number(evidence.ce_gap_currency).toFixed(0)}. A base increase of about $${Number(evidence.base_delta_currency).toFixed(0)} would close the gap.`,
+  "L-5": (evidence, _plan) =>
+    `Goodhart wedge: plan ${evidence.plan_high_revenue} leads on revenue but plan ${evidence.plan_high_value} leads on true value — the measured winner is not the actual winner.`,
+  "L-6": (evidence) =>
+    `Payout function is not monotone: a higher-revenue outcome pays less than a lower-revenue one at $${Number(evidence.q_flip_currency).toFixed(0)} — the plan is misconfigured.`,
+  "L-7": (evidence) =>
+    `Boundary gaming: segments would shift $${evidence.z_star_currency} of revenue across the period boundary for $${evidence.pay_gain_currency} of pay gain.`,
+  "L-8": (evidence) =>
+    `Quota resets on what reps produce (${evidence.lambda_pct} weight, ${evidence.growth}× growth). A rep who prices that in withholds $${Number(evidence.withheld_currency).toFixed(0)} of revenue across ${evidence.periods} periods — the plan pays for output today by taxing it tomorrow.`,
+  "L-9": (evidence) =>
+    `Pooling ${evidence.credit_share_pct} of credit across ${evidence.team_size} reps leaves each one keeping ${evidence.phi_pct} of their own marginal output. Equilibrium effort falls ${evidence.effort_gap_pct} short of the individual best response — $${Number(evidence.revenue_gap_currency).toFixed(0)} of revenue never gets produced.`,
 };
 
 const deepLinkTargets: Record<FindingType, string> = {
@@ -43,14 +55,20 @@ export function AnalyzeSurface(): React.JSX.Element {
   const domainError = useScenarioStore((state) => state.domainError);
   const findings = useMemo(() => (domain ? lintScenario(domain) : []), [domain]);
 
-  if (domainError) return (
-    <section className="surface" id="surface-analyze" aria-labelledby="analyze-heading">
-      <p className="eyebrow">Analyze</p>
-      <h2 id="analyze-heading">Fix scenario inputs first</h2>
-      <p role="alert" className="surface-error">{domainError}</p>
-      <p className="surface-summary">Return to Model or Design and clear the flagged inputs. The linter, boundary panel, and Monte Carlo all require a valid scenario.</p>
-    </section>
-  );
+  if (domainError)
+    return (
+      <section className="surface" id="surface-analyze" aria-labelledby="analyze-heading">
+        <p className="eyebrow">Analyze</p>
+        <h2 id="analyze-heading">Fix scenario inputs first</h2>
+        <p role="alert" className="surface-error">
+          {domainError}
+        </p>
+        <p className="surface-summary">
+          Return to Model or Design and clear the flagged inputs. The linter, boundary panel, and
+          Monte Carlo all require a valid scenario.
+        </p>
+      </section>
+    );
 
   return (
     <section className="surface" id="surface-analyze" aria-labelledby="analyze-heading">
@@ -60,10 +78,15 @@ export function AnalyzeSurface(): React.JSX.Element {
           <h2 id="analyze-heading">Perverse-incentive findings</h2>
         </div>
       </header>
-      <p className="surface-summary">Every finding cites the counterfactual it ran against. Zero findings does not prove a plan is safe — it does mean the linter has nothing quantitative to raise.</p>
+      <p className="surface-summary">
+        Every finding cites the counterfactual it ran against. Zero findings does not prove a plan
+        is safe — it does mean the linter has nothing quantitative to raise.
+      </p>
       {findings.length === 0 ? (
         <div className="empty-findings">
-          <p><strong>No findings.</strong> Try one of the stress presets to probe the plan:</p>
+          <p>
+            <strong>No findings.</strong> Try one of the stress presets to probe the plan:
+          </p>
           <ul>
             <li>Aggressive accelerator — multiply the top-tier rate by 1.5.</li>
             <li>Tight cap — set the cap to 110% attainment.</li>
@@ -76,12 +99,21 @@ export function AnalyzeSurface(): React.JSX.Element {
             <li key={finding.id} className={`finding-card severity-${finding.severity}`}>
               <header>
                 <span className="finding-badge">{severityBadge(finding.severity)}</span>
-                <h3>{finding.type}{finding.planId ? ` · ${finding.planId}` : ""}</h3>
-                <span className="finding-deep-link">Deep link: {deepLinkTargets[finding.type]}</span>
+                <h3>
+                  {finding.type}
+                  {finding.planId ? ` · ${finding.planId}` : ""}
+                </h3>
+                <span className="finding-deep-link">
+                  Deep link: {deepLinkTargets[finding.type]}
+                </span>
               </header>
               <p>{explainerTemplates[finding.type](finding.evidence, finding.planId)}</p>
-              {finding.segments.length > 0 ? <p className="finding-segments">Segments: {finding.segments.join(", ")}</p> : null}
-              {finding.plans && finding.plans.length > 0 ? <p className="finding-segments">Plans: {finding.plans.join(", ")}</p> : null}
+              {finding.segments.length > 0 ? (
+                <p className="finding-segments">Segments: {finding.segments.join(", ")}</p>
+              ) : null}
+              {finding.plans && finding.plans.length > 0 ? (
+                <p className="finding-segments">Plans: {finding.plans.join(", ")}</p>
+              ) : null}
               <details className="finding-evidence">
                 <summary>Evidence</summary>
                 <pre>{JSON.stringify(finding.evidence, null, 2)}</pre>

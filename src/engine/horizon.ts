@@ -88,7 +88,8 @@ export function quotaSensitivity(plan: Plan, segment: Segment, quota: Rat, outpu
     const tier = plan.tiers[index];
     if (!tier) continue;
     const next = plan.tiers[index + 1];
-    const upperAttain = next && plan.cap ? next.from.min(plan.cap) : (next?.from ?? plan.cap ?? null);
+    const upperAttain =
+      next && plan.cap ? next.from.min(plan.cap) : (next?.from ?? plan.cap ?? null);
     const lowerOutput = quota.mul(tier.from);
     if (output.lte(lowerOutput)) continue;
     const upperOutput = upperAttain ? quota.mul(upperAttain) : null;
@@ -107,7 +108,11 @@ export function quotaSensitivity(plan: Plan, segment: Segment, quota: Rat, outpu
  * piece's constrained optimum is an endpoint, and every endpoint is already a kink candidate.
  * With `s = 0` this reproduces `respondDeterministic` value for value.
  */
-export function solveHorizonEffort(plan: Plan, segment: Segment, shadowRate: Rat): { effort: Rat; output: Rat } {
+export function solveHorizonEffort(
+  plan: Plan,
+  segment: Segment,
+  shadowRate: Rat,
+): { effort: Rat; output: Rat } {
   const solving = effectiveSegment(segment);
   const candidates = [...deterministicCandidates(plan, solving)];
   if (!shadowRate.eq(R0)) {
@@ -160,10 +165,20 @@ function runChain(
   for (let index = 0; index < horizon.periods; index += 1) {
     const demand = horizon.seasonality[index] ?? Rat.one();
     const ahead = baseline?.[index + 1] ?? null;
-    const shadowRate = ahead && !weight.eq(R0)
-      ? discount.mul(weight).mul(horizon.ratchet.growth)
-        .mul(quotaSensitivity(plan, scaleAbility(segment, ahead.demand), ahead.quota, ahead.produced))
-      : R0;
+    const shadowRate =
+      ahead && !weight.eq(R0)
+        ? discount
+            .mul(weight)
+            .mul(horizon.ratchet.growth)
+            .mul(
+              quotaSensitivity(
+                plan,
+                scaleAbility(segment, ahead.demand),
+                ahead.quota,
+                ahead.produced,
+              ),
+            )
+        : R0;
     const local = periodSegment(plan, scaleAbility(segment, demand), quota);
     const solved = solveHorizonEffort(plan, local, shadowRate);
     chain.push({ quota, demand, shadowRate, effort: solved.effort, produced: solved.output });
@@ -199,7 +214,8 @@ export function optimizeShiftAcross(
   const candidates: Rat[] = [R0, windowLo, windowHi];
   for (const kink of kinks(plan, first)) candidates.push(kink.sub(q1));
   for (const kink of kinks(plan, second)) candidates.push(q2.sub(kink));
-  const value = (z: Rat): Rat => payout(plan, first, q1.add(z)).add(discount.mul(payout(plan, second, q2.sub(z))));
+  const value = (z: Rat): Rat =>
+    payout(plan, first, q1.add(z)).add(discount.mul(payout(plan, second, q2.sub(z))));
   let best = R0;
   let bestValue = value(best);
   for (const z of candidates) {
@@ -223,9 +239,10 @@ function horizonForSegment(
 ): HorizonSegmentResult {
   const weight = horizon.ratchet.weight;
   const naive = runChain(plan, segment, horizon, discount, weight, null);
-  const active = horizon.response === "ratchetAware" && !weight.eq(R0)
-    ? runChain(plan, segment, horizon, discount, weight, naive)
-    : naive;
+  const active =
+    horizon.response === "ratchetAware" && !weight.eq(R0)
+      ? runChain(plan, segment, horizon, discount, weight, naive)
+      : naive;
   const unratcheted = weight.eq(R0) ? naive : runChain(plan, segment, horizon, discount, R0, null);
 
   // Shifts run left to right on the credited outputs; quotas are already fixed (§3.10a).
@@ -239,7 +256,15 @@ function horizonForSegment(
     if (!left || !right || leftCredited === undefined || rightCredited === undefined) continue;
     const leftSegment = periodSegment(plan, scaleAbility(segment, left.demand), left.quota);
     const rightSegment = periodSegment(plan, scaleAbility(segment, right.demand), right.quota);
-    const shift = optimizeShiftAcross(plan, leftSegment, rightSegment, leftCredited, rightCredited, segment.movable, discount);
+    const shift = optimizeShiftAcross(
+      plan,
+      leftSegment,
+      rightSegment,
+      leftCredited,
+      rightCredited,
+      segment.movable,
+      discount,
+    );
     credited[index] = leftCredited.add(shift);
     credited[index + 1] = rightCredited.sub(shift);
     shifts.push(shift);
@@ -261,7 +286,8 @@ function horizonForSegment(
     };
   });
 
-  const sum = (values: readonly Rat[]): Rat => values.reduce((total, value) => total.add(value), R0);
+  const sum = (values: readonly Rat[]): Rat =>
+    values.reduce((total, value) => total.add(value), R0);
   const producedRevenue = sum(active.map((entry) => entry.produced));
   const naiveProducedRevenue = sum(naive.map((entry) => entry.produced));
   let discountedPay = R0;
@@ -299,20 +325,38 @@ export function computeHorizon(scenario: Scenario): HorizonResult | null {
     values.reduce((total, entry) => total.add(entry.value.mul(Rat.from(entry.count))), R0);
 
   const plans = scenario.plans.map((plan) => {
-    const perSegment = scenario.population.map((segment) => horizonForSegment(plan, segment, horizon, discount));
-    const produced = weighted(perSegment.map((entry) => ({ count: entry.count, value: entry.producedRevenue })));
-    const unratcheted = weighted(perSegment.map((entry) => ({ count: entry.count, value: entry.unratchetedRevenue })));
+    const perSegment = scenario.population.map((segment) =>
+      horizonForSegment(plan, segment, horizon, discount),
+    );
+    const produced = weighted(
+      perSegment.map((entry) => ({ count: entry.count, value: entry.producedRevenue })),
+    );
+    const unratcheted = weighted(
+      perSegment.map((entry) => ({ count: entry.count, value: entry.unratchetedRevenue })),
+    );
     return {
       planId: plan.id,
       planLabel: plan.label,
       perSegment,
       producedRevenue: produced,
-      naiveProducedRevenue: weighted(perSegment.map((entry) => ({ count: entry.count, value: entry.naiveProducedRevenue }))),
-      withheldRevenue: weighted(perSegment.map((entry) => ({ count: entry.count, value: entry.withheldRevenue }))),
-      displacedRevenue: weighted(perSegment.map((entry) => ({ count: entry.count, value: entry.displacedRevenue }))),
+      naiveProducedRevenue: weighted(
+        perSegment.map((entry) => ({ count: entry.count, value: entry.naiveProducedRevenue })),
+      ),
+      withheldRevenue: weighted(
+        perSegment.map((entry) => ({ count: entry.count, value: entry.withheldRevenue })),
+      ),
+      displacedRevenue: weighted(
+        perSegment.map((entry) => ({ count: entry.count, value: entry.displacedRevenue })),
+      ),
       ratchetDrag: unratcheted.sub(produced),
     } satisfies HorizonPlanResult;
   });
 
-  return { periods: horizon.periods, response: horizon.response, ratchet: horizon.ratchet, discount, plans };
+  return {
+    periods: horizon.periods,
+    response: horizon.response,
+    ratchet: horizon.ratchet,
+    discount,
+    plans,
+  };
 }

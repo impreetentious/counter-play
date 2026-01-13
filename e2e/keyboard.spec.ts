@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("keyboard path reaches Model → Design → Simulate → Analyze → share → record", async ({ page }) => {
+test("keyboard path reaches Model → Design → Simulate → Analyze → share → record", async ({
+  page,
+}) => {
   await page.goto("/");
 
   // Land on Model with the brand as the page H1.
@@ -11,7 +13,9 @@ test("keyboard path reaches Model → Design → Simulate → Analyze → share 
   await page.getByRole("tab", { name: /Design/ }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("tab", { name: /Design/ })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("heading", { name: "Plan structure and payout preview" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Plan structure and payout preview" }),
+  ).toBeVisible();
 
   await page.getByRole("tab", { name: /Simulate/ }).focus();
   await page.keyboard.press("Enter");

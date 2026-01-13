@@ -20,7 +20,10 @@ export function creditWeight(size: number, creditShare: Rat): Rat {
 }
 
 function payoffAt(plan: Plan, solving: Segment, phi: Rat, others: Rat, own: Rat): Rat {
-  const credited = phi.mul(solving.ability).mul(own).add(Rat.one().sub(phi).mul(solving.ability).mul(others));
+  const credited = phi
+    .mul(solving.ability)
+    .mul(own)
+    .add(Rat.one().sub(phi).mul(solving.ability).mul(others));
   const cost = solving.costK.mul(own).mul(own).div(Rat.from(2));
   return payout(plan, solving, credited).sub(cost);
 }
@@ -69,7 +72,12 @@ export interface SplitEquilibriumSet {
  * output, so the candidate set is §3.3's with the tier FOCs scaled by `φ` — every candidate stays
  * rational, and each is confirmed by its own exact best-response check.
  */
-export function symmetricSplitEquilibria(plan: Plan, segment: Segment, size: number, creditShare: Rat): SplitEquilibriumSet {
+export function symmetricSplitEquilibria(
+  plan: Plan,
+  segment: Segment,
+  size: number,
+  creditShare: Rat,
+): SplitEquilibriumSet {
   const solving = effectiveSegment(segment);
   const phi = creditWeight(size, creditShare);
   const candidates: Rat[] = [...deterministicCandidates(plan, solving)];
@@ -78,7 +86,9 @@ export function symmetricSplitEquilibria(plan: Plan, segment: Segment, size: num
   }
   const seen: Rat[] = [];
   const equilibria: SplitEquilibrium[] = [];
-  for (const candidate of candidates.filter((value) => value.gte(R0)).sort((left, right) => left.cmp(right))) {
+  for (const candidate of candidates
+    .filter((value) => value.gte(R0))
+    .sort((left, right) => left.cmp(right))) {
     if (seen.some((value) => value.eq(candidate))) continue;
     seen.push(candidate);
     if (!bestResponse(plan, solving, phi, candidate).eq(candidate)) continue;
@@ -122,10 +132,14 @@ function binomial(n: number, k: number): number {
  * the contract's closed forms (`C_{2,1} = C_{3,1} = 1/(2√π)`) are what this must reproduce.
  */
 export function standardWinDensity(size: number, winners: number): number {
-  const integral = simpson((u) => {
-    const cdf = normalCdf(u);
-    return normalPdf(u) ** 2 * (1 - cdf) ** (winners - 1) * cdf ** (size - 1 - winners);
-  }, QUADRATURE_HALF_WIDTH, QUADRATURE_INTERVALS);
+  const integral = simpson(
+    (u) => {
+      const cdf = normalCdf(u);
+      return normalPdf(u) ** 2 * (1 - cdf) ** (winners - 1) * cdf ** (size - 1 - winners);
+    },
+    QUADRATURE_HALF_WIDTH,
+    QUADRATURE_INTERVALS,
+  );
   return (size - 1) * binomial(size - 2, winners - 1) * integral;
 }
 
@@ -194,7 +208,13 @@ export interface TournamentEquilibrium {
  * §3.14 symmetric tournament equilibrium by best-response iteration with damping 1/2. The
  * objective is risk-neutral by contract: a prize lottery under CARA is a different integral.
  */
-export function tournamentEquilibrium(plan: Plan, segment: Segment, size: number, winners: number, prize: Rat): TournamentEquilibrium | null {
+export function tournamentEquilibrium(
+  plan: Plan,
+  segment: Segment,
+  size: number,
+  winners: number,
+  prize: Rat,
+): TournamentEquilibrium | null {
   const solving = effectiveSegment(segment);
   const sigma = solving.noiseSD.toNumber();
   if (sigma <= 0) return null;
@@ -203,7 +223,10 @@ export function tournamentEquilibrium(plan: Plan, segment: Segment, size: number
   const prizeValue = prize.toNumber();
   // The prize is a bounded lump like `L`, so §3.4's sufficiency argument covers it once it is
   // folded into the bonus slot; the extra kink can only raise the ceiling, never lower it.
-  const padded: Plan = { ...plan, bonus: { L: (plan.bonus?.L ?? R0).add(prize), x_b: plan.bonus?.x_b ?? Rat.one() } };
+  const padded: Plan = {
+    ...plan,
+    bonus: { L: (plan.bonus?.L ?? R0).add(prize), x_b: plan.bonus?.x_b ?? Rat.one() },
+  };
   const eMax = stochasticCeiling(padded, solving);
   const seeds = new Set<number>([0, eMax]);
   for (let index = 0; index < 128; index += 1) seeds.add((eMax * index) / 127);
@@ -214,9 +237,9 @@ export function tournamentEquilibrium(plan: Plan, segment: Segment, size: number
   const grid = [...seeds].sort((left, right) => left - right);
 
   const objective = (own: number, others: number): number =>
-    expectedPayout(plan, solving, ability * own, sigma)
-    + prizeValue * winProbability((ability * (own - others)) / sigma, size, winners)
-    - (costK * own * own) / 2;
+    expectedPayout(plan, solving, ability * own, sigma) +
+    prizeValue * winProbability((ability * (own - others)) / sigma, size, winners) -
+    (costK * own * own) / 2;
 
   const respond = (others: number): number => {
     let best = 0;
@@ -306,12 +329,18 @@ export interface TeamResult {
   plans: TeamPlanResult[];
 }
 
-function teamForSegment(plan: Plan, segment: Segment, team: TeamSettings, mode: Scenario["settings"]["mode"]): TeamSegmentResult {
-  const individual = mode === "deterministic"
-    ? respondDeterministic(plan, segment)
-    : respondCARA(plan, segment);
-  const individualEffort = typeof individual.effort === "number" ? individual.effort : individual.effort.toNumber();
-  const individualOutput = typeof individual.output === "number" ? individual.output : individual.output.toNumber();
+function teamForSegment(
+  plan: Plan,
+  segment: Segment,
+  team: TeamSettings,
+  mode: Scenario["settings"]["mode"],
+): TeamSegmentResult {
+  const individual =
+    mode === "deterministic" ? respondDeterministic(plan, segment) : respondCARA(plan, segment);
+  const individualEffort =
+    typeof individual.effort === "number" ? individual.effort : individual.effort.toNumber();
+  const individualOutput =
+    typeof individual.output === "number" ? individual.output : individual.output.toNumber();
   const shared = {
     segmentId: segment.id,
     segmentLabel: segment.label,
@@ -335,7 +364,13 @@ function teamForSegment(plan: Plan, segment: Segment, team: TeamSettings, mode: 
     };
   }
 
-  const tournament = tournamentEquilibrium(plan, segment, team.size, team.tournament?.winners ?? 1, team.tournament?.prize ?? R0);
+  const tournament = tournamentEquilibrium(
+    plan,
+    segment,
+    team.size,
+    team.tournament?.winners ?? 1,
+    team.tournament?.prize ?? R0,
+  );
   if (!tournament) {
     return {
       ...shared,
@@ -345,7 +380,8 @@ function teamForSegment(plan: Plan, segment: Segment, team: TeamSettings, mode: 
       creditWeight: null,
       equilibriaCount: 0,
       converged: false,
-      unavailable: "A tournament needs positive noise — at σ = 0 the contest has no equilibrium in pure strategies.",
+      unavailable:
+        "A tournament needs positive noise — at σ = 0 the contest has no equilibrium in pure strategies.",
     };
   }
   return {
@@ -364,13 +400,17 @@ export function computeTeam(scenario: Scenario): TeamResult | null {
   const team = scenario.settings.team;
   if (!team) return null;
   const plans = scenario.plans.map((plan) => {
-    const perSegment = scenario.population.map((segment) => teamForSegment(plan, segment, team, scenario.settings.mode));
+    const perSegment = scenario.population.map((segment) =>
+      teamForSegment(plan, segment, team, scenario.settings.mode),
+    );
     const individualRevenue = perSegment.reduce(
-      (total, entry) => total.add(Rat.fromFloat64(entry.individualRevenue).mul(Rat.from(entry.count))),
+      (total, entry) =>
+        total.add(Rat.fromFloat64(entry.individualRevenue).mul(Rat.from(entry.count))),
       R0,
     );
     const equilibriumRevenue = perSegment.reduce(
-      (total, entry) => total.add(Rat.fromFloat64(entry.equilibriumRevenue).mul(Rat.from(entry.count))),
+      (total, entry) =>
+        total.add(Rat.fromFloat64(entry.equilibriumRevenue).mul(Rat.from(entry.count))),
       R0,
     );
     return {

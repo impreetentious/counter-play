@@ -4,12 +4,49 @@ import { parseScenario, type ScenarioJson } from "@/state/schema";
 
 const scenarioJson: ScenarioJson = {
   schemaVersion: 1,
-  population: [{ id: "seg-1", label: "Core", count: 2, ability: "100", costK: "100", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "1", valueQuality: "1", movable: "0" }],
-  plans: [
-    { id: "plan-1", label: "Low", base: "0", quota: "100", tiers: [{ from: "0", rate: "0.1" }], bonus: null, cap: null },
-    { id: "plan-2", label: "High", base: "0", quota: "100", tiers: [{ from: "0", rate: "0.2" }], bonus: null, cap: null },
+  population: [
+    {
+      id: "seg-1",
+      label: "Core",
+      count: 2,
+      ability: "100",
+      costK: "100",
+      riskAversion: "0",
+      noiseSD: "0",
+      reservationCE: "0",
+      quotaMult: "1",
+      valueQuality: "1",
+      movable: "0",
+    },
   ],
-  settings: { mode: "deterministic", periodLabel: "year", currencyLabel: "$", discount: "1", seasonality: ["1", "1"], mc: { seed: 1, N: 500, ranges: {} } },
+  plans: [
+    {
+      id: "plan-1",
+      label: "Low",
+      base: "0",
+      quota: "100",
+      tiers: [{ from: "0", rate: "0.1" }],
+      bonus: null,
+      cap: null,
+    },
+    {
+      id: "plan-2",
+      label: "High",
+      base: "0",
+      quota: "100",
+      tiers: [{ from: "0", rate: "0.2" }],
+      bonus: null,
+      cap: null,
+    },
+  ],
+  settings: {
+    mode: "deterministic",
+    periodLabel: "year",
+    currencyLabel: "$",
+    discount: "1",
+    seasonality: ["1", "1"],
+    mc: { seed: 1, N: 500, ranges: {} },
+  },
   meta: { notes: "" },
 };
 
@@ -20,7 +57,10 @@ describe("deterministic simulation", () => {
     expect(low?.kpis.expectedRevenue.serialize()).toBe("20/1");
     expect(low?.kpis.totalComp.serialize()).toBe("2/1");
     expect(low?.kpis.compRatio?.serialize()).toBe("1/10");
-    expect(result.attestations).toEqual([{ id: "I-1", pass: true, maxErr: 0 }, { id: "I-3", pass: true, maxErr: 0 }]);
+    expect(result.attestations).toEqual([
+      { id: "I-1", pass: true, maxErr: 0 },
+      { id: "I-3", pass: true, maxErr: 0 },
+    ]);
   });
 
   it("recomputes exact comparison deltas", () => {
@@ -40,7 +80,9 @@ describe("deterministic simulation", () => {
     const result = simulate(parseScenario(stochastic));
     expect(result.mode).toBe("stochastic");
     if (result.mode !== "stochastic") throw new Error("Expected stochastic result.");
-    expect(result.plans[0]?.kpis.payoutQuantiles.p10).toBeLessThanOrEqual(result.plans[0]?.kpis.payoutQuantiles.p90 ?? Infinity);
+    expect(result.plans[0]?.kpis.payoutQuantiles.p10).toBeLessThanOrEqual(
+      result.plans[0]?.kpis.payoutQuantiles.p90 ?? Infinity,
+    );
     expect(result.attestations.map((item) => item.id)).toEqual(["I-1", "I-2", "I-3"]);
     expect(result.attestations.every((item) => item.pass)).toBe(true);
   });

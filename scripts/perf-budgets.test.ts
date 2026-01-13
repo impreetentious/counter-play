@@ -44,12 +44,16 @@ describe("§4.7 perf budgets (P10)", () => {
     runMonteCarlo(detScenario);
     runMonteCarlo(stochScenario);
 
-    const detRuns = [0, 1, 2].map(() => timeMs(() => {
-      runMonteCarlo(detScenario);
-    }));
-    const stochRuns = [0, 1, 2].map(() => timeMs(() => {
-      runMonteCarlo(stochScenario);
-    }));
+    const detRuns = [0, 1, 2].map(() =>
+      timeMs(() => {
+        runMonteCarlo(detScenario);
+      }),
+    );
+    const stochRuns = [0, 1, 2].map(() =>
+      timeMs(() => {
+        runMonteCarlo(stochScenario);
+      }),
+    );
     const detMedian = median(detRuns);
     const stochMedian = median(stochRuns);
 
@@ -63,8 +67,13 @@ describe("§4.7 perf budgets (P10)", () => {
       }),
     );
 
-    expect(detMedian, `det MC median ${detMedian.toFixed(0)} ms exceeds 2000 ms`).toBeLessThan(2000);
-    expect(stochMedian, `stoch MC median ${stochMedian.toFixed(0)} ms exceeds 10000 ms`).toBeLessThan(10000);
+    expect(detMedian, `det MC median ${detMedian.toFixed(0)} ms exceeds 2000 ms`).toBeLessThan(
+      2000,
+    );
+    expect(
+      stochMedian,
+      `stoch MC median ${stochMedian.toFixed(0)} ms exceeds 10000 ms`,
+    ).toBeLessThan(10000);
   });
 
   it("first-load JS gzipped total under 200 KB", () => {
@@ -95,6 +104,8 @@ describe("§4.7 perf budgets (P10)", () => {
         scripts: [...sizes].sort((a, b) => b.gzip - a.gzip),
       }),
     );
-    expect(total, `first-load JS gzip ${total} bytes exceeds regression ceiling`).toBeLessThan(regressionCeiling);
+    expect(total, `first-load JS gzip ${total} bytes exceeds regression ceiling`).toBeLessThan(
+      regressionCeiling,
+    );
   });
 });

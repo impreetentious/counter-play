@@ -12,23 +12,65 @@ const baseSettings: ScenarioJson["settings"] = {
 };
 
 const flatPopulation = [
-  { id: "seg-1", label: "Junior", count: 6, ability: "600000", costK: "60000", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "0.6", valueQuality: "1", movable: "0" },
-  { id: "seg-2", label: "Core", count: 8, ability: "900000", costK: "70000", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "1", valueQuality: "1", movable: "0" },
-  { id: "seg-3", label: "Senior", count: 4, ability: "1300000", costK: "85000", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "1.5", valueQuality: "1", movable: "0" },
+  {
+    id: "seg-1",
+    label: "Junior",
+    count: 6,
+    ability: "600000",
+    costK: "60000",
+    riskAversion: "0",
+    noiseSD: "0",
+    reservationCE: "0",
+    quotaMult: "0.6",
+    valueQuality: "1",
+    movable: "0",
+  },
+  {
+    id: "seg-2",
+    label: "Core",
+    count: 8,
+    ability: "900000",
+    costK: "70000",
+    riskAversion: "0",
+    noiseSD: "0",
+    reservationCE: "0",
+    quotaMult: "1",
+    valueQuality: "1",
+    movable: "0",
+  },
+  {
+    id: "seg-3",
+    label: "Senior",
+    count: 4,
+    ability: "1300000",
+    costK: "85000",
+    riskAversion: "0",
+    noiseSD: "0",
+    reservationCE: "0",
+    quotaMult: "1.5",
+    valueQuality: "1",
+    movable: "0",
+  },
 ];
 
 const LF1: ScenarioJson = {
   schemaVersion: 1,
   population: flatPopulation,
-  plans: [{
-    id: "plan-1",
-    label: "Zone",
-    base: "60000",
-    quota: "900000",
-    tiers: [{ from: "0", rate: "0.08" }, { from: "0.5", rate: "0" }, { from: "0.8", rate: "0.11" }],
-    bonus: null,
-    cap: null,
-  }],
+  plans: [
+    {
+      id: "plan-1",
+      label: "Zone",
+      base: "60000",
+      quota: "900000",
+      tiers: [
+        { from: "0", rate: "0.08" },
+        { from: "0.5", rate: "0" },
+        { from: "0.8", rate: "0.11" },
+      ],
+      bonus: null,
+      cap: null,
+    },
+  ],
   settings: baseSettings,
   meta: { notes: "" },
 };
@@ -36,15 +78,17 @@ const LF1: ScenarioJson = {
 const LF2: ScenarioJson = {
   schemaVersion: 1,
   population: flatPopulation,
-  plans: [{
-    id: "plan-1",
-    label: "Bonus @ 100%",
-    base: "55000",
-    quota: "900000",
-    tiers: [{ from: "0", rate: "0.05" }],
-    bonus: { L: "20000", x_b: "1" },
-    cap: null,
-  }],
+  plans: [
+    {
+      id: "plan-1",
+      label: "Bonus @ 100%",
+      base: "55000",
+      quota: "900000",
+      tiers: [{ from: "0", rate: "0.05" }],
+      bonus: { L: "20000", x_b: "1" },
+      cap: null,
+    },
+  ],
   settings: baseSettings,
   meta: { notes: "" },
 };
@@ -52,15 +96,17 @@ const LF2: ScenarioJson = {
 const LF3: ScenarioJson = {
   schemaVersion: 1,
   population: flatPopulation,
-  plans: [{
-    id: "plan-1",
-    label: "Capped flat",
-    base: "60000",
-    quota: "900000",
-    tiers: [{ from: "0", rate: "0.1" }],
-    bonus: null,
-    cap: "1",
-  }],
+  plans: [
+    {
+      id: "plan-1",
+      label: "Capped flat",
+      base: "60000",
+      quota: "900000",
+      tiers: [{ from: "0", rate: "0.1" }],
+      bonus: null,
+      cap: "1",
+    },
+  ],
   settings: baseSettings,
   meta: { notes: "" },
 };
@@ -68,12 +114,55 @@ const LF3: ScenarioJson = {
 const LF4: ScenarioJson = {
   schemaVersion: 1,
   population: [
-    { id: "seg-1", label: "High-value low-throughput", count: 5, ability: "600000", costK: "60000", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "5", valueQuality: "2", movable: "0" },
-    { id: "seg-2", label: "Low-value high-throughput", count: 10, ability: "1500000", costK: "50000", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "0.2", valueQuality: "0.19", movable: "0" },
+    {
+      id: "seg-1",
+      label: "High-value low-throughput",
+      count: 5,
+      ability: "600000",
+      costK: "60000",
+      riskAversion: "0",
+      noiseSD: "0",
+      reservationCE: "0",
+      quotaMult: "5",
+      valueQuality: "2",
+      movable: "0",
+    },
+    {
+      id: "seg-2",
+      label: "Low-value high-throughput",
+      count: 10,
+      ability: "1500000",
+      costK: "50000",
+      riskAversion: "0",
+      noiseSD: "0",
+      reservationCE: "0",
+      quotaMult: "0.2",
+      valueQuality: "0.19",
+      movable: "0",
+    },
   ],
   plans: [
-    { id: "plan-1", label: "Broad", base: "60000", quota: "900000", tiers: [{ from: "0", rate: "0.08" }], bonus: null, cap: null },
-    { id: "plan-2", label: "Targeted accelerator", base: "40000", quota: "900000", tiers: [{ from: "0", rate: "0.02" }, { from: "1", rate: "0.12" }], bonus: null, cap: null },
+    {
+      id: "plan-1",
+      label: "Broad",
+      base: "60000",
+      quota: "900000",
+      tiers: [{ from: "0", rate: "0.08" }],
+      bonus: null,
+      cap: null,
+    },
+    {
+      id: "plan-2",
+      label: "Targeted accelerator",
+      base: "40000",
+      quota: "900000",
+      tiers: [
+        { from: "0", rate: "0.02" },
+        { from: "1", rate: "0.12" },
+      ],
+      bonus: null,
+      cap: null,
+    },
   ],
   settings: baseSettings,
   meta: { notes: "" },
@@ -82,9 +171,31 @@ const LF4: ScenarioJson = {
 const LF5: ScenarioJson = {
   schemaVersion: 1,
   population: [
-    { id: "seg-1", label: "Balanced", count: 10, ability: "1000000", costK: "80000", riskAversion: "0", noiseSD: "0", reservationCE: "20000", quotaMult: "1", valueQuality: "1", movable: "0" },
+    {
+      id: "seg-1",
+      label: "Balanced",
+      count: 10,
+      ability: "1000000",
+      costK: "80000",
+      riskAversion: "0",
+      noiseSD: "0",
+      reservationCE: "20000",
+      quotaMult: "1",
+      valueQuality: "1",
+      movable: "0",
+    },
   ],
-  plans: [{ id: "plan-1", label: "Simple", base: "60000", quota: "900000", tiers: [{ from: "0", rate: "0.08" }], bonus: null, cap: null }],
+  plans: [
+    {
+      id: "plan-1",
+      label: "Simple",
+      base: "60000",
+      quota: "900000",
+      tiers: [{ from: "0", rate: "0.08" }],
+      bonus: null,
+      cap: null,
+    },
+  ],
   settings: baseSettings,
   meta: { notes: "" },
 };
@@ -92,14 +203,38 @@ const LF5: ScenarioJson = {
 const LF6: ScenarioJson = {
   schemaVersion: 1,
   population: [
-    { id: "seg-1", label: "Only", count: 10, ability: "100", costK: "100", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "1", valueQuality: "1", movable: "0.3" },
+    {
+      id: "seg-1",
+      label: "Only",
+      count: 10,
+      ability: "100",
+      costK: "100",
+      riskAversion: "0",
+      noiseSD: "0",
+      reservationCE: "0",
+      quotaMult: "1",
+      valueQuality: "1",
+      movable: "0.3",
+    },
   ],
-  plans: [{ id: "plan-1", label: "O-F2", base: "0", quota: "20", tiers: [{ from: "0", rate: "0.1" }], bonus: { L: "0.1", x_b: "0.8" }, cap: null }],
+  plans: [
+    {
+      id: "plan-1",
+      label: "O-F2",
+      base: "0",
+      quota: "20",
+      tiers: [{ from: "0", rate: "0.1" }],
+      bonus: { L: "0.1", x_b: "0.8" },
+      cap: null,
+    },
+  ],
   settings: { ...baseSettings, seasonality: ["1", "1.5"] },
   meta: { notes: "" },
 };
 
-function summarize(findings: Finding[]): Array<{ type: string; severity: string; segments: string[]; plans?: string[] }> {
+function summarize(
+  findings: Finding[],
+): Array<{ type: string; severity: string; segments: string[]; plans?: string[] }> {
   return findings.map((finding) => {
     const record: { type: string; severity: string; segments: string[]; plans?: string[] } = {
       type: finding.type,

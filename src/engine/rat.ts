@@ -69,7 +69,10 @@ export class Rat {
       throw new EngineError("INVALID_INPUT", "Numeric rational numerators must be safe integers.");
     }
     if (typeof denominator === "number" && !Number.isSafeInteger(denominator)) {
-      throw new EngineError("INVALID_INPUT", "Numeric rational denominators must be safe integers.");
+      throw new EngineError(
+        "INVALID_INPUT",
+        "Numeric rational denominators must be safe integers.",
+      );
     }
     return new Rat(BigInt(numerator), BigInt(denominator));
   }
@@ -111,7 +114,7 @@ export class Rat {
     view.setFloat64(0, value, false);
     const high = view.getUint32(0, false);
     const low = view.getUint32(4, false);
-    const negative = (high >>> 31) === 1;
+    const negative = high >>> 31 === 1;
     const exponentBits = (high >>> 20) & 0x7ff;
     const fraction = (BigInt(high & 0x000f_ffff) << BigInt(32)) | BigInt(low);
 

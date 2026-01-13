@@ -10,8 +10,16 @@ export function LocalePicker(): React.JSX.Element {
   return (
     <label className="locale-picker">
       <span className="visually-hidden">{t(locale, "locale.label")}</span>
-      <select value={locale} aria-label={t(locale, "locale.label")} onChange={(event) => setLocale(event.target.value as AppLocale)}>
-        {supportedLocales.map((option) => <option key={option} value={option}>{t(locale, `locale.${option}`)}</option>)}
+      <select
+        value={locale}
+        aria-label={t(locale, "locale.label")}
+        onChange={(event) => setLocale(event.target.value as AppLocale)}
+      >
+        {supportedLocales.map((option) => (
+          <option key={option} value={option}>
+            {t(locale, `locale.${option}`)}
+          </option>
+        ))}
       </select>
     </label>
   );

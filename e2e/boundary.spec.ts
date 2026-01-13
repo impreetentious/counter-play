@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("boundary panel renders per-segment timing and reacts to seasonality edits", async ({ page }) => {
+test("boundary panel renders per-segment timing and reacts to seasonality edits", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.getByRole("tab", { name: /Analyze/ }).click();
   await expect(page.getByRole("heading", { name: "Two-period boundary game" })).toBeVisible();

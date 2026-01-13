@@ -11,19 +11,40 @@ import type { Plan, PayoutExtras, Segment } from "./types";
 // §12 V-01 payout-primitive goldens. Every value is hand-derived,
 // not read back from the implementation (§9): a=100, k=100, Q_s=100, B=10, one tier r=0.1.
 const segment: Segment = {
-  id: "seg-1", label: "Core", count: 1, ability: Rat.from(100), costK: Rat.from(100), riskAversion: R0,
-  noiseSD: R0, reservationCE: R0, quotaMult: Rat.one(), valueQuality: Rat.one(), movable: R0,
+  id: "seg-1",
+  label: "Core",
+  count: 1,
+  ability: Rat.from(100),
+  costK: Rat.from(100),
+  riskAversion: R0,
+  noiseSD: R0,
+  reservationCE: R0,
+  quotaMult: Rat.one(),
+  valueQuality: Rat.one(),
+  movable: R0,
 };
 
 const basePlan: Plan = {
-  id: "plan-1", label: "Base", base: Rat.from(10), quota: Rat.from(100),
-  tiers: [{ from: R0, rate: Rat.from(1, 10) }], bonus: null, cap: null,
+  id: "plan-1",
+  label: "Base",
+  base: Rat.from(10),
+  quota: Rat.from(100),
+  tiers: [{ from: R0, rate: Rat.from(1, 10) }],
+  bonus: null,
+  cap: null,
 };
 
 function withExtras(extras: Partial<PayoutExtras>): Plan {
   return {
     ...basePlan,
-    extras: { drawNonRecoverable: null, drawRecoverable: null, spiff: null, clawback: null, payFloor: null, ...extras },
+    extras: {
+      drawNonRecoverable: null,
+      drawRecoverable: null,
+      spiff: null,
+      clawback: null,
+      payFloor: null,
+      ...extras,
+    },
   };
 }
 
@@ -81,18 +102,26 @@ describe("V-01 exact payout primitives", () => {
 
   it("primitives compose and conserve the exact identity", () => {
     const plan = withExtras({
-      drawNonRecoverable: Rat.from(20), spiff: { amount: Rat.from(5), threshold: Rat.from(3, 2) },
-      clawback: { amount: Rat.from(8), threshold: Rat.from(1, 2) }, payFloor: Rat.from(12),
+      drawNonRecoverable: Rat.from(20),
+      spiff: { amount: Rat.from(5), threshold: Rat.from(3, 2) },
+      clawback: { amount: Rat.from(8), threshold: Rat.from(1, 2) },
+      payFloor: Rat.from(12),
     });
     for (const value of [-50, 0, 40, 49, 50, 100, 150, 200, 300]) {
       assertDecomposition(plan, segment, q(value));
     }
     // nondecreasing on a wide integer grid
-    fc.assert(fc.property(fc.integer({ min: -400, max: 400 }), fc.integer({ min: -400, max: 400 }), (left, right) => {
-      const lo = q(Math.min(left, right));
-      const hi = q(Math.max(left, right));
-      expect(payout(plan, segment, hi).gte(payout(plan, segment, lo))).toBe(true);
-    }));
+    fc.assert(
+      fc.property(
+        fc.integer({ min: -400, max: 400 }),
+        fc.integer({ min: -400, max: 400 }),
+        (left, right) => {
+          const lo = q(Math.min(left, right));
+          const hi = q(Math.max(left, right));
+          expect(payout(plan, segment, hi).gte(payout(plan, segment, lo))).toBe(true);
+        },
+      ),
+    );
   });
 });
 
@@ -124,7 +153,11 @@ describe("V-01 deterministic best response", () => {
 });
 
 describe("V-01 stochastic path", () => {
-  const stoch = (rho: number, sigma: number): Segment => ({ ...segment, riskAversion: Rat.fromFloat64(rho), noiseSD: Rat.fromFloat64(sigma) });
+  const stoch = (rho: number, sigma: number): Segment => ({
+    ...segment,
+    riskAversion: Rat.fromFloat64(rho),
+    noiseSD: Rat.fromFloat64(sigma),
+  });
 
   // Independent oracle for E[W]: fine midpoint quadrature of the exact payout against N(mean, sigma).
   function quadratureExpectedPayout(plan: Plan, seg: Segment, mean: number, sigma: number): number {
@@ -140,18 +173,26 @@ describe("V-01 stochastic path", () => {
     return total;
   }
 
-  it("the analytic expected decomposition matches quadrature with all primitives active", { timeout: 30_000 }, () => {
-    const plan = withExtras({
-      drawNonRecoverable: Rat.from(20), spiff: { amount: Rat.from(5), threshold: Rat.from(3, 2) },
-      clawback: { amount: Rat.from(8), threshold: Rat.from(1, 2) }, payFloor: Rat.from(12),
-    });
-    const seg = stoch(0.01, 25);
-    const response = respondCARA(plan, seg);
-    const oracle = quadratureExpectedPayout(plan, seg, response.output, response.sigma);
-    expect(response.decomposition.total).toBeCloseTo(oracle, 1); // abs ~0.05 on payouts ~O(30)
-    // I-1 conservation over the parts
-    checkStochasticPayoutConservation([{ count: 1, payout: response.payout, decomposition: response.decomposition }]);
-  });
+  it(
+    "the analytic expected decomposition matches quadrature with all primitives active",
+    { timeout: 30_000 },
+    () => {
+      const plan = withExtras({
+        drawNonRecoverable: Rat.from(20),
+        spiff: { amount: Rat.from(5), threshold: Rat.from(3, 2) },
+        clawback: { amount: Rat.from(8), threshold: Rat.from(1, 2) },
+        payFloor: Rat.from(12),
+      });
+      const seg = stoch(0.01, 25);
+      const response = respondCARA(plan, seg);
+      const oracle = quadratureExpectedPayout(plan, seg, response.output, response.sigma);
+      expect(response.decomposition.total).toBeCloseTo(oracle, 1); // abs ~0.05 on payouts ~O(30)
+      // I-1 conservation over the parts
+      checkStochasticPayoutConservation([
+        { count: 1, payout: response.payout, decomposition: response.decomposition },
+      ]);
+    },
+  );
 
   it("expected recoverable carry matches quadrature", { timeout: 30_000 }, () => {
     const plan = withExtras({ drawRecoverable: Rat.from(40) });

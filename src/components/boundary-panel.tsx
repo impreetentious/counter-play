@@ -44,15 +44,17 @@ export function BoundaryPanel(): React.JSX.Element | null {
           <h3 id="boundary-heading">Two-period boundary game</h3>
         </div>
         <p className="boundary-description">
-          Efforts are chosen myopically per period (§3.10); shift optimization then moves output across the boundary
-          within each segment&apos;s source-period window <code>[−μ·q₁, +μ·q₂]</code>. The discount alone can produce
-          gaming even when the two periods have identical demand — pulling forward is worth <code>(1 − δ)·r₁</code> per
-          unit. End-to-end gaming above the effective cap is not modelled in v1.
+          Efforts are chosen myopically per period (§3.10); shift optimization then moves output
+          across the boundary within each segment&apos;s source-period window{" "}
+          <code>[−μ·q₁, +μ·q₂]</code>. The discount alone can produce gaming even when the two
+          periods have identical demand — pulling forward is worth <code>(1 − δ)·r₁</code> per unit.
+          End-to-end gaming above the effective cap is not modelled in v1.
         </p>
         {scenario.settings.rationality?.mode === "softmax" ? (
           <p className="boundary-description">
-            The rationality dial does not reach this panel: per-period efforts and the shift optimum stay on the exact best
-            response (§3.3a scope boundary), so these numbers read the same whether or not bounded rationality is on.
+            The rationality dial does not reach this panel: per-period efforts and the shift optimum
+            stay on the exact best response (§3.3a scope boundary), so these numbers read the same
+            whether or not bounded rationality is on.
           </p>
         ) : null}
       </header>
@@ -96,16 +98,19 @@ export function BoundaryPanel(): React.JSX.Element | null {
             <h4>{plan.planLabel}</h4>
             <p className="boundary-plan-summary">
               Displaced revenue{" "}
-              <strong>{formatCurrency(plan.displacedRevenueTotal.toNumber(), currency)}</strong>
-              {" "}· two-period expected{" "}
-              <strong>{formatCurrency(plan.twoPeriodExpectedRevenue.toNumber(), currency)}</strong>
-              {" "}·{" "}
+              <strong>{formatCurrency(plan.displacedRevenueTotal.toNumber(), currency)}</strong> ·
+              two-period expected{" "}
+              <strong>{formatCurrency(plan.twoPeriodExpectedRevenue.toNumber(), currency)}</strong>{" "}
+              ·{" "}
               <strong>
                 {plan.twoPeriodExpectedRevenue.toNumber() === 0
                   ? "—"
-                  : formatPercent(plan.displacedRevenueTotal.toNumber() / plan.twoPeriodExpectedRevenue.toNumber())}
-              </strong>
-              {" "}displaced share
+                  : formatPercent(
+                      plan.displacedRevenueTotal.toNumber() /
+                        plan.twoPeriodExpectedRevenue.toNumber(),
+                    )}
+              </strong>{" "}
+              displaced share
             </p>
           </header>
           <table className="boundary-table">
@@ -134,7 +139,15 @@ export function BoundaryPanel(): React.JSX.Element | null {
                     [{formatCurrency(seg.shiftWindow[0].toNumber(), currency)},{" "}
                     {formatCurrency(seg.shiftWindow[1].toNumber(), currency)}]
                   </td>
-                  <td className={seg.zStar.toNumber() > 0 ? "boundary-shift-pull" : seg.zStar.toNumber() < 0 ? "boundary-shift-push" : ""}>
+                  <td
+                    className={
+                      seg.zStar.toNumber() > 0
+                        ? "boundary-shift-pull"
+                        : seg.zStar.toNumber() < 0
+                          ? "boundary-shift-push"
+                          : ""
+                    }
+                  >
                     {formatCurrency(seg.zStar.toNumber(), currency)}
                   </td>
                   <td>{formatCurrency(seg.payGain.toNumber(), currency)}</td>

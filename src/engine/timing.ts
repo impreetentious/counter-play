@@ -34,7 +34,11 @@ export interface TimingResult {
   plans: TimingPlanResult[];
 }
 
-function perPeriodResponse(plan: Plan, segment: Segment, seasonality: Rat): { effort: Rat; output: Rat } {
+function perPeriodResponse(
+  plan: Plan,
+  segment: Segment,
+  seasonality: Rat,
+): { effort: Rat; output: Rat } {
   // §3.3b: demand scales both task abilities, so the effective cost per unit of revenue is unchanged.
   const response = respondDeterministic(plan, scaleAbility(segment, seasonality));
   return { effort: response.effort, output: response.output };
@@ -72,8 +76,14 @@ export function optimizeShift(plan: Plan, segment: Segment, q1: Rat, q2: Rat, di
   for (const z of candidates) {
     if (z.lt(windowLo) || z.gt(windowHi)) continue;
     const value = shiftValue(plan, segment, q1, q2, discount, z);
-    if (value.gt(bestValue)) { best = z; bestValue = value; continue; }
-    if (value.eq(bestValue) && tiePreferable(z, best)) { best = z; }
+    if (value.gt(bestValue)) {
+      best = z;
+      bestValue = value;
+      continue;
+    }
+    if (value.eq(bestValue) && tiePreferable(z, best)) {
+      best = z;
+    }
   }
   return best;
 }
@@ -90,7 +100,10 @@ function timingForPlan(scenario: Scenario, plan: Plan): TimingPlanResult {
     const payAtBaseline = shiftValue(plan, segment, q1, q2, discount, R0);
     const payAtOptimum = shiftValue(plan, segment, q1, q2, discount, zStar);
     const payGain = payAtOptimum.sub(payAtBaseline);
-    const shiftWindow: readonly [Rat, Rat] = [segment.movable.mul(q1).neg(), segment.movable.mul(q2)] as const;
+    const shiftWindow: readonly [Rat, Rat] = [
+      segment.movable.mul(q1).neg(),
+      segment.movable.mul(q2),
+    ] as const;
     return {
       segmentId: segment.id,
       segmentLabel: segment.label,
@@ -126,7 +139,11 @@ function timingForPlan(scenario: Scenario, plan: Plan): TimingPlanResult {
 
 export function computeTiming(scenario: Scenario): TimingResult {
   const plans = scenario.plans.map((plan) => timingForPlan(scenario, plan));
-  return { discount: scenario.settings.discount, seasonality: scenario.settings.seasonality, plans };
+  return {
+    discount: scenario.settings.discount,
+    seasonality: scenario.settings.seasonality,
+    plans,
+  };
 }
 
 /** Quota-anchored helpers used by the boundary UI. */

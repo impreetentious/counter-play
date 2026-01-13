@@ -18,17 +18,28 @@ export function OptimizerPanel(): React.JSX.Element {
     try {
       const next = optimizePlan(domain, activePlanId);
       setSuggestion(next);
-      setStatus(next ? null : "No feasible strict improvement was found in this plan's local rate neighbourhood.");
+      setStatus(
+        next
+          ? null
+          : "No feasible strict improvement was found in this plan's local rate neighbourhood.",
+      );
     } catch (error) {
       setSuggestion(null);
-      setStatus(error instanceof Error ? error.message : "Local search could not evaluate this plan.");
+      setStatus(
+        error instanceof Error ? error.message : "Local search could not evaluate this plan.",
+      );
     }
   };
 
   const applySuggestion = (): void => {
     if (!suggestion) return;
-    applyOptimizedPlanRates(activePlanId, suggestion.plan.tiers.map((tier) => tier.rate.toDecimalString()));
-    setStatus("Applied the local suggestion. Re-run the linter and Monte Carlo before making a decision.");
+    applyOptimizedPlanRates(
+      activePlanId,
+      suggestion.plan.tiers.map((tier) => tier.rate.toDecimalString()),
+    );
+    setStatus(
+      "Applied the local suggestion. Re-run the linter and Monte Carlo before making a decision.",
+    );
     setSuggestion(null);
   };
 
@@ -41,24 +52,78 @@ export function OptimizerPanel(): React.JSX.Element {
           <p className="eyebrow">Local search</p>
           <h3 id="optimizer-heading">Suggest a nearby rate schedule</h3>
         </div>
-        <button type="button" className="button-primary" onClick={findSuggestion} disabled={!domain}>Explore local rates</button>
+        <button
+          type="button"
+          className="button-primary"
+          onClick={findSuggestion}
+          disabled={!domain}
+        >
+          Explore local rates
+        </button>
       </header>
       <p className="optimizer-description">
-        This is local search, not truth. It changes one live commission rate at a time, accepts only nearby plans with no high-severity finding or retention risk, and keeps comp within 25% of the current plan. It evaluates exact deterministic responses even when the workspace is in CARA mode.
+        This is local search, not truth. It changes one live commission rate at a time, accepts only
+        nearby plans with no high-severity finding or retention risk, and keeps comp within 25% of
+        the current plan. It evaluates exact deterministic responses even when the workspace is in
+        CARA mode.
       </p>
-      {status ? <p className="share-status ok" role="status">{status}</p> : null}
+      {status ? (
+        <p className="share-status ok" role="status">
+          {status}
+        </p>
+      ) : null}
       {suggestion ? (
         <div className="optimizer-result">
-          <p><strong>Candidate:</strong> {suggestion.rateChanges.length} rate adjustment{suggestion.rateChanges.length === 1 ? "" : "s"} after {suggestion.rounds} accepted round{suggestion.rounds === 1 ? "" : "s"} ({suggestion.explored} plans explored).</p>
+          <p>
+            <strong>Candidate:</strong> {suggestion.rateChanges.length} rate adjustment
+            {suggestion.rateChanges.length === 1 ? "" : "s"} after {suggestion.rounds} accepted
+            round{suggestion.rounds === 1 ? "" : "s"} ({suggestion.explored} plans explored).
+          </p>
           <ul className="optimizer-change-list">
-            {suggestion.rateChanges.map((change) => <li key={change.tier}>Tier {change.tier + 1}: {change.from.toDecimalString()} → {change.to.toDecimalString()}</li>)}
+            {suggestion.rateChanges.map((change) => (
+              <li key={change.tier}>
+                Tier {change.tier + 1}: {change.from.toDecimalString()} →{" "}
+                {change.to.toDecimalString()}
+              </li>
+            ))}
           </ul>
           <dl className="optimizer-kpis">
-            <div><dt>True value</dt><dd>{formatCompactCurrency(suggestion.baseline.trueValue.toNumber(), currency, locale)} → {formatCompactCurrency(suggestion.candidate.trueValue.toNumber(), currency, locale)}</dd></div>
-            <div><dt>Total comp</dt><dd>{formatCompactCurrency(suggestion.baseline.totalComp.toNumber(), currency, locale)} → {formatCompactCurrency(suggestion.candidate.totalComp.toNumber(), currency, locale)}</dd></div>
-            <div><dt>Revenue</dt><dd>{formatCompactCurrency(suggestion.baseline.expectedRevenue.toNumber(), currency, locale)} → {formatCompactCurrency(suggestion.candidate.expectedRevenue.toNumber(), currency, locale)}</dd></div>
+            <div>
+              <dt>True value</dt>
+              <dd>
+                {formatCompactCurrency(suggestion.baseline.trueValue.toNumber(), currency, locale)}{" "}
+                →{" "}
+                {formatCompactCurrency(suggestion.candidate.trueValue.toNumber(), currency, locale)}
+              </dd>
+            </div>
+            <div>
+              <dt>Total comp</dt>
+              <dd>
+                {formatCompactCurrency(suggestion.baseline.totalComp.toNumber(), currency, locale)}{" "}
+                →{" "}
+                {formatCompactCurrency(suggestion.candidate.totalComp.toNumber(), currency, locale)}
+              </dd>
+            </div>
+            <div>
+              <dt>Revenue</dt>
+              <dd>
+                {formatCompactCurrency(
+                  suggestion.baseline.expectedRevenue.toNumber(),
+                  currency,
+                  locale,
+                )}{" "}
+                →{" "}
+                {formatCompactCurrency(
+                  suggestion.candidate.expectedRevenue.toNumber(),
+                  currency,
+                  locale,
+                )}
+              </dd>
+            </div>
           </dl>
-          <button type="button" onClick={applySuggestion}>Apply this candidate</button>
+          <button type="button" onClick={applySuggestion}>
+            Apply this candidate
+          </button>
         </div>
       ) : null}
     </section>

@@ -12,7 +12,9 @@ function engineFiles(directory: string): string[] {
 describe("engine import boundary", () => {
   it("does not import UI, state, validation, or browser layers", () => {
     const root = join(process.cwd(), "src", "engine");
-    for (const file of engineFiles(root).filter((path) => path.endsWith(".ts") && !path.endsWith(".test.ts"))) {
+    for (const file of engineFiles(root).filter(
+      (path) => path.endsWith(".ts") && !path.endsWith(".test.ts"),
+    )) {
       const source = readFileSync(file, "utf8");
       expect(source).not.toMatch(/from\s+["'](?:react|next|zustand|zod|@\/state|\.\.\/state)/);
       expect(source).not.toMatch(/\b(?:window|document|localStorage|Math\.random|Date\.now)\b/);

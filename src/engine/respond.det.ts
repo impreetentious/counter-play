@@ -67,7 +67,8 @@ export function deterministicCandidates(plan: Plan, segment: Segment): Rat[] {
     const lowerOutput = quota.mul(tier.from);
     const next = plan.tiers[index + 1];
     const nextOutput = next ? quota.mul(next.from) : null;
-    const upperOutput = capOutput && nextOutput ? capOutput.min(nextOutput) : capOutput ?? nextOutput;
+    const upperOutput =
+      capOutput && nextOutput ? capOutput.min(nextOutput) : (capOutput ?? nextOutput);
     const lowerEffort = lowerOutput.div(segment.ability);
     const upperEffort = upperOutput ? upperOutput.div(segment.ability) : null;
     const focal = tier.rate.mul(segment.ability).div(segment.costK);
@@ -81,10 +82,17 @@ export function deterministicCandidates(plan: Plan, segment: Segment): Rat[] {
   return candidates
     .filter((candidate) => candidate.gte(R0))
     .sort((left, right) => left.cmp(right))
-    .filter((candidate, index, values) => index === 0 || !candidate.eq(values[index - 1] ?? candidate));
+    .filter(
+      (candidate, index, values) => index === 0 || !candidate.eq(values[index - 1] ?? candidate),
+    );
 }
 
-function componentAt(plan: Plan, segment: Segment, effort: Rat, probability: Rat): DeterministicComponent {
+function componentAt(
+  plan: Plan,
+  segment: Segment,
+  effort: Rat,
+  probability: Rat,
+): DeterministicComponent {
   const output = segment.ability.mul(effort);
   const decomposition = decompose(plan, segment, output);
   const cost = segment.costK.mul(effort.mul(effort)).div(Rat.from(2));
@@ -101,13 +109,31 @@ function componentAt(plan: Plan, segment: Segment, effort: Rat, probability: Rat
 
 function blendDecompositions(components: readonly DeterministicComponent[]): PayoutDecomposition {
   const first = components[0];
-  if (!first) return { base: R0, perTier: [], bonus: R0, spiff: R0, clawback: R0, drawTopUp: R0, floorTopUp: R0, total: R0 };
+  if (!first)
+    return {
+      base: R0,
+      perTier: [],
+      bonus: R0,
+      spiff: R0,
+      clawback: R0,
+      drawTopUp: R0,
+      floorTopUp: R0,
+      total: R0,
+    };
   const weigh = (pick: (value: PayoutDecomposition) => Rat): Rat =>
-    components.reduce((sum, component) => sum.add(pick(component.decomposition).mul(component.probability)), R0);
+    components.reduce(
+      (sum, component) => sum.add(pick(component.decomposition).mul(component.probability)),
+      R0,
+    );
   return {
     base: weigh((value) => value.base),
     perTier: first.decomposition.perTier.map((_, index) =>
-      components.reduce((sum, component) => sum.add((component.decomposition.perTier[index] ?? R0).mul(component.probability)), R0)),
+      components.reduce(
+        (sum, component) =>
+          sum.add((component.decomposition.perTier[index] ?? R0).mul(component.probability)),
+        R0,
+      ),
+    ),
     bonus: weigh((value) => value.bonus),
     spiff: weigh((value) => value.spiff),
     clawback: weigh((value) => value.clawback),
@@ -118,11 +144,15 @@ function blendDecompositions(components: readonly DeterministicComponent[]): Pay
 }
 
 /** §3.2a report, averaged over the mixture with the positive part taken per component (§3.3a). */
-function recoverableReport(plan: Plan, components: readonly DeterministicComponent[]): RecoverableDrawReport | null {
+function recoverableReport(
+  plan: Plan,
+  components: readonly DeterministicComponent[],
+): RecoverableDrawReport | null {
   const advance = plan.extras?.drawRecoverable ?? null;
   if (!advance) return null;
   const carry = components.reduce(
-    (sum, component) => sum.add(advance.sub(component.payout.sub(plan.base)).max(R0).mul(component.probability)),
+    (sum, component) =>
+      sum.add(advance.sub(component.payout.sub(plan.base)).max(R0).mul(component.probability)),
     R0,
   );
   return { advance, carry };
@@ -145,21 +175,34 @@ function exactBestEffort(plan: Plan, segment: Segment): Rat {
  * Exact deterministic best response with the normative lower-effort tie break; under the
  * §3.3a softmax dial the response is the logit mixture over the same candidate set.
  */
-export function respondDeterministic(plan: Plan, segment: Segment, rationality?: Rationality | null): DeterministicResponse {
+export function respondDeterministic(
+  plan: Plan,
+  segment: Segment,
+  rationality?: Rationality | null,
+): DeterministicResponse {
   // §3.3b: the multitask problem is this same solve on a costK-rescaled segment; with no second
   // task `effectiveSegment` returns the segment itself, so nothing below can move.
   const solving = effectiveSegment(segment);
   const components: DeterministicComponent[] = [];
   if (isSoftmax(rationality)) {
-    const plays = deterministicCandidates(plan, solving).map((effort) => componentAt(plan, solving, effort, R0));
-    const probabilities = softmaxProbabilitiesExact(plays.map((play) => play.objective), rationality.tau);
-    plays.forEach((play, index) => components.push({ ...play, probability: probabilities[index] ?? R0 }));
+    const plays = deterministicCandidates(plan, solving).map((effort) =>
+      componentAt(plan, solving, effort, R0),
+    );
+    const probabilities = softmaxProbabilitiesExact(
+      plays.map((play) => play.objective),
+      rationality.tau,
+    );
+    plays.forEach((play, index) =>
+      components.push({ ...play, probability: probabilities[index] ?? R0 }),
+    );
   } else {
     components.push(componentAt(plan, solving, exactBestEffort(plan, solving), Rat.one()));
   }
 
-  const modal = components[modalIndex(components.map((component) => component.probability))] ?? components[0];
-  if (!modal) throw new EngineError("INTERNAL_INVARIANT", "A response always has at least one component.");
+  const modal =
+    components[modalIndex(components.map((component) => component.probability))] ?? components[0];
+  if (!modal)
+    throw new EngineError("INTERNAL_INVARIANT", "A response always has at least one component.");
   const single = components.length === 1 ? modal : null;
   const weigh = (pick: (component: DeterministicComponent) => Rat): Rat =>
     components.reduce((sum, component) => sum.add(pick(component).mul(component.probability)), R0);
@@ -179,7 +222,13 @@ export function respondDeterministic(plan: Plan, segment: Segment, rationality?:
     marginalAtOpt: marginalRate(plan, segment, modal.output),
     participation: ce.gte(segment.reservationCE),
     recoverableDraw: recoverableReport(plan, components),
-    multitask: multitaskReport(segment, components.map((component) => ({ probability: component.probability, output: component.output }))),
+    multitask: multitaskReport(
+      segment,
+      components.map((component) => ({
+        probability: component.probability,
+        output: component.output,
+      })),
+    ),
     components,
     modal,
   };

@@ -315,7 +315,9 @@ export function effectiveCap(plan: Plan): Rat | null {
     else break;
   }
   if (firstTrailingZero) candidates.push(firstTrailingZero);
-  return candidates.length ? candidates.reduce((smallest, candidate) => smallest.min(candidate)) : null;
+  return candidates.length
+    ? candidates.reduce((smallest, candidate) => smallest.min(candidate))
+    : null;
 }
 
 export function assertDecomposition(plan: Plan, segment: Segment, output: Rat): void {

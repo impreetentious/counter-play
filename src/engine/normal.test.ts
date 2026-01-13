@@ -16,21 +16,32 @@ describe("normal numerics", () => {
   });
 
   it("preserves CDF symmetry, quadrature, and inverse round trips on contract domains", () => {
-    fc.assert(fc.property(fc.double({ min: -37.5, max: 37.5, noNaN: true }), (z) => {
-      expect(normalCdf(-z)).toBeCloseTo(1 - normalCdf(z), 14);
-    }));
-    fc.assert(fc.property(fc.double({ min: -8, max: 7.9, noNaN: true }), fc.double({ min: -7.9, max: 8, noNaN: true }), (left, right) => {
-      const lo = Math.min(left, right);
-      const hi = Math.max(left, right) + 1e-5;
-      const steps = 4_000;
-      const width = (hi - lo) / steps;
-      let sum = normalPdf(lo) + normalPdf(hi);
-      for (let index = 1; index < steps; index += 1) sum += (index % 2 === 0 ? 2 : 4) * normalPdf(lo + index * width);
-      expect(Math.abs((normalCdf(hi) - normalCdf(lo)) - sum * width / 3)).toBeLessThan(1e-10);
-    }));
-    fc.assert(fc.property(fc.double({ min: 1e-12, max: 1 - 1e-12, noNaN: true }), (p) => {
-      expect(normalCdf(normalInv(p))).toBeCloseTo(p, 11);
-    }));
+    fc.assert(
+      fc.property(fc.double({ min: -37.5, max: 37.5, noNaN: true }), (z) => {
+        expect(normalCdf(-z)).toBeCloseTo(1 - normalCdf(z), 14);
+      }),
+    );
+    fc.assert(
+      fc.property(
+        fc.double({ min: -8, max: 7.9, noNaN: true }),
+        fc.double({ min: -7.9, max: 8, noNaN: true }),
+        (left, right) => {
+          const lo = Math.min(left, right);
+          const hi = Math.max(left, right) + 1e-5;
+          const steps = 4_000;
+          const width = (hi - lo) / steps;
+          let sum = normalPdf(lo) + normalPdf(hi);
+          for (let index = 1; index < steps; index += 1)
+            sum += (index % 2 === 0 ? 2 : 4) * normalPdf(lo + index * width);
+          expect(Math.abs(normalCdf(hi) - normalCdf(lo) - (sum * width) / 3)).toBeLessThan(1e-10);
+        },
+      ),
+    );
+    fc.assert(
+      fc.property(fc.double({ min: 1e-12, max: 1 - 1e-12, noNaN: true }), (p) => {
+        expect(normalCdf(normalInv(p))).toBeCloseTo(p, 11);
+      }),
+    );
   });
 
   it("computes truncated moments with the point-mass fallback", () => {

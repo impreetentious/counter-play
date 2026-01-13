@@ -4,12 +4,46 @@ import { parseScenario, type ScenarioJson } from "@/state/schema";
 import { Rat } from "./rat";
 import type { Plan, Segment } from "./types";
 
-function flatPlan(bonus: { L: string; x_b: string } | null = null, cap: string | null = null): Plan {
+function flatPlan(
+  bonus: { L: string; x_b: string } | null = null,
+  cap: string | null = null,
+): Plan {
   return parseScenario({
     schemaVersion: 1,
-    population: [{ id: "seg-1", label: "unit", count: 1, ability: "100", costK: "100", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "1", valueQuality: "1", movable: "0.3" }],
-    plans: [{ id: "plan-1", label: "flat", base: "0", quota: "1", tiers: [{ from: "0", rate: "0.1" }], bonus, cap }],
-    settings: { mode: "deterministic", periodLabel: "half", currencyLabel: "$", discount: "1", seasonality: ["1", "1"], mc: { seed: 1, N: 500, ranges: {} } },
+    population: [
+      {
+        id: "seg-1",
+        label: "unit",
+        count: 1,
+        ability: "100",
+        costK: "100",
+        riskAversion: "0",
+        noiseSD: "0",
+        reservationCE: "0",
+        quotaMult: "1",
+        valueQuality: "1",
+        movable: "0.3",
+      },
+    ],
+    plans: [
+      {
+        id: "plan-1",
+        label: "flat",
+        base: "0",
+        quota: "1",
+        tiers: [{ from: "0", rate: "0.1" }],
+        bonus,
+        cap,
+      },
+    ],
+    settings: {
+      mode: "deterministic",
+      periodLabel: "half",
+      currencyLabel: "$",
+      discount: "1",
+      seasonality: ["1", "1"],
+      mc: { seed: 1, N: 500, ranges: {} },
+    },
     meta: { notes: "" },
   }).plans[0]!;
 }
@@ -17,9 +51,40 @@ function flatPlan(bonus: { L: string; x_b: string } | null = null, cap: string |
 function unitSegment(movable = "0.3"): Segment {
   return parseScenario({
     schemaVersion: 1,
-    population: [{ id: "seg-1", label: "unit", count: 1, ability: "100", costK: "100", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "1", valueQuality: "1", movable }],
-    plans: [{ id: "plan-1", label: "flat", base: "0", quota: "1", tiers: [{ from: "0", rate: "0.1" }], bonus: null, cap: null }],
-    settings: { mode: "deterministic", periodLabel: "half", currencyLabel: "$", discount: "1", seasonality: ["1", "1"], mc: { seed: 1, N: 500, ranges: {} } },
+    population: [
+      {
+        id: "seg-1",
+        label: "unit",
+        count: 1,
+        ability: "100",
+        costK: "100",
+        riskAversion: "0",
+        noiseSD: "0",
+        reservationCE: "0",
+        quotaMult: "1",
+        valueQuality: "1",
+        movable,
+      },
+    ],
+    plans: [
+      {
+        id: "plan-1",
+        label: "flat",
+        base: "0",
+        quota: "1",
+        tiers: [{ from: "0", rate: "0.1" }],
+        bonus: null,
+        cap: null,
+      },
+    ],
+    settings: {
+      mode: "deterministic",
+      periodLabel: "half",
+      currencyLabel: "$",
+      discount: "1",
+      seasonality: ["1", "1"],
+      mc: { seed: 1, N: 500, ranges: {} },
+    },
     meta: { notes: "" },
   }).population[0]!;
 }
@@ -42,9 +107,40 @@ describe("O-F unit oracle — push, cap at q=16, q1=18, q2=10", () => {
     // Plan: flat r=0.1, cap at 16 (attainment). To make Q_s · cap = 16, set quota=1, cap="16".
     const plan = parseScenario({
       schemaVersion: 1,
-      population: [{ id: "seg-1", label: "unit", count: 1, ability: "100", costK: "100", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "1", valueQuality: "1", movable: "0.5" }],
-      plans: [{ id: "plan-1", label: "capped", base: "0", quota: "1", tiers: [{ from: "0", rate: "0.1" }], bonus: null, cap: "16" }],
-      settings: { mode: "deterministic", periodLabel: "half", currencyLabel: "$", discount: "1", seasonality: ["1", "1"], mc: { seed: 1, N: 500, ranges: {} } },
+      population: [
+        {
+          id: "seg-1",
+          label: "unit",
+          count: 1,
+          ability: "100",
+          costK: "100",
+          riskAversion: "0",
+          noiseSD: "0",
+          reservationCE: "0",
+          quotaMult: "1",
+          valueQuality: "1",
+          movable: "0.5",
+        },
+      ],
+      plans: [
+        {
+          id: "plan-1",
+          label: "capped",
+          base: "0",
+          quota: "1",
+          tiers: [{ from: "0", rate: "0.1" }],
+          bonus: null,
+          cap: "16",
+        },
+      ],
+      settings: {
+        mode: "deterministic",
+        periodLabel: "half",
+        currencyLabel: "$",
+        discount: "1",
+        seasonality: ["1", "1"],
+        mc: { seed: 1, N: 500, ranges: {} },
+      },
       meta: { notes: "" },
     }).plans[0]!;
     const segment = unitSegment("0.5");
@@ -76,29 +172,40 @@ describe("O-F2 end-to-end pull oracle", () => {
   it("computes z* = +6, pay gain 0.1, displaced revenue 6·n_s via computeTiming", () => {
     const wire: ScenarioJson = {
       schemaVersion: 1,
-      population: [{
-        id: "seg-1",
-        label: "Only",
-        count: 10,
-        ability: "100",
-        costK: "100",
-        riskAversion: "0",
-        noiseSD: "0",
-        reservationCE: "0",
-        quotaMult: "1",
-        valueQuality: "1",
-        movable: "0.3",
-      }],
-      plans: [{
-        id: "plan-1",
-        label: "O-F2",
-        base: "0",
-        quota: "20",
-        tiers: [{ from: "0", rate: "0.1" }],
-        bonus: { L: "0.1", x_b: "0.8" },
-        cap: null,
-      }],
-      settings: { mode: "deterministic", periodLabel: "half", currencyLabel: "$", discount: "1", seasonality: ["1", "1.5"], mc: { seed: 1, N: 500, ranges: {} } },
+      population: [
+        {
+          id: "seg-1",
+          label: "Only",
+          count: 10,
+          ability: "100",
+          costK: "100",
+          riskAversion: "0",
+          noiseSD: "0",
+          reservationCE: "0",
+          quotaMult: "1",
+          valueQuality: "1",
+          movable: "0.3",
+        },
+      ],
+      plans: [
+        {
+          id: "plan-1",
+          label: "O-F2",
+          base: "0",
+          quota: "20",
+          tiers: [{ from: "0", rate: "0.1" }],
+          bonus: { L: "0.1", x_b: "0.8" },
+          cap: null,
+        },
+      ],
+      settings: {
+        mode: "deterministic",
+        periodLabel: "half",
+        currencyLabel: "$",
+        discount: "1",
+        seasonality: ["1", "1.5"],
+        mc: { seed: 1, N: 500, ranges: {} },
+      },
       meta: { notes: "" },
     };
     const scenario = parseScenario(wire);
@@ -118,9 +225,40 @@ describe("computeTiming — degenerate window", () => {
   it("returns z* = 0 when movable = 0", () => {
     const wire: ScenarioJson = {
       schemaVersion: 1,
-      population: [{ id: "seg-1", label: "Only", count: 1, ability: "100", costK: "100", riskAversion: "0", noiseSD: "0", reservationCE: "0", quotaMult: "1", valueQuality: "1", movable: "0" }],
-      plans: [{ id: "plan-1", label: "flat", base: "0", quota: "1", tiers: [{ from: "0", rate: "0.1" }], bonus: null, cap: null }],
-      settings: { mode: "deterministic", periodLabel: "half", currencyLabel: "$", discount: "1", seasonality: ["1", "1.5"], mc: { seed: 1, N: 500, ranges: {} } },
+      population: [
+        {
+          id: "seg-1",
+          label: "Only",
+          count: 1,
+          ability: "100",
+          costK: "100",
+          riskAversion: "0",
+          noiseSD: "0",
+          reservationCE: "0",
+          quotaMult: "1",
+          valueQuality: "1",
+          movable: "0",
+        },
+      ],
+      plans: [
+        {
+          id: "plan-1",
+          label: "flat",
+          base: "0",
+          quota: "1",
+          tiers: [{ from: "0", rate: "0.1" }],
+          bonus: null,
+          cap: null,
+        },
+      ],
+      settings: {
+        mode: "deterministic",
+        periodLabel: "half",
+        currencyLabel: "$",
+        discount: "1",
+        seasonality: ["1", "1.5"],
+        mc: { seed: 1, N: 500, ranges: {} },
+      },
       meta: { notes: "" },
     };
     const timing = computeTiming(parseScenario(wire));

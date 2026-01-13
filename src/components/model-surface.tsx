@@ -17,12 +17,34 @@ const explainers: Record<Exclude<keyof SegmentJson, "secondTask">, string> = {
   movable: "Fraction of pipeline this segment can shift across the period boundary.",
 };
 
-const numericFields: Array<Exclude<keyof SegmentJson, "secondTask">> = ["count", "ability", "costK", "riskAversion", "noiseSD", "reservationCE", "quotaMult", "valueQuality", "movable"];
+const numericFields: Array<Exclude<keyof SegmentJson, "secondTask">> = [
+  "count",
+  "ability",
+  "costK",
+  "riskAversion",
+  "noiseSD",
+  "reservationCE",
+  "quotaMult",
+  "valueQuality",
+  "movable",
+];
 
 const secondTaskFields: Array<{ key: keyof SecondTaskJson; label: string; hint: string }> = [
-  { key: "ability", label: "Task-2 ability a₂", hint: "Measured revenue per unit of task-2 effort. Leave at 0 for work the plan never sees." },
-  { key: "valuePerEffort", label: "Task-2 value v₂", hint: "True business value per unit of task-2 effort, in currency." },
-  { key: "costSubstitution", label: "Cost substitution ψ", hint: "0 = the two activities are independent; higher means pushing one crowds out the other." },
+  {
+    key: "ability",
+    label: "Task-2 ability a₂",
+    hint: "Measured revenue per unit of task-2 effort. Leave at 0 for work the plan never sees.",
+  },
+  {
+    key: "valuePerEffort",
+    label: "Task-2 value v₂",
+    hint: "True business value per unit of task-2 effort, in currency.",
+  },
+  {
+    key: "costSubstitution",
+    label: "Cost substitution ψ",
+    hint: "0 = the two activities are independent; higher means pushing one crowds out the other.",
+  },
 ];
 
 /** §3.3b V-03: the second activity the plan cannot tell apart but the business values differently. */
@@ -35,16 +57,21 @@ function MultitaskBlock(): React.JSX.Element {
     <fieldset className="rationality-block">
       <legend>Multitasking</legend>
       <p className="field-note">
-        Give a segment a second activity and the plan stops being the whole story: reps put effort where the plan pays,
-        not where the value is. Effort cost is shared across both tasks, so sharpening one set of incentives can crowd the
-        other out entirely. Segments without a second task respond exactly as before.
+        Give a segment a second activity and the plan stops being the whole story: reps put effort
+        where the plan pays, not where the value is. Effort cost is shared across both tasks, so
+        sharpening one set of incentives can crowd the other out entirely. Segments without a second
+        task respond exactly as before.
       </p>
       <ul className="multitask-list" role="list">
         {population.map((segment) => (
           <li key={segment.id} className="multitask-row">
             <div className="multitask-row-head">
               <span>{segment.label}</span>
-              <button type="button" aria-pressed={Boolean(segment.secondTask)} onClick={() => toggleSecondTask(segment.id)}>
+              <button
+                type="button"
+                aria-pressed={Boolean(segment.secondTask)}
+                onClick={() => toggleSecondTask(segment.id)}
+              >
                 {segment.secondTask ? "Remove second task" : "Add second task"}
               </button>
             </div>
@@ -57,7 +84,9 @@ function MultitaskBlock(): React.JSX.Element {
                       inputMode="decimal"
                       value={segment.secondTask?.[field.key] ?? ""}
                       title={field.hint}
-                      onChange={(event) => setSecondTaskField(segment.id, field.key, event.target.value)}
+                      onChange={(event) =>
+                        setSecondTaskField(segment.id, field.key, event.target.value)
+                      }
                     />
                   </label>
                 ))}
@@ -84,13 +113,27 @@ function RationalityDial(): React.JSX.Element {
     <fieldset className="rationality-block">
       <legend>Rep rationality</legend>
       <p className="field-note">
-        Exact assumes every rep finds the plan&rsquo;s optimal effort. Bounded assumes they choose among the plan&rsquo;s salient
-        plays — zero effort, each tier&rsquo;s own optimum, each threshold — with noise, so the modeled response is deliberately
-        <strong> not the exact optimum</strong>. Boundary gaming stays on the exact response; every other surface follows this dial.
+        Exact assumes every rep finds the plan&rsquo;s optimal effort. Bounded assumes they choose
+        among the plan&rsquo;s salient plays — zero effort, each tier&rsquo;s own optimum, each
+        threshold — with noise, so the modeled response is deliberately
+        <strong> not the exact optimum</strong>. Boundary gaming stays on the exact response; every
+        other surface follows this dial.
       </p>
       <div role="group" aria-label="Response class" className="mode-toggle">
-        <button type="button" aria-pressed={mode === "exact"} onClick={() => setRationalityMode("exact")}>Exact best response</button>
-        <button type="button" aria-pressed={mode === "softmax"} onClick={() => setRationalityMode("softmax")}>Bounded (softmax)</button>
+        <button
+          type="button"
+          aria-pressed={mode === "exact"}
+          onClick={() => setRationalityMode("exact")}
+        >
+          Exact best response
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === "softmax"}
+          onClick={() => setRationalityMode("softmax")}
+        >
+          Bounded (softmax)
+        </button>
       </div>
       {mode === "softmax" ? (
         <div className="rationality-tau">
@@ -104,11 +147,16 @@ function RationalityDial(): React.JSX.Element {
             onChange={(event) => setRationalityTau(event.target.value)}
           />
           <span id="rationality-tau-help" className="field-note">
-            Certainty-equivalent differences far below τ are invisible to the rep; differences far above it are decisive.
+            Certainty-equivalent differences far below τ are invisible to the rep; differences far
+            above it are decisive.
           </span>
         </div>
       ) : null}
-      {tauIssues.length > 0 ? <p role="alert" className="surface-error">{tauIssues[0]?.message}</p> : null}
+      {tauIssues.length > 0 ? (
+        <p role="alert" className="surface-error">
+          {tauIssues[0]?.message}
+        </p>
+      ) : null}
     </fieldset>
   );
 }
@@ -123,7 +171,9 @@ export function ModelSurface(): React.JSX.Element {
   const duplicateSegment = useScenarioStore((state) => state.duplicateSegment);
   const deleteSegment = useScenarioStore((state) => state.deleteSegment);
 
-  const totalHeadcount = domain ? domain.population.reduce((sum, segment) => sum + segment.count, 0) : scenario.population.reduce((sum, segment) => sum + segment.count, 0);
+  const totalHeadcount = domain
+    ? domain.population.reduce((sum, segment) => sum + segment.count, 0)
+    : scenario.population.reduce((sum, segment) => sum + segment.count, 0);
 
   return (
     <section className="surface" id="surface-model" aria-labelledby="model-heading">
@@ -133,18 +183,34 @@ export function ModelSurface(): React.JSX.Element {
           <h2 id="model-heading">Rep population assumptions</h2>
         </div>
         <div className="surface-heading-actions">
-          <button type="button" className="button-primary" onClick={addSegment} disabled={scenario.population.length >= 10}>Add segment</button>
+          <button
+            type="button"
+            className="button-primary"
+            onClick={addSegment}
+            disabled={scenario.population.length >= 10}
+          >
+            Add segment
+          </button>
         </div>
       </header>
       <p className="surface-summary">
-        Every segment aggregates one or more reps sharing an ability, effort cost, and risk profile. The engine reads these
-        values exactly; keep numbers as decimals ({"e.g. 0.085"}) so the payout calculation stays lossless.
+        Every segment aggregates one or more reps sharing an ability, effort cost, and risk profile.
+        The engine reads these values exactly; keep numbers as decimals ({"e.g. 0.085"}) so the
+        payout calculation stays lossless.
       </p>
       <div className="population-summary" aria-live="polite">
-        <span>{scenario.population.length} segment{scenario.population.length === 1 ? "" : "s"}</span>
-        <span>{totalHeadcount} rep{totalHeadcount === 1 ? "" : "s"} total</span>
+        <span>
+          {scenario.population.length} segment{scenario.population.length === 1 ? "" : "s"}
+        </span>
+        <span>
+          {totalHeadcount} rep{totalHeadcount === 1 ? "" : "s"} total
+        </span>
       </div>
-      {domainError ? <p role="alert" className="surface-error">{domainError}</p> : null}
+      {domainError ? (
+        <p role="alert" className="surface-error">
+          {domainError}
+        </p>
+      ) : null}
       <div className="segment-table-wrapper">
         <table className="segment-table">
           <thead>
@@ -169,26 +235,57 @@ export function ModelSurface(): React.JSX.Element {
               return (
                 <tr key={segment.id}>
                   <td>
-                    <label className="sr-only" htmlFor={`segment-${segment.id}-label`}>Label for {segment.label}</label>
-                    <input id={`segment-${segment.id}-label`} value={segment.label} onChange={(event) => setSegmentField(segment.id, "label", event.target.value)} />
+                    <label className="sr-only" htmlFor={`segment-${segment.id}-label`}>
+                      Label for {segment.label}
+                    </label>
+                    <input
+                      id={`segment-${segment.id}-label`}
+                      value={segment.label}
+                      onChange={(event) => setSegmentField(segment.id, "label", event.target.value)}
+                    />
                   </td>
                   {numericFields.map((field) => (
                     <td key={field}>
-                      <label className="sr-only" htmlFor={`segment-${segment.id}-${field}`}>{explainers[field]}</label>
+                      <label className="sr-only" htmlFor={`segment-${segment.id}-${field}`}>
+                        {explainers[field]}
+                      </label>
                       <input
                         id={`segment-${segment.id}-${field}`}
                         inputMode="decimal"
                         value={String(segment[field])}
-                        aria-invalid={rowIssues.some((issue) => issue.path === `${path}.${field}`) || undefined}
+                        aria-invalid={
+                          rowIssues.some((issue) => issue.path === `${path}.${field}`) || undefined
+                        }
                         title={explainers[field]}
-                        onChange={(event) => setSegmentField(segment.id, field, field === "count" ? (Number(event.target.value) as SegmentJson[typeof field]) : (event.target.value as SegmentJson[typeof field]))}
+                        onChange={(event) =>
+                          setSegmentField(
+                            segment.id,
+                            field,
+                            field === "count"
+                              ? (Number(event.target.value) as SegmentJson[typeof field])
+                              : (event.target.value as SegmentJson[typeof field]),
+                          )
+                        }
                       />
                     </td>
                   ))}
                   <td>
                     <div className="row-actions">
-                      <button type="button" onClick={() => duplicateSegment(segment.id)} aria-label={`Duplicate ${segment.label}`}>Duplicate</button>
-                      <button type="button" onClick={() => deleteSegment(segment.id)} aria-label={`Delete ${segment.label}`} disabled={scenario.population.length <= 1}>Delete</button>
+                      <button
+                        type="button"
+                        onClick={() => duplicateSegment(segment.id)}
+                        aria-label={`Duplicate ${segment.label}`}
+                      >
+                        Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteSegment(segment.id)}
+                        aria-label={`Delete ${segment.label}`}
+                        disabled={scenario.population.length <= 1}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -201,9 +298,14 @@ export function ModelSurface(): React.JSX.Element {
       <MultitaskBlock />
       {issuesList.length > 0 ? (
         <ul className="issue-list" role="list">
-          {issuesList.filter((issue) => issue.path.startsWith("population")).slice(0, 6).map((issue) => (
-            <li key={`${issue.path}-${issue.message}`}>{issue.path}: {issue.message}</li>
-          ))}
+          {issuesList
+            .filter((issue) => issue.path.startsWith("population"))
+            .slice(0, 6)
+            .map((issue) => (
+              <li key={`${issue.path}-${issue.message}`}>
+                {issue.path}: {issue.message}
+              </li>
+            ))}
         </ul>
       ) : null}
     </section>

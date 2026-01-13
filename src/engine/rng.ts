@@ -15,7 +15,8 @@ export interface SplitMix64 {
 }
 
 export function createSplitMix64(seed: number): SplitMix64 {
-  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new RangeError("Seed must be a uint32 integer.");
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff)
+    throw new RangeError("Seed must be a uint32 integer.");
   let state = BigInt(seed);
   return {
     nextUint64(): bigint {

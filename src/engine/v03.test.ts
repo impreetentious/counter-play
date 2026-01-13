@@ -1,6 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { effectiveSegment, multitaskReport, portfolioEfficiency, revenuePortfolio } from "./multitask";
+import {
+  effectiveSegment,
+  multitaskReport,
+  portfolioEfficiency,
+  revenuePortfolio,
+} from "./multitask";
 import { respondCARA } from "./respond.cara";
 import { respondDeterministic } from "./respond.det";
 import { simulateDeterministic } from "./simulate";
@@ -12,17 +17,35 @@ import type { Plan, Scenario, SecondTask, Segment } from "./types";
 // by hand and reproduced here — never read back from the implementation (§9).
 // a₁ = 100, k = 100, γ = 1, ρ = 0, Ū = 0, m = 1; plan B = 0, Q = 10, one tier r = 0.1.
 const baseSegment: Segment = {
-  id: "seg-1", label: "Core", count: 1, ability: Rat.from(100), costK: Rat.from(100), riskAversion: R0,
-  noiseSD: R0, reservationCE: R0, quotaMult: Rat.one(), valueQuality: Rat.one(), movable: R0,
+  id: "seg-1",
+  label: "Core",
+  count: 1,
+  ability: Rat.from(100),
+  costK: Rat.from(100),
+  riskAversion: R0,
+  noiseSD: R0,
+  reservationCE: R0,
+  quotaMult: Rat.one(),
+  valueQuality: Rat.one(),
+  movable: R0,
 };
 
 const plan: Plan = {
-  id: "plan-1", label: "Flat", base: R0, quota: Rat.from(10),
-  tiers: [{ from: R0, rate: Rat.from(1, 10) }], bonus: null, cap: null,
+  id: "plan-1",
+  label: "Flat",
+  base: R0,
+  quota: Rat.from(10),
+  tiers: [{ from: R0, rate: Rat.from(1, 10) }],
+  bonus: null,
+  cap: null,
 };
 
 function task(ability: number, valuePerEffort: number, psi: Rat): SecondTask {
-  return { ability: Rat.from(ability), valuePerEffort: Rat.from(valuePerEffort), costSubstitution: psi };
+  return {
+    ability: Rat.from(ability),
+    valuePerEffort: Rat.from(valuePerEffort),
+    costSubstitution: psi,
+  };
 }
 
 function withTask(secondTask: SecondTask): Segment {
@@ -42,8 +65,11 @@ function scenarioWith(population: Segment[], plans: Plan[] = [plan]): Scenario {
     population,
     plans,
     settings: {
-      mode: "deterministic", periodLabel: "quarter", currencyLabel: "$",
-      discount: Rat.one(), seasonality: [Rat.one(), Rat.one()],
+      mode: "deterministic",
+      periodLabel: "quarter",
+      currencyLabel: "$",
+      discount: Rat.one(),
+      seasonality: [Rat.one(), Rat.one()],
       mc: { seed: 1, N: 500, ranges: {} },
     },
     meta: { notes: "" },
@@ -150,31 +176,37 @@ describe("V-03 M5 — the unmeasured task", () => {
 
 describe("V-03 structural invariants", () => {
   it("splits measured revenue exactly across the two tasks", () => {
-    fc.assert(fc.property(
-      fc.integer({ min: 0, max: 400 }),
-      fc.integer({ min: 0, max: 90 }),
-      (secondAbility, psiPercent) => {
-        const segment = withTask(task(secondAbility, 30, Rat.from(psiPercent, 100)));
-        const response = respondDeterministic(plan, segment);
-        const report = response.multitask;
-        if (!report) return false;
-        return report.revenueTask1.add(report.revenueTask2).eq(response.output);
-      },
-    ), { numRuns: 60 });
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 400 }),
+        fc.integer({ min: 0, max: 90 }),
+        (secondAbility, psiPercent) => {
+          const segment = withTask(task(secondAbility, 30, Rat.from(psiPercent, 100)));
+          const response = respondDeterministic(plan, segment);
+          const report = response.multitask;
+          if (!report) return false;
+          return report.revenueTask1.add(report.revenueTask2).eq(response.output);
+        },
+      ),
+      { numRuns: 60 },
+    );
   });
 
   it("keeps the distortion index inside [0, 1] (Cauchy–Schwarz)", () => {
-    fc.assert(fc.property(
-      fc.integer({ min: 0, max: 400 }),
-      fc.integer({ min: 0, max: 400 }),
-      fc.integer({ min: 0, max: 90 }),
-      (secondAbility, valuePerEffort, psiPercent) => {
-        const segment = withTask(task(secondAbility, valuePerEffort, Rat.from(psiPercent, 100)));
-        const report = respondDeterministic(plan, segment).multitask;
-        if (!report) return false;
-        return report.distortionIndex.gte(R0) && report.distortionIndex.lte(Rat.one());
-      },
-    ), { numRuns: 80 });
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 400 }),
+        fc.integer({ min: 0, max: 400 }),
+        fc.integer({ min: 0, max: 90 }),
+        (secondAbility, valuePerEffort, psiPercent) => {
+          const segment = withTask(task(secondAbility, valuePerEffort, Rat.from(psiPercent, 100)));
+          const report = respondDeterministic(plan, segment).multitask;
+          if (!report) return false;
+          return report.distortionIndex.gte(R0) && report.distortionIndex.lte(Rat.one());
+        },
+      ),
+      { numRuns: 80 },
+    );
   });
 
   it("blends the report over a softmax mixture without leaving the invariant", () => {
@@ -211,6 +243,8 @@ describe("V-03 stochastic path and linter", () => {
   });
 
   it("stays silent on a population with no second task", () => {
-    expect(lintScenario(scenarioWith([baseSegment])).filter((finding) => finding.type === "L-5")).toHaveLength(0);
+    expect(
+      lintScenario(scenarioWith([baseSegment])).filter((finding) => finding.type === "L-5"),
+    ).toHaveLength(0);
   });
 });
