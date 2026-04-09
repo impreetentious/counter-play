@@ -2,7 +2,11 @@ name: Verify
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -16,6 +20,7 @@ jobs:
           node-version: 24.14.0
           cache: npm
       - run: npm ci
+      - run: npm run check:version
       - run: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium firefox webkit
       - run: npm run typecheck
       - run: npm run lint
