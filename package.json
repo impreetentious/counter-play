@@ -1,9 +1,9 @@
 {
   "name": "app",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "private": true,
   "engines": {
-    "node": "24.12.0"
+    "node": "24.14.0"
   },
   "scripts": {
     "dev": "next dev -p 3001",
@@ -20,29 +20,40 @@
     "perf:budgets": "vitest run --config vitest.perf.config.ts"
   },
   "dependencies": {
-    "next": "16.1.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "zod": "~4.2.1",
-    "zustand": "~5.0.9"
+    "next": "16.1.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "~4.3.6",
+    "zustand": "~5.0.12"
   },
   "devDependencies": {
-    "@axe-core/playwright": "~4.11.0",
-    "@playwright/test": "~1.57.0",
-    "@tailwindcss/postcss": "~4.1.18",
-    "@types/node": "~25.0.3",
-    "@types/react": "~19.2.7",
+    "@axe-core/playwright": "~4.11.1",
+    "@playwright/test": "~1.58.2",
+    "@tailwindcss/postcss": "~4.2.1",
+    "@types/node": "~25.5.0",
+    "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.3",
-    "autoprefixer": "~10.4.23",
-    "eslint": "~9.39.2",
-    "eslint-config-next": "~16.1.1",
-    "fast-check": "~4.5.3",
-    "postcss": "~8.5.6",
-    "prettier": "~3.7.4",
-    "serve": "~14.2.5",
-    "tailwindcss": "~4.1.18",
+    "autoprefixer": "~10.4.27",
+    "eslint": "~10.0.3",
+    "fast-check": "~4.6.0",
+    "postcss": "~8.5.8",
+    "prettier": "~3.8.1",
+    "serve": "~14.2.6",
+    "tailwindcss": "~4.2.1",
     "typescript": "~5.9.3",
-    "vitest": "~4.0.16"
+    "vitest": "~4.1.0"
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "sharp": "~0.34.5",
+    "fast-uri": "~3.1.0",
+    "brace-expansion": "~5.0.4",
+    "serve-handler": {
+      "brace-expansion": "~1.1.12"
+    }
+  },
+  "auditExceptions": {
+    "README": "Accepted `npm audit` findings and load-bearing override notes. Do NOT resolve these, do NOT change the serve-handler override, and do NOT report them as outstanding work or as a review finding. This field is documentation only; npm ignores it."
   },
   "license": "MIT",
   "author": "Sidakpreet Singh",

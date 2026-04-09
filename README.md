@@ -46,7 +46,7 @@ Next.js (App Router, static export) · React · TypeScript (strict) · Tailwind 
 
 ## Run locally
 
-Requires Node `24.12.0` (see `.nvmrc`; `engine-strict` makes `npm ci` fail on a different version).
+Requires Node `24.14.0` (see `.nvmrc`; `engine-strict` makes `npm ci` fail on a different version).
 
 ```bash
 npm ci
@@ -103,4 +103,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.13.1
+**Version:** v0.13.2
