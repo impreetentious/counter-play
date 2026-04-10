@@ -335,7 +335,7 @@ export function SimulateSurface(): React.JSX.Element {
       </section>
     );
 
-  if (!runOutcome || runOutcome instanceof Error) {
+  if (!domain || !runOutcome || runOutcome instanceof Error) {
     return (
       <section
         className="surface"
@@ -376,7 +376,7 @@ export function SimulateSurface(): React.JSX.Element {
     result.mode === "deterministic" && result.plans.length > 1
       ? result.plans
           .slice(1)
-          .map((plan) => comparePlans(result, result.plans[0]!.plan.id, plan.plan.id))
+          .map((plan) => comparePlans(domain, result, result.plans[0]!.plan.id, plan.plan.id))
       : [];
 
   return (

@@ -21,6 +21,52 @@ export interface StochasticPayoutLine {
   decomposition: FloatDecomposition;
 }
 
+type CompareValue = Rat | number | null;
+
+/**
+ * I-3 compares the deltas shown in the UI with values rebuilt from independent plan runs.
+ * Deterministic values must agree exactly; analytic stochastic values use a relative tolerance.
+ * A missing ratio is deliberately not comparable (§3.5), so it is skipped rather than coerced.
+ */
+export function checkCompareConsistency(
+  displayed: readonly CompareValue[],
+  recomputed: readonly CompareValue[],
+): IdentityAttestation {
+  if (displayed.length !== recomputed.length) {
+    throw new EngineError("INTERNAL_INVARIANT", "I-3 compared different KPI sets.");
+  }
+  let maxErr = 0;
+  for (let index = 0; index < displayed.length; index += 1) {
+    const shown = displayed[index];
+    const rebuilt = recomputed[index];
+    if (shown === null || rebuilt === null) continue;
+    if (shown instanceof Rat && rebuilt instanceof Rat) {
+      if (!shown.eq(rebuilt)) {
+        throw new EngineError(
+          "INTERNAL_INVARIANT",
+          `I-3 exact compare consistency failed for KPI ${index}: ${shown.serialize()} != ${rebuilt.serialize()}.`,
+        );
+      }
+      continue;
+    }
+    if (typeof shown !== "number" || typeof rebuilt !== "number") {
+      throw new EngineError(
+        "INTERNAL_INVARIANT",
+        `I-3 compared incompatible KPI values at ${index}.`,
+      );
+    }
+    const error = Math.abs(shown - rebuilt);
+    maxErr = Math.max(maxErr, error);
+    if (error > 1e-12 * Math.max(1, Math.abs(rebuilt))) {
+      throw new EngineError(
+        "INTERNAL_INVARIANT",
+        `I-3 stochastic compare consistency failed for KPI ${index}: ${shown} != ${rebuilt}.`,
+      );
+    }
+  }
+  return { id: "I-3", pass: true, maxErr };
+}
+
 /** Exact I-1 checker used on every deterministic simulation path. */
 export function checkPayoutConservation(
   lines: readonly DeterministicPayoutLine[],

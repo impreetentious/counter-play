@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { comparePlans, simulate, simulateDeterministic } from "./simulate";
+import { comparePlans, compareStochasticPlans, simulate, simulateDeterministic } from "./simulate";
+import { Rat } from "./rat";
 import { parseScenario, type ScenarioJson } from "@/state/schema";
 
 const scenarioJson: ScenarioJson = {
@@ -64,11 +65,31 @@ describe("deterministic simulation", () => {
   });
 
   it("recomputes exact comparison deltas", () => {
-    const result = simulateDeterministic(parseScenario(scenarioJson));
-    const comparison = comparePlans(result, "plan-2", "plan-1");
+    const scenario = parseScenario(scenarioJson);
+    const result = simulateDeterministic(scenario);
+    const comparison = comparePlans(scenario, result, "plan-2", "plan-1");
     expect(comparison.expectedRevenueDelta.serialize()).toBe("20/1");
     expect(comparison.totalCompDelta.serialize()).toBe("6/1");
     expect(comparison.attestation.pass).toBe(true);
+  });
+
+  it("rejects a displayed delta that differs from an independent recomputation", () => {
+    const scenario = parseScenario(scenarioJson);
+    const result = simulateDeterministic(scenario);
+    const corrupt = {
+      ...result,
+      plans: result.plans.map((plan, index) =>
+        index === 0
+          ? {
+              ...plan,
+              kpis: { ...plan.kpis, expectedRevenue: plan.kpis.expectedRevenue.add(Rat.from(1)) },
+            }
+          : plan,
+      ),
+    };
+    expect(() => comparePlans(scenario, corrupt, "plan-1", "plan-2")).toThrow(
+      /I-3 exact compare consistency failed/,
+    );
   });
 
   it("aggregates analytic stochastic distributions and conservation attestations", () => {
@@ -85,5 +106,17 @@ describe("deterministic simulation", () => {
     );
     expect(result.attestations.map((item) => item.id)).toEqual(["I-1", "I-2", "I-3"]);
     expect(result.attestations.every((item) => item.pass)).toBe(true);
+    const comparison = compareStochasticPlans(
+      parseScenario(stochastic),
+      result,
+      "plan-1",
+      "plan-2",
+    );
+    expect(comparison.attestation.pass).toBe(true);
+  });
+
+  it("omits I-3 when there is no second plan to compare", () => {
+    const scenario = parseScenario({ ...scenarioJson, plans: [scenarioJson.plans[0]!] });
+    expect(simulateDeterministic(scenario).attestations.map((item) => item.id)).toEqual(["I-1"]);
   });
 });

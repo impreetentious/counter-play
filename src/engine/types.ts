@@ -3,6 +3,13 @@ import type { Rat } from "./rat";
 export type Mode = "deterministic" | "stochastic";
 export type AppLocale = "en-US" | "en-GB" | "de-DE";
 
+/** A view-only destination for explaining a linter finding; it never changes scenario wire data. */
+export interface DeepLink {
+  surface: "model" | "design" | "simulate" | "analyze";
+  chart: string;
+  highlight: Record<string, string | number>;
+}
+
 /**
  * §3.3b V-03 second task. `ability = 0` is the fully unmeasured activity; `valuePerEffort` is in
  * currency per unit of task-2 effort (not per revenue unit, which an unmeasured task cannot have).

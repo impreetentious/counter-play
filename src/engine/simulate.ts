@@ -1,4 +1,5 @@
 import {
+  checkCompareConsistency,
   checkPayoutConservation,
   checkProbabilityConservation,
   checkStochasticPayoutConservation,
@@ -66,6 +67,18 @@ export interface PlanComparison {
   compRatioDelta: Rat | null;
   attestation: IdentityAttestation;
 }
+
+export interface StochasticPlanComparison {
+  leftPlanId: string;
+  rightPlanId: string;
+  expectedRevenueDelta: number;
+  totalCompDelta: number;
+  trueValueDelta: number;
+  compRatioDelta: number | null;
+  attestation: IdentityAttestation;
+}
+
+export type AnyPlanComparison = PlanComparison | StochasticPlanComparison;
 
 /**
  * §3.5 weighted lower quantile over exact point masses. Weights are rationals so a §3.3a
@@ -171,8 +184,20 @@ export function simulateDeterministic(scenario: Scenario): DeterministicSimulati
       })),
     ),
   );
-  const i3: IdentityAttestation = { id: "I-3", pass: true, maxErr: 0 };
-  return { mode: "deterministic", plans, attestations: [i1, i3] };
+  const result: DeterministicSimulationResult = {
+    mode: "deterministic",
+    plans,
+    attestations: [i1],
+  };
+  if (plans.length > 1) {
+    const comparisons = plans.flatMap((left, leftIndex) =>
+      plans
+        .slice(leftIndex + 1)
+        .map((right) => comparePlans(scenario, result, left.plan.id, right.plan.id)),
+    );
+    result.attestations.push(combineCompareAttestations(comparisons));
+  }
+  return result;
 }
 
 function stochasticQuantile(
@@ -312,8 +337,20 @@ export function simulateStochastic(scenario: Scenario): StochasticSimulationResu
     pass: i2Errors.every((item) => item.pass),
     maxErr: Math.max(0, ...i2Errors.map((item) => item.maxErr)),
   };
-  const i3: IdentityAttestation = { id: "I-3", pass: true, maxErr: 0 };
-  return { mode: "stochastic", plans, attestations: [i1, i2, i3] };
+  const result: StochasticSimulationResult = {
+    mode: "stochastic",
+    plans,
+    attestations: [i1, i2],
+  };
+  if (plans.length > 1) {
+    const comparisons = plans.flatMap((left, leftIndex) =>
+      plans
+        .slice(leftIndex + 1)
+        .map((right) => compareStochasticPlans(scenario, result, left.plan.id, right.plan.id)),
+    );
+    result.attestations.push(combineCompareAttestations(comparisons));
+  }
+  return result;
 }
 
 export function simulate(scenario: Scenario): SimulationResult {
@@ -323,6 +360,7 @@ export function simulate(scenario: Scenario): SimulationResult {
 }
 
 export function comparePlans(
+  scenario: Scenario,
   result: DeterministicSimulationResult,
   leftPlanId: string,
   rightPlanId: string,
@@ -335,6 +373,26 @@ export function comparePlans(
     left.kpis.compRatio && right.kpis.compRatio
       ? left.kpis.compRatio.sub(right.kpis.compRatio)
       : null;
+  const independentlyLeft = simulatePlan(scenario, left.plan);
+  const independentlyRight = simulatePlan(scenario, right.plan);
+  const recomputedCompRatioDelta =
+    independentlyLeft.kpis.compRatio && independentlyRight.kpis.compRatio
+      ? independentlyLeft.kpis.compRatio.sub(independentlyRight.kpis.compRatio)
+      : null;
+  const attestation = checkCompareConsistency(
+    [
+      left.kpis.expectedRevenue.sub(right.kpis.expectedRevenue),
+      left.kpis.totalComp.sub(right.kpis.totalComp),
+      left.kpis.trueValue.sub(right.kpis.trueValue),
+      compRatioDelta,
+    ],
+    [
+      independentlyLeft.kpis.expectedRevenue.sub(independentlyRight.kpis.expectedRevenue),
+      independentlyLeft.kpis.totalComp.sub(independentlyRight.kpis.totalComp),
+      independentlyLeft.kpis.trueValue.sub(independentlyRight.kpis.trueValue),
+      recomputedCompRatioDelta,
+    ],
+  );
   return {
     leftPlanId,
     rightPlanId,
@@ -342,6 +400,62 @@ export function comparePlans(
     totalCompDelta: left.kpis.totalComp.sub(right.kpis.totalComp),
     trueValueDelta: left.kpis.trueValue.sub(right.kpis.trueValue),
     compRatioDelta,
-    attestation: { id: "I-3", pass: true, maxErr: 0 },
+    attestation,
+  };
+}
+
+/** Stochastic counterpart of comparePlans; both KPIs are independently recomputed before I-3. */
+export function compareStochasticPlans(
+  scenario: Scenario,
+  result: StochasticSimulationResult,
+  leftPlanId: string,
+  rightPlanId: string,
+): StochasticPlanComparison {
+  const left = result.plans.find((plan) => plan.plan.id === leftPlanId);
+  const right = result.plans.find((plan) => plan.plan.id === rightPlanId);
+  if (!left || !right)
+    throw new EngineError("INVALID_INPUT", "Both plans must be present to compare them.");
+  const compRatioDelta =
+    left.kpis.compRatio !== null && right.kpis.compRatio !== null
+      ? left.kpis.compRatio - right.kpis.compRatio
+      : null;
+  const independentlyLeft = simulateStochasticPlan(scenario, left.plan);
+  const independentlyRight = simulateStochasticPlan(scenario, right.plan);
+  const recomputedCompRatioDelta =
+    independentlyLeft.kpis.compRatio !== null && independentlyRight.kpis.compRatio !== null
+      ? independentlyLeft.kpis.compRatio - independentlyRight.kpis.compRatio
+      : null;
+  const attestation = checkCompareConsistency(
+    [
+      left.kpis.expectedRevenue - right.kpis.expectedRevenue,
+      left.kpis.totalComp - right.kpis.totalComp,
+      left.kpis.trueValue - right.kpis.trueValue,
+      compRatioDelta,
+    ],
+    [
+      independentlyLeft.kpis.expectedRevenue - independentlyRight.kpis.expectedRevenue,
+      independentlyLeft.kpis.totalComp - independentlyRight.kpis.totalComp,
+      independentlyLeft.kpis.trueValue - independentlyRight.kpis.trueValue,
+      recomputedCompRatioDelta,
+    ],
+  );
+  return {
+    leftPlanId,
+    rightPlanId,
+    expectedRevenueDelta: left.kpis.expectedRevenue - right.kpis.expectedRevenue,
+    totalCompDelta: left.kpis.totalComp - right.kpis.totalComp,
+    trueValueDelta: left.kpis.trueValue - right.kpis.trueValue,
+    compRatioDelta,
+    attestation,
+  };
+}
+
+function combineCompareAttestations(
+  comparisons: readonly { attestation: IdentityAttestation }[],
+): IdentityAttestation {
+  return {
+    id: "I-3",
+    pass: comparisons.every((comparison) => comparison.attestation.pass),
+    maxErr: Math.max(0, ...comparisons.map((comparison) => comparison.attestation.maxErr)),
   };
 }
