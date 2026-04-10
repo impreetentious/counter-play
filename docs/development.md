@@ -8,6 +8,6 @@ Local development uses deterministic, repo-owned ports:
 
 Dependency maintenance notes:
 
-- `next@16.1.x` can pin nested `postcss` and `sharp` ranges; explicit overrides are required when advisories land below Next.
+- `next@16.2.x` can pin nested `postcss` and `sharp` ranges; explicit overrides are required when advisories land below Next.
 - The `serve-handler` `brace-expansion@~1.1.12` override is load-bearing for local static serving and Playwright.
 - Overrides on direct dependencies must use npm's `$name` self-reference form or npm raises `EOVERRIDE`.

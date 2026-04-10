@@ -1,7 +1,11 @@
-/**
- * Keep lint portable without the framework preset. TypeScript correctness is
- * enforced by `npm run typecheck`.
- */
+import nextPlugin from "@next/eslint-plugin-next";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const root = path.dirname(fileURLToPath(import.meta.url));
+
 export default [
   {
     ignores: [
@@ -12,6 +16,33 @@ export default [
       "test-results/**",
       "playwright-report/**",
     ],
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: root,
+      },
+    },
+    plugins: {
+      "@next/next": nextPlugin,
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      ...nextPlugin.configs["core-web-vitals"].rules,
+      ...tseslint.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+          varsIgnorePattern: "^_",
+        },
+      ],
+    },
   },
   {
     files: ["**/*.{js,mjs,cjs}"],

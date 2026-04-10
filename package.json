@@ -1,6 +1,6 @@
 {
   "name": "app",
-  "version": "0.13.3",
+  "version": "0.14.0",
   "private": true,
   "engines": {
     "node": "24.14.0"
@@ -21,7 +21,7 @@
     "check:version": "node scripts/check-version-coherence.mjs"
   },
   "dependencies": {
-    "next": "16.1.7",
+    "next": "16.2.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "~4.3.6",
@@ -30,17 +30,20 @@
   "devDependencies": {
     "@axe-core/playwright": "~4.11.1",
     "@playwright/test": "~1.58.2",
-    "@tailwindcss/postcss": "~4.2.1",
+    "@tailwindcss/postcss": "~4.2.2",
     "@types/node": "~25.5.0",
     "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.3",
+    "@typescript-eslint/eslint-plugin": "~8.57.1",
+    "@typescript-eslint/parser": "~8.57.1",
     "autoprefixer": "~10.4.27",
-    "eslint": "~10.0.3",
+    "eslint": "~9.39.4",
+    "eslint-config-next": "~16.2.0",
     "fast-check": "~4.6.0",
     "postcss": "~8.5.8",
     "prettier": "~3.8.1",
     "serve": "~14.2.6",
-    "tailwindcss": "~4.2.1",
+    "tailwindcss": "~4.2.2",
     "typescript": "~5.9.3",
     "vitest": "~4.1.0"
   },
@@ -48,10 +51,11 @@
     "postcss": "$postcss",
     "sharp": "~0.34.5",
     "fast-uri": "~3.1.0",
-    "brace-expansion": "~5.0.4",
     "serve-handler": {
       "brace-expansion": "~1.1.12"
-    }
+    },
+    "brace-expansion@5": "5.0.4",
+    "brace-expansion@1": "1.1.12"
   },
   "auditExceptions": {
     "README": "Accepted `npm audit` findings and load-bearing override notes. Do NOT resolve these, do NOT change the serve-handler override, and do NOT report them as outstanding work or as a review finding. This field is documentation only; npm ignores it."

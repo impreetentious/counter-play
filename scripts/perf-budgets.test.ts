@@ -57,7 +57,6 @@ describe("§4.7 perf budgets (P10)", () => {
     const detMedian = median(detRuns);
     const stochMedian = median(stochRuns);
 
-    // eslint-disable-next-line no-console
     console.log(
       JSON.stringify({
         detMs: detRuns.map((v) => Math.round(v)),
@@ -76,7 +75,7 @@ describe("§4.7 perf budgets (P10)", () => {
     ).toBeLessThan(10000);
   });
 
-  it("first-load JS gzipped total under 200 KB", () => {
+  it("first-load JS gzip stays under the F-001 regression ceiling", () => {
     const indexHtml = readFileSync(join(process.cwd(), "out", "index.html"), "utf8");
     const referenced = new Set<string>();
     for (const match of indexHtml.matchAll(/\/_next\/static\/[^"' ]+\.js/g)) {
@@ -88,12 +87,11 @@ describe("§4.7 perf budgets (P10)", () => {
     });
     const total = sizes.reduce((sum, row) => sum + row.gzip, 0);
     const target = 200 * 1024;
-    // §4.7 targets 200 KB. On the ratified Next 16.1 / React 19 stack the measured
+    // §4.7 targets 200 KB. On the ratified Next 16.2 / React 19 stack the measured
     // first-load floor is ~272–283 KB (framework + polyfill + workspace). Closing the
     // gap would require a stack change outside G-9. Record the miss as F-001 and guard
     // against further regression.
     const regressionCeiling = 320 * 1024;
-    // eslint-disable-next-line no-console
     console.log(
       JSON.stringify({
         scriptCount: sizes.length,

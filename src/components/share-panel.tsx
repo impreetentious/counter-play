@@ -12,7 +12,9 @@ import {
 import { useScenarioStore } from "@/state/store";
 
 type Status =
-  { kind: "idle" } | { kind: "ok"; message: string } | { kind: "error"; message: string };
+  | { kind: "idle" }
+  | { kind: "ok"; message: string }
+  | { kind: "error"; message: string };
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof EngineError) return error.message;
