@@ -46,6 +46,22 @@ describe("CARA-normal response oracles", () => {
     }
   });
 
+  it("uses the numerical CARA optimizer when a single-tier plan has a SPIFF", () => {
+    const plan: Plan = {
+      ...linearPlan(0.1),
+      extras: {
+        drawNonRecoverable: null,
+        drawRecoverable: null,
+        spiff: { amount: Rat.from(100), threshold: Rat.from(15) },
+        clawback: null,
+        payFloor: null,
+      },
+    };
+    const closedFormEffort = 0.1;
+    const response = respondCARA(plan, segment(100, 100, 1, 0.001));
+    expect(response.effort).toBeGreaterThan(closedFormEffort);
+  });
+
   it("O-B2: engine-side surplus peaks nearest the Holmstrom-Milgrom beta", () => {
     for (const [a, k, sigma, rho, optimum] of [
       [1, 1, 1, 1, 0.5],

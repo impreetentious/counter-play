@@ -57,6 +57,15 @@ export interface McResult {
   plans: McPlanSummary[];
 }
 
+export interface MonteCarloRun {
+  readonly completed: number;
+  readonly total: number;
+  /** Runs at most `count` canonical draws and returns true once all draws are complete. */
+  step(count: number): boolean;
+  /** Materializes quantiles after the last draw; calling it early is an invariant violation. */
+  result(): McResult;
+}
+
 export interface TornadoParameterId {
   kind: "demand" | "segment";
   segmentId?: string;
@@ -268,25 +277,63 @@ function summarizeDraws(planId: string, planLabel: string, draws: McKpiSample[])
   return { planId, planLabel, draws, quantiles };
 }
 
-export function runMonteCarlo(scenario: Scenario): McResult {
+export function createMonteCarloRun(scenario: Scenario): MonteCarloRun {
   const { seed, N } = scenario.settings.mc;
   const rng = createSplitMix64(seed);
   const perPlanDraws: McKpiSample[][] = scenario.plans.map(() => []);
-  for (let draw = 0; draw < N; draw += 1) {
-    const perturbed = generateDraw(rng, scenario);
-    const result = simulate(perturbed);
-    scenario.plans.forEach((_plan, index) => {
-      const sample = toKpiSample(result, index);
-      perPlanDraws[index]?.push(sample);
-    });
-  }
-  const plans = scenario.plans.map((plan, index) =>
-    summarizeDraws(plan.id, plan.label, perPlanDraws[index] ?? []),
-  );
-  return {
-    stamp: { seed, N, engineVersion, mode: scenario.settings.mode },
-    plans,
+  let completed = 0;
+  let finalResult: McResult | null = null;
+  const step = (count: number): boolean => {
+    if (!Number.isSafeInteger(count) || count < 1)
+      throw new EngineError("INVALID_INPUT", "MC step count must be a positive integer.");
+    if (finalResult) return true;
+    const limit = Math.min(N, completed + count);
+    while (completed < limit) {
+      const perturbed = generateDraw(rng, scenario);
+      const simulation = simulate(perturbed);
+      scenario.plans.forEach((_plan, index) => {
+        const sample = toKpiSample(simulation, index);
+        perPlanDraws[index]?.push(sample);
+      });
+      completed += 1;
+    }
+    return completed === N;
   };
+  const result = (): McResult => {
+    if (completed !== N)
+      throw new EngineError(
+        "INTERNAL_INVARIANT",
+        "MC result requested before all draws completed.",
+      );
+    if (!finalResult) {
+      finalResult = {
+        stamp: { seed, N, engineVersion, mode: scenario.settings.mode },
+        plans: scenario.plans.map((plan, index) =>
+          summarizeDraws(plan.id, plan.label, perPlanDraws[index] ?? []),
+        ),
+      };
+    }
+    return finalResult;
+  };
+  return {
+    get completed() {
+      return completed;
+    },
+    get total() {
+      return N;
+    },
+    step,
+    result,
+  };
+}
+
+/** Synchronous compatibility wrapper used by engine tests and fixed perf measurements. */
+export function runMonteCarlo(scenario: Scenario): McResult {
+  const run = createMonteCarloRun(scenario);
+  while (!run.step(Math.min(100, run.total - run.completed))) {
+    // The resumable runner owns the draw loop; this wrapper deliberately performs no yielding.
+  }
+  return run.result();
 }
 
 function applyTornadoParam(scenario: Scenario, param: CanonicalParam, endpoint: Rat): Scenario {

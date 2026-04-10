@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { computeTornado, hasActiveRanges, lowerQuantile, runMonteCarlo } from "./mc";
+import {
+  computeTornado,
+  createMonteCarloRun,
+  hasActiveRanges,
+  lowerQuantile,
+  runMonteCarlo,
+} from "./mc";
 import { parseScenario } from "@/state/schema";
 import { templateT1 } from "@/state/templates";
 import type { ScenarioJson } from "@/state/schema";
@@ -35,6 +41,20 @@ describe("mc — Monte Carlo replay (O-G)", () => {
     const first = runMonteCarlo(scenario);
     const second = runMonteCarlo(scenario);
     expect(second).toEqual(first);
+  });
+
+  it("keeps stepped and synchronous runs bit-identical", () => {
+    const scenario = parseScenario(
+      scenarioWithRanges({
+        demand: ["0.9", "1.1"],
+        perSegment: { "seg-1": { k: ["0.95", "1.05"] } },
+      }),
+    );
+    const stepped = createMonteCarloRun(scenario);
+    while (!stepped.step(7)) {
+      // Deliberately uneven chunks prove chunk boundaries never affect RNG consumption.
+    }
+    expect(stepped.result()).toEqual(runMonteCarlo(scenario));
   });
 
   it("consumes one float per (segment, param, draw) — order matters", () => {

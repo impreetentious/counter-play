@@ -13,6 +13,9 @@ describe("normal numerics", () => {
     expect(logNormalCdf(-10)).toBeCloseTo(-53.231285150512, 9);
     expect(logNormalCdf(-20)).toBeCloseTo(-203.917155371097, 9);
     expect(logNormalCdf(-40)).toBeCloseTo(-804.608442014, 6);
+    expect(normalInv(0.5)).toBeCloseTo(0, 10);
+    expect(normalInv(0.975)).toBeCloseTo(1.95996398454, 10);
+    expect(normalInv(0.99)).toBeCloseTo(2.326347874041, 10);
   });
 
   it("preserves CDF symmetry, quadrature, and inverse round trips on contract domains", () => {

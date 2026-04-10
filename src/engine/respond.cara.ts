@@ -445,7 +445,7 @@ function goldenSearch(
 }
 
 function isGloballyLinear(plan: Plan): boolean {
-  return plan.tiers.length === 1 && !plan.bonus && !plan.cap;
+  return plan.tiers.length === 1 && !plan.bonus && !plan.cap && !plan.extras;
 }
 
 function toFloatDecomposition(
