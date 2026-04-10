@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { segmentQuota } from "@/engine/plan";
+import type { AppLocale } from "@/engine/types";
 import type { DeterministicPlanResult, StochasticPlanResult } from "@/engine/simulate";
 import type { Scenario } from "@/engine/types";
+import { formatCompactCurrency } from "@/i18n";
 
 export interface PfPData {
   segmentId: string;
@@ -11,6 +13,12 @@ export interface PfPData {
   count: number;
   revenue: number;
   pay: number;
+}
+
+export interface CompareOverlaySeries {
+  planId: string;
+  label: string;
+  points: PfPData[];
 }
 
 export function pfpFromDet(scenario: Scenario, result: DeterministicPlanResult): PfPData[] {
@@ -37,14 +45,6 @@ export function pfpFromStoch(scenario: Scenario, result: StochasticPlanResult): 
       pay: item.response.payout,
     };
   });
-}
-
-function niceCurrency(value: number): string {
-  const sign = value < 0 ? "-" : "";
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}k`;
-  return `${sign}$${abs.toFixed(0)}`;
 }
 
 interface DeterministicChartsProps {
@@ -298,9 +298,15 @@ export function AttainmentDensity({ scenario, result }: StochasticChartsProps): 
 
 interface PfPChartProps {
   points: PfPData[];
+  currency: string;
+  locale?: AppLocale | null;
 }
 
-export function PayForPerformanceChart({ points }: PfPChartProps): React.JSX.Element {
+export function PayForPerformanceChart({
+  points,
+  currency,
+  locale,
+}: PfPChartProps): React.JSX.Element {
   const width = 640;
   const height = 220;
   const margin = { top: 18, right: 18, bottom: 40, left: 70 };
@@ -375,8 +381,8 @@ export function PayForPerformanceChart({ points }: PfPChartProps): React.JSX.Ele
               {points.map((point) => (
                 <tr key={point.segmentId}>
                   <td>{point.label}</td>
-                  <td>{niceCurrency(point.revenue)}</td>
-                  <td>{niceCurrency(point.pay)}</td>
+                  <td>{formatCompactCurrency(point.revenue, currency, locale)}</td>
+                  <td>{formatCompactCurrency(point.pay, currency, locale)}</td>
                   <td>{point.count}</td>
                 </tr>
               ))}
@@ -388,14 +394,173 @@ export function PayForPerformanceChart({ points }: PfPChartProps): React.JSX.Ele
   );
 }
 
+/** Shared-axis expected-pay deltas against the first (reference) plan in the compare set. */
+export function CompareOverlayChart({
+  series,
+  highlighted = false,
+  currency,
+  locale,
+}: {
+  series: readonly CompareOverlaySeries[];
+  highlighted?: boolean;
+  currency: string;
+  locale?: AppLocale | null;
+}): React.JSX.Element {
+  const [showTable, setShowTable] = useState(false);
+  const reference = series[0];
+  if (!reference || series.length < 2) return <></>;
+  const referencePay = new Map(reference.points.map((point) => [point.segmentId, point.pay]));
+  const plotted = series.map((entry) => ({
+    ...entry,
+    points: entry.points
+      .map((point) => ({
+        ...point,
+        payDelta: point.pay - (referencePay.get(point.segmentId) ?? point.pay),
+      }))
+      .sort((left, right) => left.revenue - right.revenue),
+  }));
+  const width = 640;
+  const height = 260;
+  const margin = { top: 28, right: 18, bottom: 42, left: 70 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const allPoints = plotted.flatMap((entry) => entry.points);
+  const maxRevenue = Math.max(1, ...allPoints.map((point) => point.revenue)) * 1.1;
+  const minDelta = Math.min(0, ...allPoints.map((point) => point.payDelta));
+  const maxDelta = Math.max(0, ...allPoints.map((point) => point.payDelta));
+  const deltaPadding = Math.max(1, (maxDelta - minDelta) * 0.1);
+  const lowerDelta = minDelta - deltaPadding;
+  const upperDelta = maxDelta + deltaPadding;
+  const xToPx = (revenue: number): number => margin.left + (revenue / maxRevenue) * plotWidth;
+  const yToPx = (delta: number): number =>
+    margin.top + plotHeight - ((delta - lowerDelta) / (upperDelta - lowerDelta)) * plotHeight;
+  const colors = ["#5b4db1", "#0f766e", "#a16207"];
+  return (
+    <figure
+      className={highlighted ? "chart deep-link-highlight" : "chart"}
+      data-testid={highlighted ? "deep-link-highlight" : undefined}
+    >
+      <figcaption>
+        <span>Compare overlay</span>
+        <button
+          type="button"
+          className="chart-twin-toggle"
+          onClick={() => setShowTable((value) => !value)}
+        >
+          {showTable ? "Hide data table" : "Show data table"}
+        </button>
+      </figcaption>
+      <svg
+        role="img"
+        viewBox={`0 0 ${width} ${height}`}
+        className="chart-svg"
+        aria-label="Expected payout deltas relative to the reference plan"
+      >
+        <rect
+          x={margin.left}
+          y={margin.top}
+          width={plotWidth}
+          height={plotHeight}
+          className="chart-plot-bg"
+        />
+        <line
+          x1={margin.left}
+          x2={margin.left + plotWidth}
+          y1={yToPx(0)}
+          y2={yToPx(0)}
+          className="chart-gridline"
+        />
+        <text x={margin.left - 10} y={yToPx(0) + 4} textAnchor="end" className="chart-axis-label">
+          $0
+        </text>
+        {plotted.map((entry, index) => {
+          const path = entry.points
+            .map(
+              (point, pointIndex) =>
+                `${pointIndex === 0 ? "M" : "L"}${xToPx(point.revenue).toFixed(2)},${yToPx(point.payDelta).toFixed(2)}`,
+            )
+            .join(" ");
+          return (
+            <g key={entry.planId}>
+              <path d={path} fill="none" stroke={colors[index % colors.length]} strokeWidth="2.5" />
+              {entry.points.map((point) => (
+                <circle
+                  key={point.segmentId}
+                  cx={xToPx(point.revenue)}
+                  cy={yToPx(point.payDelta)}
+                  r="4"
+                  fill={point.payDelta < 0 ? "var(--error)" : "var(--accent-ink)"}
+                />
+              ))}
+            </g>
+          );
+        })}
+        <text x={margin.left} y={margin.top + plotHeight + 24} className="chart-axis-title">
+          Expected revenue → payout delta
+        </text>
+        {plotted.map((entry, index) => (
+          <g
+            key={`legend-${entry.planId}`}
+            transform={`translate(${margin.left + index * 150}, 14)`}
+          >
+            <line
+              x1="0"
+              x2="18"
+              y1="0"
+              y2="0"
+              stroke={colors[index % colors.length]}
+              strokeWidth="3"
+            />
+            <text x="24" y="4" className="chart-axis-label">
+              {entry.label}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <p className="chart-summary">
+        Curves share one revenue and payout-delta scale; the first plan is the zero-line reference,
+        with positive and negative point deltas distinguished without relying on the line color.
+      </p>
+      {showTable ? (
+        <div className="chart-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Plan</th>
+                <th>Segment</th>
+                <th>Expected revenue</th>
+                <th>Payout Δ vs {reference.label}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plotted.flatMap((entry) =>
+                entry.points.map((point) => (
+                  <tr key={`${entry.planId}-${point.segmentId}`}>
+                    <td>{entry.label}</td>
+                    <td>{point.label}</td>
+                    <td>{formatCompactCurrency(point.revenue, currency, locale)}</td>
+                    <td>{formatCompactCurrency(point.payDelta, currency, locale)}</td>
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </figure>
+  );
+}
+
 interface PayoutDistributionProps {
   quantiles: { p10: number; p50: number; p90: number };
   currency: string;
+  locale?: AppLocale | null;
 }
 
 export function PayoutDistribution({
   quantiles,
   currency,
+  locale,
 }: PayoutDistributionProps): React.JSX.Element {
   const width = 640;
   const height = 120;
@@ -433,7 +598,7 @@ export function PayoutDistribution({
           textAnchor="middle"
           className="chart-axis-label"
         >
-          P10 {niceCurrency(quantiles.p10)}
+          P10 {formatCompactCurrency(quantiles.p10, currency, locale)}
         </text>
         <text
           x={xToPx(quantiles.p50)}
@@ -441,7 +606,7 @@ export function PayoutDistribution({
           textAnchor="middle"
           className="chart-axis-label"
         >
-          P50 {niceCurrency(quantiles.p50)}
+          P50 {formatCompactCurrency(quantiles.p50, currency, locale)}
         </text>
         <text
           x={xToPx(quantiles.p90)}
@@ -449,7 +614,7 @@ export function PayoutDistribution({
           textAnchor="middle"
           className="chart-axis-label"
         >
-          P90 {niceCurrency(quantiles.p90)}
+          P90 {formatCompactCurrency(quantiles.p90, currency, locale)}
         </text>
       </svg>
       <p className="chart-summary">

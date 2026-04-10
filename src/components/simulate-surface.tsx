@@ -3,32 +3,32 @@
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 import type {
+  AnyPlanComparison,
   DeterministicPlanResult,
-  PlanComparison,
   StochasticPlanResult,
 } from "@/engine/simulate";
-import { comparePlans, simulate } from "@/engine/simulate";
+import { comparePlans, compareStochasticPlans, simulate } from "@/engine/simulate";
+import type { Rat } from "@/engine/rat";
 import { engineVersion } from "@/engine/version";
+import type { AppLocale } from "@/engine/types";
+import { formatCompactCurrency, formatNumber, formatPercent, localeOf } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
 import { IdentityBadge } from "./identity-badge";
 import {
   AttainmentDensity,
   AttainmentHistogram,
+  CompareOverlayChart,
   PayForPerformanceChart,
   PayoutDistribution,
   pfpFromDet,
   pfpFromStoch,
 } from "./simulate-charts";
 
-function niceCurrency(value: number): string {
-  const sign = value < 0 ? "-" : "";
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}k`;
-  return `${sign}$${abs.toFixed(0)}`;
+function niceCurrency(value: number, currency: string, locale: AppLocale): string {
+  return formatCompactCurrency(value, currency, locale);
 }
 
-function nicePercent(value: number | null): ReactNode {
+function nicePercent(value: number | null, locale: AppLocale): ReactNode {
   if (value === null) {
     return (
       <span
@@ -39,15 +39,19 @@ function nicePercent(value: number | null): ReactNode {
       </span>
     );
   }
-  return `${(value * 100).toFixed(1)}%`;
+  return formatPercent(value, locale);
 }
 
 function DetKpiCard({
   plan,
   active,
+  currency,
+  locale,
 }: {
   plan: DeterministicPlanResult;
   active: boolean;
+  currency: string;
+  locale: AppLocale;
 }): React.JSX.Element {
   const expectedRevenue = plan.kpis.expectedRevenue.toNumber();
   const totalComp = plan.kpis.totalComp.toNumber();
@@ -63,31 +67,33 @@ function DetKpiCard({
       <dl>
         <div>
           <dt>Expected revenue</dt>
-          <dd>{niceCurrency(expectedRevenue)}</dd>
+          <dd>{niceCurrency(expectedRevenue, currency, locale)}</dd>
         </div>
         <div>
           <dt>Total comp</dt>
-          <dd>{niceCurrency(totalComp)}</dd>
+          <dd>{niceCurrency(totalComp, currency, locale)}</dd>
         </div>
         <div>
           <dt>Comp ratio</dt>
-          <dd>{nicePercent(compRatio)}</dd>
+          <dd>{nicePercent(compRatio, locale)}</dd>
         </div>
         <div>
           <dt>Quota attain rate</dt>
-          <dd>{nicePercent(plan.kpis.quotaAttainRate.toNumber())}</dd>
+          <dd>{nicePercent(plan.kpis.quotaAttainRate.toNumber(), locale)}</dd>
         </div>
         <div>
           <dt>Effective comm rate</dt>
-          <dd>{nicePercent(effectiveRate)}</dd>
+          <dd>{nicePercent(effectiveRate, locale)}</dd>
         </div>
         <div>
           <dt>True value</dt>
-          <dd>{niceCurrency(trueValue)}</dd>
+          <dd>{niceCurrency(trueValue, currency, locale)}</dd>
         </div>
       </dl>
       {plan.kpis.retentionRisk.length > 0 ? (
-        <p className="retention-flag">Retention risk: {plan.kpis.retentionRisk.join(", ")}</p>
+        <p className="retention-flag">
+          Assumes full roster; see retention risk: {plan.kpis.retentionRisk.join(", ")}
+        </p>
       ) : null}
     </article>
   );
@@ -96,9 +102,13 @@ function DetKpiCard({
 function StochKpiCard({
   plan,
   active,
+  currency,
+  locale,
 }: {
   plan: StochasticPlanResult;
   active: boolean;
+  currency: string;
+  locale: AppLocale;
 }): React.JSX.Element {
   return (
     <article className={active ? "kpi-card active" : "kpi-card"}>
@@ -109,47 +119,55 @@ function StochKpiCard({
       <dl>
         <div>
           <dt>Expected revenue</dt>
-          <dd>{niceCurrency(plan.kpis.expectedRevenue)}</dd>
+          <dd>{niceCurrency(plan.kpis.expectedRevenue, currency, locale)}</dd>
         </div>
         <div>
           <dt>Expected comp</dt>
-          <dd>{niceCurrency(plan.kpis.totalComp)}</dd>
+          <dd>{niceCurrency(plan.kpis.totalComp, currency, locale)}</dd>
         </div>
         <div>
           <dt>Comp ratio</dt>
-          <dd>{nicePercent(plan.kpis.compRatio)}</dd>
+          <dd>{nicePercent(plan.kpis.compRatio, locale)}</dd>
         </div>
         <div>
           <dt>Quota attain rate</dt>
-          <dd>{nicePercent(plan.kpis.quotaAttainRate)}</dd>
+          <dd>{nicePercent(plan.kpis.quotaAttainRate, locale)}</dd>
         </div>
         <div>
           <dt>Effective comm rate</dt>
-          <dd>{nicePercent(plan.kpis.effectiveCommissionRate)}</dd>
+          <dd>{nicePercent(plan.kpis.effectiveCommissionRate, locale)}</dd>
         </div>
         <div>
           <dt>True value</dt>
-          <dd>{niceCurrency(plan.kpis.trueValue)}</dd>
+          <dd>{niceCurrency(plan.kpis.trueValue, currency, locale)}</dd>
         </div>
       </dl>
       {plan.kpis.retentionRisk.length > 0 ? (
-        <p className="retention-flag">Retention risk: {plan.kpis.retentionRisk.join(", ")}</p>
+        <p className="retention-flag">
+          Assumes full roster; see retention risk: {plan.kpis.retentionRisk.join(", ")}
+        </p>
       ) : null}
     </article>
   );
 }
 
 /** §3.3b: `√(1 − distortionIndex)` is the share of achievable value the allocation actually buys. */
-function valueEfficiency(distortionIndex: number): string {
-  return `${(Math.sqrt(Math.max(0, 1 - distortionIndex)) * 100).toFixed(1)}%`;
+function valueEfficiency(distortionIndex: number, locale: AppLocale): string {
+  return formatPercent(Math.sqrt(Math.max(0, 1 - distortionIndex)), locale);
 }
 
 function ResponseTableDet({
   result,
   bounded,
+  highlightedSegment,
+  currency,
+  locale,
 }: {
   result: DeterministicPlanResult;
   bounded: boolean;
+  highlightedSegment?: string;
+  currency: string;
+  locale: AppLocale;
 }): React.JSX.Element {
   const multitask = result.responses.some((row) => row.response.multitask);
   return (
@@ -176,23 +194,29 @@ function ResponseTableDet({
       </thead>
       <tbody>
         {result.responses.map((row) => (
-          <tr key={row.segmentId}>
+          <tr
+            key={row.segmentId}
+            className={row.segmentId === highlightedSegment ? "deep-link-highlight" : undefined}
+            data-testid={row.segmentId === highlightedSegment ? "deep-link-highlight" : undefined}
+          >
             <td>{row.segmentId}</td>
-            <td>{row.response.effort.toNumber().toFixed(3)}</td>
-            <td>{nicePercent(row.response.attainment.toNumber())}</td>
-            <td>{niceCurrency(row.response.payout.toNumber())}</td>
-            <td>{niceCurrency(row.response.ce.toNumber())}</td>
-            {bounded ? <td>{niceCurrency(row.response.ceGap.toNumber())}</td> : null}
+            <td>{formatNumber(row.response.effort.toNumber(), locale)}</td>
+            <td>{nicePercent(row.response.attainment.toNumber(), locale)}</td>
+            <td>{niceCurrency(row.response.payout.toNumber(), currency, locale)}</td>
+            <td>{niceCurrency(row.response.ce.toNumber(), currency, locale)}</td>
+            {bounded ? (
+              <td>{niceCurrency(row.response.ceGap.toNumber(), currency, locale)}</td>
+            ) : null}
             {multitask ? (
               <>
                 <td>
                   {row.response.multitask
-                    ? `${row.response.multitask.effortTask1.toNumber().toFixed(3)} / ${row.response.multitask.effortTask2.toNumber().toFixed(3)}`
+                    ? `${formatNumber(row.response.multitask.effortTask1.toNumber(), locale)} / ${formatNumber(row.response.multitask.effortTask2.toNumber(), locale)}`
                     : "—"}
                 </td>
                 <td>
                   {row.response.multitask
-                    ? valueEfficiency(row.response.multitask.distortionIndex.toNumber())
+                    ? valueEfficiency(row.response.multitask.distortionIndex.toNumber(), locale)
                     : "—"}
                 </td>
               </>
@@ -208,9 +232,15 @@ function ResponseTableDet({
 function ResponseTableStoch({
   result,
   bounded,
+  highlightedSegment,
+  currency,
+  locale,
 }: {
   result: StochasticPlanResult;
   bounded: boolean;
+  highlightedSegment?: string;
+  currency: string;
+  locale: AppLocale;
 }): React.JSX.Element {
   const multitask = result.responses.some((row) => row.response.multitask);
   return (
@@ -237,23 +267,27 @@ function ResponseTableStoch({
       </thead>
       <tbody>
         {result.responses.map((row) => (
-          <tr key={row.segmentId}>
+          <tr
+            key={row.segmentId}
+            className={row.segmentId === highlightedSegment ? "deep-link-highlight" : undefined}
+            data-testid={row.segmentId === highlightedSegment ? "deep-link-highlight" : undefined}
+          >
             <td>{row.segmentId}</td>
-            <td>{row.response.effort.toFixed(3)}</td>
-            <td>{niceCurrency(row.response.output)}</td>
-            <td>{niceCurrency(row.response.payout)}</td>
-            <td>{niceCurrency(row.response.ce)}</td>
-            {bounded ? <td>{niceCurrency(row.response.ceGap)}</td> : null}
+            <td>{formatNumber(row.response.effort, locale)}</td>
+            <td>{niceCurrency(row.response.output, currency, locale)}</td>
+            <td>{niceCurrency(row.response.payout, currency, locale)}</td>
+            <td>{niceCurrency(row.response.ce, currency, locale)}</td>
+            {bounded ? <td>{niceCurrency(row.response.ceGap, currency, locale)}</td> : null}
             {multitask ? (
               <>
                 <td>
                   {row.response.multitask
-                    ? `${row.response.multitask.effortTask1.toFixed(3)} / ${row.response.multitask.effortTask2.toFixed(3)}`
+                    ? `${formatNumber(row.response.multitask.effortTask1, locale)} / ${formatNumber(row.response.multitask.effortTask2, locale)}`
                     : "—"}
                 </td>
                 <td>
                   {row.response.multitask
-                    ? valueEfficiency(row.response.multitask.distortionIndex)
+                    ? valueEfficiency(row.response.multitask.distortionIndex, locale)
                     : "—"}
                 </td>
               </>
@@ -266,7 +300,20 @@ function ResponseTableStoch({
   );
 }
 
-function CompareCards({ comparisons }: { comparisons: PlanComparison[] }): React.JSX.Element {
+function comparisonNumber(value: Rat | number | null): number | null {
+  if (value === null) return null;
+  return typeof value === "number" ? value : value.toNumber();
+}
+
+function CompareCards({
+  comparisons,
+  currency,
+  locale,
+}: {
+  comparisons: AnyPlanComparison[];
+  currency: string;
+  locale: AppLocale;
+}): React.JSX.Element {
   if (comparisons.length === 0)
     return <p className="chart-summary">Add a second plan on the Design surface to compare.</p>;
   return (
@@ -282,19 +329,21 @@ function CompareCards({ comparisons }: { comparisons: PlanComparison[] }): React
           <dl>
             <div>
               <dt>Revenue Δ</dt>
-              <dd>{niceCurrency(cmp.expectedRevenueDelta.toNumber())}</dd>
+              <dd>
+                {niceCurrency(comparisonNumber(cmp.expectedRevenueDelta) ?? 0, currency, locale)}
+              </dd>
             </div>
             <div>
               <dt>Comp Δ</dt>
-              <dd>{niceCurrency(cmp.totalCompDelta.toNumber())}</dd>
+              <dd>{niceCurrency(comparisonNumber(cmp.totalCompDelta) ?? 0, currency, locale)}</dd>
             </div>
             <div>
               <dt>True value Δ</dt>
-              <dd>{niceCurrency(cmp.trueValueDelta.toNumber())}</dd>
+              <dd>{niceCurrency(comparisonNumber(cmp.trueValueDelta) ?? 0, currency, locale)}</dd>
             </div>
             <div>
               <dt>Comp ratio Δ</dt>
-              <dd>{nicePercent(cmp.compRatioDelta?.toNumber() ?? null)}</dd>
+              <dd>{nicePercent(comparisonNumber(cmp.compRatioDelta), locale)}</dd>
             </div>
           </dl>
         </article>
@@ -310,6 +359,9 @@ export function SimulateSurface(): React.JSX.Element {
   const setMode = useScenarioStore((state) => state.setMode);
   const activePlanId = useScenarioStore((state) => state.activePlanId);
   const setActivePlanId = useScenarioStore((state) => state.setActivePlanId);
+  const highlight = useScenarioStore((state) => state.highlight);
+  const currency = scenario.settings.currencyLabel;
+  const locale = localeOf(scenario.settings.locale);
 
   const runOutcome = useMemo(() => {
     if (!domain) return null;
@@ -335,7 +387,7 @@ export function SimulateSurface(): React.JSX.Element {
       </section>
     );
 
-  if (!domain || !runOutcome || runOutcome instanceof Error) {
+  if (!runOutcome || runOutcome instanceof Error) {
     return (
       <section
         className="surface"
@@ -372,12 +424,24 @@ export function SimulateSurface(): React.JSX.Element {
 
   // §3.3a: under the softmax dial each segment plays a mixture, so the tables report means and the gap.
   const bounded = scenario.settings.rationality?.mode === "softmax";
-  const comparisons: PlanComparison[] =
-    result.mode === "deterministic" && result.plans.length > 1
+  const comparisons: AnyPlanComparison[] =
+    result.plans.length > 1
       ? result.plans
           .slice(1)
-          .map((plan) => comparePlans(domain, result, result.plans[0]!.plan.id, plan.plan.id))
+          .map((plan) =>
+            result.mode === "deterministic"
+              ? comparePlans(domain!, result, result.plans[0]!.plan.id, plan.plan.id)
+              : compareStochasticPlans(domain!, result, result.plans[0]!.plan.id, plan.plan.id),
+          )
       : [];
+  const compareSeries = result.plans.map((plan) => ({
+    planId: plan.plan.id,
+    label: plan.plan.label,
+    points:
+      result.mode === "deterministic"
+        ? pfpFromDet(domain!, plan as DeterministicPlanResult)
+        : pfpFromStoch(domain!, plan as StochasticPlanResult),
+  }));
 
   return (
     <section className="surface" id="surface-simulate" aria-labelledby="simulate-heading">
@@ -426,6 +490,8 @@ export function SimulateSurface(): React.JSX.Element {
                 key={plan.plan.id}
                 plan={plan}
                 active={plan.plan.id === activePlan.plan.id}
+                currency={currency}
+                locale={locale}
               />
             ))
           : result.plans.map((plan) => (
@@ -433,6 +499,8 @@ export function SimulateSurface(): React.JSX.Element {
                 key={plan.plan.id}
                 plan={plan}
                 active={plan.plan.id === activePlan.plan.id}
+                currency={currency}
+                locale={locale}
               />
             ))}
       </div>
@@ -470,8 +538,15 @@ export function SimulateSurface(): React.JSX.Element {
                 }
               : (activePlan as StochasticPlanResult).kpis.payoutQuantiles
           }
-          currency={scenario.settings.currencyLabel}
+          currency={currency}
+          locale={locale}
         />
+        {result.mode === "stochastic" ? (
+          <p className="field-note">
+            Negative variable pay is realisable in the far-left tail when this plan&apos;s terms
+            make it possible; the distribution includes that risk.
+          </p>
+        ) : null}
         {result.mode === "deterministic" ? (
           <AttainmentHistogram scenario={domain!} result={activePlan as DeterministicPlanResult} />
         ) : (
@@ -483,19 +558,47 @@ export function SimulateSurface(): React.JSX.Element {
               ? pfpFromDet(domain!, activePlan as DeterministicPlanResult)
               : pfpFromStoch(domain!, activePlan as StochasticPlanResult)
           }
+          currency={currency}
+          locale={locale}
         />
         {result.mode === "deterministic" ? (
-          <ResponseTableDet result={activePlan as DeterministicPlanResult} bounded={bounded} />
+          <ResponseTableDet
+            result={activePlan as DeterministicPlanResult}
+            bounded={bounded}
+            highlightedSegment={
+              highlight?.chart === "response-table"
+                ? String(highlight.highlight.segment)
+                : undefined
+            }
+            currency={currency}
+            locale={locale}
+          />
         ) : (
-          <ResponseTableStoch result={activePlan as StochasticPlanResult} bounded={bounded} />
+          <ResponseTableStoch
+            result={activePlan as StochasticPlanResult}
+            bounded={bounded}
+            highlightedSegment={
+              highlight?.chart === "response-table"
+                ? String(highlight.highlight.segment)
+                : undefined
+            }
+            currency={currency}
+            locale={locale}
+          />
         )}
       </div>
-      {result.mode === "deterministic" ? (
-        <div className="compare-block">
-          <h3>Compare plans</h3>
-          <CompareCards comparisons={comparisons} />
-        </div>
-      ) : null}
+      <div className="compare-block">
+        <h3>Compare plans</h3>
+        <CompareCards comparisons={comparisons} currency={currency} locale={locale} />
+        {compareSeries.length > 1 ? (
+          <CompareOverlayChart
+            series={compareSeries}
+            highlighted={highlight?.chart === "compare-overlay"}
+            currency={currency}
+            locale={locale}
+          />
+        ) : null}
+      </div>
     </section>
   );
 }

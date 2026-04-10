@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { AppLocale, Scenario } from "@/engine/types";
+import type { AppLocale, DeepLink, Scenario } from "@/engine/types";
 import { EngineError } from "@/engine/errors";
 import {
   allocateId,
@@ -19,7 +19,7 @@ import { landingScenario, templates, type TemplateEntry } from "./templates";
 import { persistScenario } from "./persist";
 import {
   computeTornado,
-  runMonteCarlo,
+  createMonteCarloRun,
   type KpiKey,
   type McResult,
   type TornadoResult,
@@ -42,6 +42,8 @@ export interface StoreState {
   domainError: string | null;
   issues: FieldIssue[];
   activePlanId: string;
+  activeSurface: "Model" | "Design" | "Simulate" | "Analyze";
+  highlight: DeepLink | null;
   historyPast: ScenarioJson[];
   historyFuture: ScenarioJson[];
   hydrated: boolean;
@@ -75,6 +77,8 @@ export interface StoreState {
   duplicatePlan(id: string): void;
   deletePlan(id: string): void;
   setActivePlanId(id: string): void;
+  setActiveSurface(surface: StoreState["activeSurface"]): void;
+  focusDeepLink(link: DeepLink): void;
   setMode(mode: "deterministic" | "stochastic"): void;
   setLocale(locale: AppLocale): void;
   setDiscount(value: string): void;
@@ -99,6 +103,7 @@ export interface StoreState {
   mcTornado: TornadoResult | null;
   mcTornadoKpi: KpiKey;
   mcRunning: boolean;
+  mcProgress: number;
   mcError: string | null;
   setMcSeed(seed: number): void;
   setMcN(N: number): void;
@@ -110,6 +115,7 @@ export interface StoreState {
   ): void;
   setTornadoKpi(kpi: KpiKey): void;
   runMonteCarloAction(): void;
+  cancelMonteCarlo(): void;
 }
 
 export type ExtraKey = "drawNonRecoverable" | "drawRecoverable" | "spiff" | "clawback" | "payFloor";
@@ -277,9 +283,23 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
   // V-09: every scenario-bearing store commit is journalled centrally. Individual mutations keep
   // their compact shape; view-only updates never carry `scenario` and therefore never enter history.
   let restoringHistory = false;
+  let mcTimer: ReturnType<typeof setTimeout> | null = null;
+  let mcRunId = 0;
+  const stopMcTimer = (): void => {
+    mcRunId += 1;
+    if (mcTimer) clearTimeout(mcTimer);
+    mcTimer = null;
+  };
   const set: typeof rawSet = (partial, _replace) => {
     const resolved = typeof partial === "function" ? partial(get()) : partial;
     const candidate = resolved.scenario;
+    if (
+      candidate &&
+      candidate !== get().scenario &&
+      !differsOnlyByLocale(get().scenario, candidate)
+    ) {
+      stopMcTimer();
+    }
     if (
       candidate &&
       candidate !== get().scenario &&
@@ -291,6 +311,8 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
         ...resolved,
         historyPast: [...state.historyPast, state.scenario].slice(-50),
         historyFuture: [],
+        mcRunning: false,
+        mcProgress: 0,
       });
       return;
     }
@@ -303,6 +325,8 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
     domainError: initialReview.domainError,
     issues: initialReview.issues,
     activePlanId: landingScenario.plans[0]?.id ?? "plan-1",
+    activeSurface: "Model",
+    highlight: null,
     historyPast: [],
     historyFuture: [],
     hydrated: false,
@@ -544,6 +568,14 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
     setActivePlanId(id) {
       if (get().scenario.plans.some((plan) => plan.id === id)) set({ activePlanId: id });
     },
+    setActiveSurface(surface) {
+      set({ activeSurface: surface, highlight: null });
+    },
+    focusDeepLink(link) {
+      const activeSurface =
+        `${link.surface[0]?.toUpperCase()}${link.surface.slice(1)}` as StoreState["activeSurface"];
+      set({ activeSurface, highlight: link });
+    },
     setMode(mode) {
       const scenario = get().scenario;
       if (scenario.settings.mode === mode) return;
@@ -775,6 +807,7 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
     mcTornado: null,
     mcTornadoKpi: "totalComp",
     mcRunning: false,
+    mcProgress: 0,
     mcError: null,
     setMcSeed(seed) {
       const scenario = get().scenario;
@@ -825,15 +858,44 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
     runMonteCarloAction() {
       const domain = get().domain;
       if (!domain) return;
-      set({ mcRunning: true, mcError: null });
-      try {
-        const result = runMonteCarlo(domain);
-        const tornado = computeTornado(domain, get().mcTornadoKpi);
-        set({ mcRunning: false, mcResult: result, mcTornado: tornado, mcError: null });
-      } catch (error) {
-        const message = error instanceof EngineError ? error.message : "Monte Carlo failed.";
-        set({ mcRunning: false, mcError: message });
-      }
+      stopMcTimer();
+      const runId = mcRunId;
+      const run = createMonteCarloRun(domain);
+      set({ mcRunning: true, mcProgress: 0, mcError: null, mcResult: null, mcTornado: null });
+      const drive = (): void => {
+        if (runId !== mcRunId || get().domain !== domain) return;
+        try {
+          const deadline = performance.now() + 35;
+          do run.step(1);
+          while (run.completed < run.total && performance.now() < deadline);
+          set({ mcProgress: run.completed });
+          if (run.completed < run.total) {
+            mcTimer = setTimeout(drive, 0);
+            return;
+          }
+          const result = run.result();
+          const tornado = computeTornado(domain, get().mcTornadoKpi);
+          if (runId === mcRunId) {
+            mcTimer = null;
+            set({
+              mcRunning: false,
+              mcProgress: run.total,
+              mcResult: result,
+              mcTornado: tornado,
+              mcError: null,
+            });
+          }
+        } catch (error) {
+          if (runId !== mcRunId) return;
+          const message = error instanceof EngineError ? error.message : "Monte Carlo failed.";
+          set({ mcRunning: false, mcProgress: 0, mcError: message });
+        }
+      };
+      mcTimer = setTimeout(drive, 0);
+    },
+    cancelMonteCarlo() {
+      stopMcTimer();
+      set({ mcRunning: false, mcProgress: 0, mcError: null });
     },
   };
 });

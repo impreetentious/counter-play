@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { KPI_KEYS, type KpiKey } from "@/engine/mc";
+import type { AppLocale } from "@/engine/types";
+import { formatCompactCurrency, formatNumber, formatPercent, localeOf } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
 import type { ScenarioJson, SegmentJson } from "@/state/schema";
 
@@ -14,24 +16,11 @@ const kpiLabels: Record<KpiKey, string> = {
   trueValue: "True value",
 };
 
-function formatCompact(value: number | null, currency: string): string {
+function formatKpi(value: number | null, kpi: KpiKey, currency: string, locale: AppLocale): string {
   if (value === null || !Number.isFinite(value)) return "—";
-  const abs = Math.abs(value);
-  if (abs >= 1e9) return `${currency}${(value / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${currency}${(value / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${currency}${(value / 1e3).toFixed(1)}K`;
-  return `${currency}${value.toFixed(1)}`;
-}
-
-function formatRate(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return "—";
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function formatKpi(value: number | null, kpi: KpiKey, currency: string): string {
   if (kpi === "quotaAttainRate" || kpi === "compRatio" || kpi === "effectiveCommissionRate")
-    return formatRate(value);
-  return formatCompact(value, currency);
+    return formatPercent(value, locale);
+  return formatCompactCurrency(value, currency, locale);
 }
 
 interface RangeRowProps {
@@ -223,6 +212,7 @@ export function McPanel(): React.JSX.Element {
   const mcResult = useScenarioStore((state) => state.mcResult);
   const mcTornado = useScenarioStore((state) => state.mcTornado);
   const mcRunning = useScenarioStore((state) => state.mcRunning);
+  const mcProgress = useScenarioStore((state) => state.mcProgress);
   const mcError = useScenarioStore((state) => state.mcError);
   const mcTornadoKpi = useScenarioStore((state) => state.mcTornadoKpi);
   const setMcSeed = useScenarioStore((state) => state.setMcSeed);
@@ -230,9 +220,11 @@ export function McPanel(): React.JSX.Element {
   const setDemandRange = useScenarioStore((state) => state.setDemandRange);
   const setTornadoKpi = useScenarioStore((state) => state.setTornadoKpi);
   const runMonteCarloAction = useScenarioStore((state) => state.runMonteCarloAction);
+  const cancelMonteCarlo = useScenarioStore((state) => state.cancelMonteCarlo);
 
   const isDet = scenario.settings.mode === "deterministic";
   const currency = scenario.settings.currencyLabel;
+  const locale = localeOf(scenario.settings.locale);
   const demandRange = scenario.settings.mc.ranges.demand ?? null;
   const perSegment = scenario.settings.mc.ranges.perSegment ?? {};
 
@@ -240,7 +232,7 @@ export function McPanel(): React.JSX.Element {
     () => (mcTornado ? tornadoDomain(mcTornado.bars) : { min: 0, max: 1 }),
     [mcTornado],
   );
-  const formatForKpi = (value: number): string => formatKpi(value, mcTornadoKpi, currency);
+  const formatForKpi = (value: number): string => formatKpi(value, mcTornadoKpi, currency, locale);
 
   const [seedDraft, setSeedDraft] = useState(String(scenario.settings.mc.seed));
   const [nDraft, setNDraft] = useState(String(scenario.settings.mc.N));
@@ -308,7 +300,25 @@ export function McPanel(): React.JSX.Element {
         >
           {mcRunning ? "Running…" : "Run Monte Carlo"}
         </button>
+        {mcRunning ? (
+          <button type="button" onClick={cancelMonteCarlo}>
+            Cancel run
+          </button>
+        ) : null}
       </div>
+      {mcRunning ? (
+        <div
+          role="progressbar"
+          aria-label="Monte Carlo progress"
+          aria-valuemin={0}
+          aria-valuemax={scenario.settings.mc.N}
+          aria-valuenow={mcProgress}
+          className="mc-progress"
+        >
+          {formatNumber(mcProgress, locale, 0)} of {formatNumber(scenario.settings.mc.N, locale, 0)}{" "}
+          draws
+        </div>
+      ) : null}
 
       <div className="mc-ranges" role="group" aria-label="Uncertainty ranges">
         <RangeRow
@@ -369,7 +379,7 @@ export function McPanel(): React.JSX.Element {
                   );
                 const min = draws.length ? Math.min(...draws) : quantiles.p10;
                 const max = draws.length ? Math.max(...draws) : quantiles.p90;
-                const format = (value: number): string => formatKpi(value, kpi, currency);
+                const format = (value: number): string => formatKpi(value, kpi, currency, locale);
                 return (
                   <QuantileBar
                     key={kpi}
@@ -397,9 +407,9 @@ export function McPanel(): React.JSX.Element {
                   <tbody>
                     {plan.draws.slice(0, 20).map((draw, index) => (
                       <tr key={index}>
-                        <td>{index + 1}</td>
+                        <td>{formatNumber(index + 1, locale, 0)}</td>
                         {KPI_KEYS.map((kpi) => (
-                          <td key={kpi}>{formatKpi(draw[kpi], kpi, currency)}</td>
+                          <td key={kpi}>{formatKpi(draw[kpi], kpi, currency, locale)}</td>
                         ))}
                       </tr>
                     ))}
