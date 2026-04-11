@@ -16,6 +16,7 @@ import {
   type TeamJson,
 } from "./schema";
 import { landingScenario, templates, type TemplateEntry } from "./templates";
+import { applyStressPreset, type StressPresetId } from "./presets";
 import { persistScenario } from "./persist";
 import {
   computeTornado,
@@ -52,6 +53,7 @@ export interface StoreState {
   undo(): void;
   redo(): void;
   applyTemplate(template: TemplateEntry): void;
+  applyStressPreset(preset: StressPresetId): void;
   setSegmentField<K extends keyof SegmentJson>(id: string, key: K, value: SegmentJson[K]): void;
   addSegment(): void;
   duplicateSegment(id: string): void;
@@ -370,6 +372,9 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
     },
     applyTemplate(template) {
       set(commit(template.scenario, template.scenario.plans[0]?.id));
+    },
+    applyStressPreset(preset) {
+      set(commit(applyStressPreset(get().scenario, preset), get().activePlanId));
     },
     setSegmentField(id, key, value) {
       const next = replaceSegment(get().scenario, id, (segment) => ({ ...segment, [key]: value }));

@@ -1,4 +1,4 @@
-import { effectiveCap, marginalRate, payout, segmentQuota } from "./plan";
+import { effectiveCap, kinks, payout, segmentQuota } from "./plan";
 import { respondDeterministic } from "./respond.det";
 import { respondCARA } from "./respond.cara";
 import { simulate } from "./simulate";
@@ -6,8 +6,9 @@ import { computeTiming } from "./timing";
 import { computeHorizon } from "./horizon";
 import { computeTeam } from "./team";
 import { EngineError } from "./errors";
+import { deepLinkFor } from "./deeplink";
 import { Rat, R0 } from "./rat";
-import type { Plan, Rationality, Scenario, Segment } from "./types";
+import type { DeepLink, Plan, Rationality, Scenario, Segment } from "./types";
 
 export type FindingType = "L-1" | "L-2" | "L-3" | "L-4" | "L-5" | "L-6" | "L-7" | "L-8" | "L-9";
 export type FindingSeverity = "info" | "warn" | "high";
@@ -20,7 +21,10 @@ export interface Finding {
   segments: string[];
   plans?: string[];
   evidence: Record<string, unknown>;
+  deepLink: DeepLink;
 }
+
+type DraftFinding = Omit<Finding, "deepLink">;
 
 function clonePlan(plan: Plan, mutator: (plan: Plan) => Plan): Plan {
   return mutator({
@@ -148,9 +152,9 @@ function planKPIsFromScenario(
   return { revenue, trueValue };
 }
 
-function lintPlanForL1(plan: Plan, scenario: Scenario): Finding[] {
+function lintPlanForL1(plan: Plan, scenario: Scenario): DraftFinding[] {
   const runs = findInteriorZeroRuns(plan);
-  const findings: Finding[] = [];
+  const findings: DraftFinding[] = [];
   runs.forEach((run, runIndex) => {
     const replacement =
       nearestPrecedingNonzeroRate(plan, run.fromIndex) ??
@@ -160,13 +164,24 @@ function lintPlanForL1(plan: Plan, scenario: Scenario): Finding[] {
     let highSegments: string[] = [];
     let warnSegments: string[] = [];
     for (const segment of scenario.population) {
-      const effortCf = detEffort(counterfactualPlan, segment, scenario.settings.rationality);
+      const isDeterministic = scenario.settings.mode === "deterministic";
+      const effortCf = isDeterministic
+        ? detEffort(counterfactualPlan, segment, scenario.settings.rationality)
+        : stochEffort(counterfactualPlan, segment, scenario.settings.rationality);
       const revenueCf = segment.ability.toNumber() * effortCf;
       const attainCf = revenueCf / segmentQuota(plan, segment).toNumber();
       if (attainCf >= run.loAttain.toNumber() && attainCf < run.hiAttain.toNumber())
         highSegments.push(segment.id);
-      const actualResponse = respondDeterministic(plan, segment, scenario.settings.rationality);
-      if (actualResponse.modal.attainment.eq(run.loAttain)) warnSegments.push(segment.id);
+      const actualAttainment = isDeterministic
+        ? respondDeterministic(
+            plan,
+            segment,
+            scenario.settings.rationality,
+          ).modal.attainment.toNumber()
+        : (stochEffort(plan, segment, scenario.settings.rationality) * segment.ability.toNumber()) /
+          segmentQuota(plan, segment).toNumber();
+      if (Math.abs(actualAttainment - run.loAttain.toNumber()) <= 1e-10)
+        warnSegments.push(segment.id);
     }
     let severity: FindingSeverity = "info";
     let segments: string[] = [];
@@ -193,7 +208,7 @@ function lintPlanForL1(plan: Plan, scenario: Scenario): Finding[] {
   return findings;
 }
 
-function lintPlanForL2(plan: Plan, scenario: Scenario): Finding[] {
+function lintPlanForL2(plan: Plan, scenario: Scenario): DraftFinding[] {
   if (!plan.bonus || plan.bonus.L.eq(R0)) return [];
   const withoutBonus = counterfactualPlanWithoutBonus(plan);
   const isDet = scenario.settings.mode === "deterministic";
@@ -239,7 +254,7 @@ function lintPlanForL2(plan: Plan, scenario: Scenario): Finding[] {
   ];
 }
 
-function lintPlanForL3(plan: Plan, scenario: Scenario): Finding[] {
+function lintPlanForL3(plan: Plan, scenario: Scenario): DraftFinding[] {
   const cap = effectiveCap(plan);
   if (!cap) return [];
   if (!planHasNonzeroRate(plan)) return [];
@@ -291,9 +306,9 @@ function lintPlanForL3(plan: Plan, scenario: Scenario): Finding[] {
   ];
 }
 
-function lintPlanForL4(plan: Plan, scenario: Scenario): Finding[] {
+function lintPlanForL4(plan: Plan, scenario: Scenario): DraftFinding[] {
   const isDet = scenario.settings.mode === "deterministic";
-  const findings: Finding[] = [];
+  const findings: DraftFinding[] = [];
   for (const segment of scenario.population) {
     const ce = isDet
       ? respondDeterministic(plan, segment, scenario.settings.rationality).ce.toNumber()
@@ -330,8 +345,8 @@ function distortionBySegment(plan: Plan, scenario: Scenario): Array<{ id: string
   });
 }
 
-function lintScenarioForL5(scenario: Scenario): Finding[] {
-  const findings: Finding[] = [];
+function lintScenarioForL5(scenario: Scenario): DraftFinding[] {
+  const findings: DraftFinding[] = [];
   if (scenario.plans.length === 1) {
     const plan = scenario.plans[0]!;
     const gammaSegments = scenario.population
@@ -391,7 +406,7 @@ function lintScenarioForL5(scenario: Scenario): Finding[] {
   return findings;
 }
 
-function lintPlanForL7(plan: Plan, scenario: Scenario): Finding[] {
+function lintPlanForL7(plan: Plan, scenario: Scenario): DraftFinding[] {
   const timing = computeTiming(scenario);
   const planResult = timing.plans.find((entry) => entry.planId === plan.id);
   if (!planResult) return [];
@@ -420,7 +435,7 @@ function lintPlanForL7(plan: Plan, scenario: Scenario): Finding[] {
 }
 
 /** §3.10a L-8: fires only when a horizon is configured, so the frozen goldens stay silent. */
-function lintPlanForL8(plan: Plan, scenario: Scenario): Finding[] {
+function lintPlanForL8(plan: Plan, scenario: Scenario): DraftFinding[] {
   const horizon = computeHorizon(scenario);
   if (!horizon) return [];
   const planResult = horizon.plans.find((entry) => entry.planId === plan.id);
@@ -451,7 +466,7 @@ function lintPlanForL8(plan: Plan, scenario: Scenario): Finding[] {
 }
 
 /** §3.14 L-9: fires only on a configured split-credit team, so the frozen goldens stay silent. */
-function lintPlanForL9(plan: Plan, scenario: Scenario): Finding[] {
+function lintPlanForL9(plan: Plan, scenario: Scenario): DraftFinding[] {
   const team = computeTeam(scenario);
   if (!team || team.mode !== "split") return [];
   const planResult = team.plans.find((entry) => entry.planId === plan.id);
@@ -492,16 +507,10 @@ function lintPlanForL9(plan: Plan, scenario: Scenario): Finding[] {
   ];
 }
 
-function lintPlanForL6(plan: Plan, scenario: Scenario): Finding[] {
-  const findings: Finding[] = [];
+function lintPlanForL6(plan: Plan, scenario: Scenario): DraftFinding[] {
+  const findings: DraftFinding[] = [];
   for (const segment of scenario.population) {
-    const quota = segmentQuota(plan, segment);
-    const outputs = [
-      R0,
-      quota.mul(plan.bonus?.x_b ?? R0),
-      ...plan.tiers.map((tier) => quota.mul(tier.from)),
-      plan.cap ? quota.mul(plan.cap) : R0,
-    ];
+    const outputs = [R0, ...kinks(plan, segment)];
     const sorted = outputs.filter((value) => value.gte(R0)).sort((left, right) => left.cmp(right));
     let previous = payout(plan, segment, sorted[0] ?? R0);
     for (let i = 1; i < sorted.length; i += 1) {
@@ -523,8 +532,7 @@ function lintPlanForL6(plan: Plan, scenario: Scenario): Finding[] {
 }
 
 export function lintScenario(scenario: Scenario): Finding[] {
-  void marginalRate;
-  const findings: Finding[] = [];
+  const findings: DraftFinding[] = [];
   for (const plan of scenario.plans) {
     findings.push(...lintPlanForL1(plan, scenario));
     findings.push(...lintPlanForL2(plan, scenario));
@@ -536,8 +544,10 @@ export function lintScenario(scenario: Scenario): Finding[] {
     findings.push(...lintPlanForL9(plan, scenario));
   }
   findings.push(...lintScenarioForL5(scenario));
-  return findings.sort((left, right) => {
-    const severityRank = { high: 0, warn: 1, info: 2 } as const;
-    return severityRank[left.severity] - severityRank[right.severity];
-  });
+  return findings
+    .sort((left, right) => {
+      const severityRank = { high: 0, warn: 1, info: 2 } as const;
+      return severityRank[left.severity] - severityRank[right.severity];
+    })
+    .map((finding) => ({ ...finding, deepLink: deepLinkFor(finding) }));
 }

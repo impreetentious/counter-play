@@ -805,6 +805,10 @@ button:disabled {
   color: var(--muted);
   font-size: 0.9rem;
 }
+.deep-link-highlight {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
 .chart-table {
   margin-top: 10px;
   overflow-x: auto;
