@@ -2,20 +2,8 @@
 
 import { useMemo } from "react";
 import { computeHorizon } from "@/engine/horizon";
+import { formatCompactCurrency, formatNumber, formatPercent, localeOf } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
-
-function formatCurrency(value: number, currency: string): string {
-  if (!Number.isFinite(value)) return "—";
-  const size = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (size >= 1e6) return `${sign}${currency}${(size / 1e6).toFixed(2)}M`;
-  if (size >= 1e3) return `${sign}${currency}${(size / 1e3).toFixed(1)}K`;
-  return `${sign}${currency}${size.toFixed(2)}`;
-}
-
-function formatPercent(fraction: number): string {
-  return Number.isFinite(fraction) ? `${(fraction * 100).toFixed(1)}%` : "—";
-}
 
 /** §3.10a V-04: the N-period quota chain, the ratchet, and what a rep does about it. */
 export function HorizonPanel(): React.JSX.Element {
@@ -26,13 +14,23 @@ export function HorizonPanel(): React.JSX.Element {
   const setHorizonSeasonality = useScenarioStore((state) => state.setHorizonSeasonality);
   const setRatchetField = useScenarioStore((state) => state.setRatchetField);
   const setHorizonResponse = useScenarioStore((state) => state.setHorizonResponse);
+  const highlight = useScenarioStore((state) => state.highlight);
 
   const currency = scenario.settings.currencyLabel;
+  const locale = localeOf(scenario.settings.locale);
   const wire = scenario.settings.horizon ?? null;
   const horizon = useMemo(() => (domain ? computeHorizon(domain) : null), [domain]);
 
   return (
-    <section className="boundary-panel" aria-labelledby="horizon-heading">
+    <section
+      className={
+        highlight?.chart === "horizon-table"
+          ? "boundary-panel deep-link-highlight"
+          : "boundary-panel"
+      }
+      aria-labelledby="horizon-heading"
+      data-testid={highlight?.chart === "horizon-table" ? "deep-link-highlight" : undefined}
+    >
       <header className="boundary-header">
         <div>
           <p className="eyebrow">Horizon</p>
@@ -132,15 +130,29 @@ export function HorizonPanel(): React.JSX.Element {
                 <h4>{plan.planLabel}</h4>
                 <p className="boundary-plan-summary">
                   Produced{" "}
-                  <strong>{formatCurrency(plan.producedRevenue.toNumber(), currency)}</strong> ·
-                  ratchet drag{" "}
-                  <strong>{formatCurrency(plan.ratchetDrag.toNumber(), currency)}</strong> ·
-                  withheld{" "}
-                  <strong>{formatCurrency(plan.withheldRevenue.toNumber(), currency)}</strong>
+                  <strong>
+                    {formatCompactCurrency(plan.producedRevenue.toNumber(), currency, locale)}
+                  </strong>{" "}
+                  · ratchet drag{" "}
+                  <strong>
+                    {formatCompactCurrency(plan.ratchetDrag.toNumber(), currency, locale)}
+                  </strong>{" "}
+                  · withheld{" "}
+                  <strong>
+                    {formatCompactCurrency(plan.withheldRevenue.toNumber(), currency, locale)}
+                  </strong>
                 </p>
               </header>
               {plan.perSegment.map((entry) => (
-                <table className="boundary-table" key={entry.segmentId}>
+                <table
+                  className={
+                    highlight?.chart === "horizon-table" &&
+                    highlight.highlight.segment === entry.segmentId
+                      ? "boundary-table deep-link-highlight"
+                      : "boundary-table"
+                  }
+                  key={entry.segmentId}
+                >
                   <caption>{entry.segmentLabel} — quota path and output</caption>
                   <thead>
                     <tr>
@@ -158,15 +170,19 @@ export function HorizonPanel(): React.JSX.Element {
                   <tbody>
                     {entry.periods.map((period) => (
                       <tr key={period.period}>
-                        <td>{period.period}</td>
-                        <td>{period.demand.toFixed(2)}</td>
-                        <td>{formatCurrency(period.quota.toNumber(), currency)}</td>
-                        <td>{period.shadowRate.toNumber().toFixed(4)}</td>
-                        <td>{period.effort.toFixed(3)}</td>
-                        <td>{formatCurrency(period.produced.toNumber(), currency)}</td>
-                        <td>{formatCurrency(period.credited.toNumber(), currency)}</td>
-                        <td>{formatPercent(period.attainment.toNumber())}</td>
-                        <td>{formatCurrency(period.payout.toNumber(), currency)}</td>
+                        <td>{formatNumber(period.period, locale, 0)}</td>
+                        <td>{formatNumber(period.demand.toNumber(), locale, 2)}</td>
+                        <td>{formatCompactCurrency(period.quota.toNumber(), currency, locale)}</td>
+                        <td>{formatNumber(period.shadowRate.toNumber(), locale, 4)}</td>
+                        <td>{formatNumber(period.effort.toNumber(), locale)}</td>
+                        <td>
+                          {formatCompactCurrency(period.produced.toNumber(), currency, locale)}
+                        </td>
+                        <td>
+                          {formatCompactCurrency(period.credited.toNumber(), currency, locale)}
+                        </td>
+                        <td>{formatPercent(period.attainment.toNumber(), locale)}</td>
+                        <td>{formatCompactCurrency(period.payout.toNumber(), currency, locale)}</td>
                       </tr>
                     ))}
                   </tbody>

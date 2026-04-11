@@ -419,7 +419,7 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
         ...scenario,
         population: [
           ...scenario.population,
-          { ...source, id: newId, label: `${source.label} copy` },
+          { ...source, id: newId, label: `${source.label} (copy)` },
         ],
       };
       set(commit(next, get().activePlanId));
@@ -557,7 +557,7 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
       );
       const next: ScenarioJson = {
         ...scenario,
-        plans: [...scenario.plans, { ...source, id: newId, label: `${source.label} copy` }],
+        plans: [...scenario.plans, { ...source, id: newId, label: `${source.label} (copy)` }],
       };
       set(commit(next, newId));
     },

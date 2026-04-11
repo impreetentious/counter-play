@@ -2,20 +2,8 @@
 
 import { useMemo } from "react";
 import { computeTeam } from "@/engine/team";
+import { formatCompactCurrency, formatNumber, formatPercent, localeOf } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
-
-function formatCurrency(value: number, currency: string): string {
-  if (!Number.isFinite(value)) return "—";
-  const size = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (size >= 1e6) return `${sign}${currency}${(size / 1e6).toFixed(2)}M`;
-  if (size >= 1e3) return `${sign}${currency}${(size / 1e3).toFixed(1)}K`;
-  return `${sign}${currency}${size.toFixed(2)}`;
-}
-
-function formatPercent(fraction: number | null): string {
-  return fraction === null || !Number.isFinite(fraction) ? "—" : `${(fraction * 100).toFixed(1)}%`;
-}
 
 /** §3.14 V-05: the equilibrium response class, reported beside the independent best response. */
 export function TeamPanel(): React.JSX.Element {
@@ -26,13 +14,21 @@ export function TeamPanel(): React.JSX.Element {
   const setTeamSize = useScenarioStore((state) => state.setTeamSize);
   const setCreditShare = useScenarioStore((state) => state.setCreditShare);
   const setTournamentField = useScenarioStore((state) => state.setTournamentField);
+  const highlight = useScenarioStore((state) => state.highlight);
 
   const currency = scenario.settings.currencyLabel;
+  const locale = localeOf(scenario.settings.locale);
   const wire = scenario.settings.team ?? null;
   const team = useMemo(() => (domain ? computeTeam(domain) : null), [domain]);
 
   return (
-    <section className="boundary-panel" aria-labelledby="team-heading">
+    <section
+      className={
+        highlight?.chart === "team-table" ? "boundary-panel deep-link-highlight" : "boundary-panel"
+      }
+      aria-labelledby="team-heading"
+      data-testid={highlight?.chart === "team-table" ? "deep-link-highlight" : undefined}
+    >
       <header className="boundary-header">
         <div>
           <p className="eyebrow">Team</p>
@@ -119,6 +115,23 @@ export function TeamPanel(): React.JSX.Element {
         </div>
       ) : null}
 
+      {wire && scenario.settings.mode === "stochastic" && wire.mode === "split" ? (
+        <p className="field-note">
+          Split-credit equilibrium is deterministic-exact; stochastic CARA response does not change
+          the calculation shown here.
+        </p>
+      ) : null}
+      {wire && wire.mode === "tournament" ? (
+        <p className="field-note">
+          The tournament objective is risk-neutral, so risk aversion is ignored in this result.
+        </p>
+      ) : null}
+      {wire && scenario.settings.rationality?.mode === "softmax" ? (
+        <p className="field-note">
+          The bounded-rationality dial does not reach the team equilibrium calculation.
+        </p>
+      ) : null}
+
       {wire && team
         ? team.plans.map((plan) => (
             <div key={plan.planId} className="boundary-plan">
@@ -126,10 +139,17 @@ export function TeamPanel(): React.JSX.Element {
                 <h4>{plan.planLabel}</h4>
                 <p className="boundary-plan-summary">
                   Independent{" "}
-                  <strong>{formatCurrency(plan.individualRevenue.toNumber(), currency)}</strong> ·
-                  equilibrium{" "}
-                  <strong>{formatCurrency(plan.equilibriumRevenue.toNumber(), currency)}</strong> ·
-                  gap <strong>{formatCurrency(plan.revenueGap.toNumber(), currency)}</strong>
+                  <strong>
+                    {formatCompactCurrency(plan.individualRevenue.toNumber(), currency, locale)}
+                  </strong>{" "}
+                  · equilibrium{" "}
+                  <strong>
+                    {formatCompactCurrency(plan.equilibriumRevenue.toNumber(), currency, locale)}
+                  </strong>{" "}
+                  · gap{" "}
+                  <strong>
+                    {formatCompactCurrency(plan.revenueGap.toNumber(), currency, locale)}
+                  </strong>
                 </p>
               </header>
               <table className="boundary-table">
@@ -147,21 +167,35 @@ export function TeamPanel(): React.JSX.Element {
                 </thead>
                 <tbody>
                   {plan.perSegment.map((entry) => (
-                    <tr key={entry.segmentId}>
+                    <tr
+                      key={entry.segmentId}
+                      className={
+                        highlight?.chart === "team-table" &&
+                        highlight.highlight.segment === entry.segmentId
+                          ? "deep-link-highlight"
+                          : undefined
+                      }
+                    >
                       <td>{entry.segmentLabel}</td>
-                      <td>{formatPercent(entry.creditWeight)}</td>
-                      <td>{entry.individualEffort.toFixed(3)}</td>
                       <td>
-                        {entry.unavailable ? "—" : entry.equilibriumEffort.toFixed(3)}
+                        {entry.creditWeight === null
+                          ? "—"
+                          : formatPercent(entry.creditWeight, locale)}
+                      </td>
+                      <td>{formatNumber(entry.individualEffort, locale)}</td>
+                      <td>
+                        {entry.unavailable ? "—" : formatNumber(entry.equilibriumEffort, locale)}
                         {!entry.unavailable && !entry.converged ? " (not converged)" : ""}
                       </td>
-                      <td>{formatCurrency(entry.individualRevenue, currency)}</td>
+                      <td>{formatCompactCurrency(entry.individualRevenue, currency, locale)}</td>
                       <td>
                         {entry.unavailable
                           ? "—"
-                          : formatCurrency(entry.equilibriumRevenue, currency)}
+                          : formatCompactCurrency(entry.equilibriumRevenue, currency, locale)}
                       </td>
-                      <td>{entry.unavailable ? "—" : entry.equilibriaCount}</td>
+                      <td>
+                        {entry.unavailable ? "—" : formatNumber(entry.equilibriaCount, locale, 0)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

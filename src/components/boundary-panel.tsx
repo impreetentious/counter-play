@@ -2,29 +2,18 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { computeTiming } from "@/engine/timing";
+import { formatCompactCurrency, formatNumber, formatPercent, localeOf } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
-
-function formatCurrency(value: number, currency: string): string {
-  if (!Number.isFinite(value)) return "—";
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (abs >= 1e6) return `${sign}${currency}${(abs / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${sign}${currency}${(abs / 1e3).toFixed(1)}K`;
-  return `${sign}${currency}${abs.toFixed(2)}`;
-}
-
-function formatPercent(fraction: number): string {
-  if (!Number.isFinite(fraction)) return "—";
-  return `${(fraction * 100).toFixed(1)}%`;
-}
 
 export function BoundaryPanel(): React.JSX.Element | null {
   const scenario = useScenarioStore((state) => state.scenario);
   const domain = useScenarioStore((state) => state.domain);
   const setDiscount = useScenarioStore((state) => state.setDiscount);
   const setSeasonality = useScenarioStore((state) => state.setSeasonality);
+  const highlight = useScenarioStore((state) => state.highlight);
 
   const currency = scenario.settings.currencyLabel;
+  const locale = localeOf(scenario.settings.locale);
   const timing = useMemo(() => (domain ? computeTiming(domain) : null), [domain]);
 
   const [discountDraft, setDiscountDraft] = useState(scenario.settings.discount);
@@ -37,7 +26,15 @@ export function BoundaryPanel(): React.JSX.Element | null {
   if (!domain || !timing) return null;
 
   return (
-    <section className="boundary-panel" aria-labelledby="boundary-heading">
+    <section
+      className={
+        highlight?.chart === "timing-table"
+          ? "boundary-panel deep-link-highlight"
+          : "boundary-panel"
+      }
+      aria-labelledby="boundary-heading"
+      data-testid={highlight?.chart === "timing-table" ? "deep-link-highlight" : undefined}
+    >
       <header className="boundary-header">
         <div>
           <p className="eyebrow">Timing</p>
@@ -98,9 +95,13 @@ export function BoundaryPanel(): React.JSX.Element | null {
             <h4>{plan.planLabel}</h4>
             <p className="boundary-plan-summary">
               Displaced revenue{" "}
-              <strong>{formatCurrency(plan.displacedRevenueTotal.toNumber(), currency)}</strong> ·
-              two-period expected{" "}
-              <strong>{formatCurrency(plan.twoPeriodExpectedRevenue.toNumber(), currency)}</strong>{" "}
+              <strong>
+                {formatCompactCurrency(plan.displacedRevenueTotal.toNumber(), currency, locale)}
+              </strong>{" "}
+              · two-period expected{" "}
+              <strong>
+                {formatCompactCurrency(plan.twoPeriodExpectedRevenue.toNumber(), currency, locale)}
+              </strong>{" "}
               ·{" "}
               <strong>
                 {plan.twoPeriodExpectedRevenue.toNumber() === 0
@@ -108,6 +109,7 @@ export function BoundaryPanel(): React.JSX.Element | null {
                   : formatPercent(
                       plan.displacedRevenueTotal.toNumber() /
                         plan.twoPeriodExpectedRevenue.toNumber(),
+                      locale,
                     )}
               </strong>{" "}
               displaced share
@@ -129,15 +131,23 @@ export function BoundaryPanel(): React.JSX.Element | null {
             </thead>
             <tbody>
               {plan.perSegment.map((seg) => (
-                <tr key={seg.segmentId}>
+                <tr
+                  key={seg.segmentId}
+                  className={
+                    highlight?.chart === "timing-table" &&
+                    highlight.highlight.segment === seg.segmentId
+                      ? "deep-link-highlight"
+                      : undefined
+                  }
+                >
                   <td>{seg.segmentLabel}</td>
-                  <td>{seg.e1.toFixed(3)}</td>
-                  <td>{seg.e2.toFixed(3)}</td>
-                  <td>{formatCurrency(seg.q1.toNumber(), currency)}</td>
-                  <td>{formatCurrency(seg.q2.toNumber(), currency)}</td>
+                  <td>{formatNumber(seg.e1.toNumber(), locale)}</td>
+                  <td>{formatNumber(seg.e2.toNumber(), locale)}</td>
+                  <td>{formatCompactCurrency(seg.q1.toNumber(), currency, locale)}</td>
+                  <td>{formatCompactCurrency(seg.q2.toNumber(), currency, locale)}</td>
                   <td>
-                    [{formatCurrency(seg.shiftWindow[0].toNumber(), currency)},{" "}
-                    {formatCurrency(seg.shiftWindow[1].toNumber(), currency)}]
+                    [{formatCompactCurrency(seg.shiftWindow[0].toNumber(), currency, locale)},{" "}
+                    {formatCompactCurrency(seg.shiftWindow[1].toNumber(), currency, locale)}]
                   </td>
                   <td
                     className={
@@ -148,9 +158,9 @@ export function BoundaryPanel(): React.JSX.Element | null {
                           : ""
                     }
                   >
-                    {formatCurrency(seg.zStar.toNumber(), currency)}
+                    {formatCompactCurrency(seg.zStar.toNumber(), currency, locale)}
                   </td>
-                  <td>{formatCurrency(seg.payGain.toNumber(), currency)}</td>
+                  <td>{formatCompactCurrency(seg.payGain.toNumber(), currency, locale)}</td>
                 </tr>
               ))}
             </tbody>
