@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type KeyboardEvent, type PointerEvent } from "react";
-import type { Plan, Scenario, Segment } from "@/engine/types";
+import type { DeepLink, Plan, Scenario, Segment } from "@/engine/types";
 import { kinks, marginalRate, payout, segmentQuota } from "@/engine/plan";
 import { Rat } from "@/engine/rat";
 import { formatCompactCurrency } from "@/i18n";
@@ -9,6 +9,7 @@ import { formatCompactCurrency } from "@/i18n";
 interface PayoutChartProps {
   scenario: Scenario;
   plan: Plan;
+  highlight?: DeepLink | null;
   editable?: {
     tierFrom(index: number, value: string): void;
     tierRate(index: number, value: string): void;
@@ -53,7 +54,12 @@ function rounded(value: number, places = 3): string {
   return Number(value.toFixed(places)).toString();
 }
 
-export function PayoutChart({ scenario, plan, editable }: PayoutChartProps): React.JSX.Element {
+export function PayoutChart({
+  scenario,
+  plan,
+  highlight,
+  editable,
+}: PayoutChartProps): React.JSX.Element {
   const [showTable, setShowTable] = useState(false);
   const segment = findPreviewSegment(scenario);
   const analysis = useMemo(() => {
@@ -112,6 +118,24 @@ export function PayoutChart({ scenario, plan, editable }: PayoutChartProps): Rea
   const attainmentTicks = [0, 0.5, 1, xMax].filter(
     (value, index, array) => index === 0 || value > (array[index - 1] ?? 0),
   );
+  const percentAttainment = (value: string | number | undefined): number | null => {
+    if (value === undefined) return null;
+    const text = String(value);
+    const number = Number.parseFloat(text);
+    if (!Number.isFinite(number)) return null;
+    return text.endsWith("%") ? number / 100 : number;
+  };
+  const highlightedAttainment =
+    highlight?.chart === "payout-curve"
+      ? highlight.highlight.output !== undefined
+        ? Number(highlight.highlight.output) / quota
+        : percentAttainment(
+            highlight.highlight.cap ??
+              highlight.highlight.threshold ??
+              highlight.highlight.from_lo ??
+              highlight.highlight.from_hi,
+          )
+      : null;
 
   const pointerAttainment = (event: PointerEvent<SVGElement>): number => {
     const svg = event.currentTarget.ownerSVGElement;
@@ -175,7 +199,12 @@ export function PayoutChart({ scenario, plan, editable }: PayoutChartProps): Rea
   };
 
   return (
-    <figure className="chart" aria-label="Payout curve for the active plan">
+    <figure
+      className="chart"
+      aria-label="Payout curve for the active plan"
+      data-highlight={highlightedAttainment !== null || undefined}
+      data-testid={highlightedAttainment !== null ? "deep-link-highlight-target" : undefined}
+    >
       <figcaption>
         <span>
           Payout curve · <strong>{plan.label}</strong> · segment {segment.label} · quota{" "}
@@ -239,6 +268,17 @@ export function PayoutChart({ scenario, plan, editable }: PayoutChartProps): Rea
           {formatCompactCurrency(minY, currency, locale)}
         </text>
         <path d={linePath} className="chart-curve" fill="none" />
+        {highlightedAttainment !== null && Number.isFinite(highlightedAttainment) ? (
+          <line
+            data-testid="deep-link-highlight"
+            x1={xToPx(highlightedAttainment * quota)}
+            x2={xToPx(highlightedAttainment * quota)}
+            y1={margin.top}
+            y2={margin.top + plotHeight}
+            stroke="var(--error)"
+            strokeWidth="3"
+          />
+        ) : null}
         {editable
           ? plan.tiers.slice(1).map((tier, offset) => {
               const index = offset + 1;

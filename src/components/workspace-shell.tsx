@@ -18,10 +18,8 @@ import { ErrorBoundary } from "./error-boundary";
 import { SharePanel } from "./share-panel";
 
 const surfaces = ["Model", "Design", "Simulate", "Analyze"] as const;
-type Surface = (typeof surfaces)[number];
 
 export function WorkspaceShell(): React.JSX.Element {
-  const [active, setActive] = useState<Surface>("Model");
   const [shareLoadNotice, setShareLoadNotice] = useState<string | null>(null);
   const hydrate = useScenarioStore((state) => state.hydrate);
   const hydrated = useScenarioStore((state) => state.hydrated);
@@ -31,6 +29,8 @@ export function WorkspaceShell(): React.JSX.Element {
   const canUndo = useScenarioStore((state) => state.historyPast.length > 0);
   const canRedo = useScenarioStore((state) => state.historyFuture.length > 0);
   const locale = useScenarioStore((state) => localeOf(state.scenario.settings.locale));
+  const active = useScenarioStore((state) => state.activeSurface);
+  const setActive = useScenarioStore((state) => state.setActiveSurface);
 
   useEffect(() => {
     if (hydrated) return;

@@ -97,6 +97,11 @@ describe("scenario wire schema", () => {
     );
   });
 
+  it("upgrades prior supported wire versions through the migration registry", () => {
+    const migrated = serializeScenario(parseScenario({ ...scenario, schemaVersion: 0 }));
+    expect(migrated).toEqual(serializeScenario(parseScenario(scenario)));
+  });
+
   it("allocates deterministic ids without time or randomness", () => {
     expect(allocateId("seg", ["seg-1", "seg-4", "imported"])).toBe("seg-5");
     expect(allocateId("plan", ["plan-x"])).toBe("plan-1");

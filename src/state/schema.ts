@@ -620,23 +620,42 @@ function zodMessage(error: z.ZodError): string {
     .join("; ");
 }
 
-/** Validates the JSON wire form and makes the only wire-to-domain conversion. */
-export function parseScenario(input: unknown): Scenario {
-  if (
-    input &&
-    typeof input === "object" &&
-    "schemaVersion" in input &&
-    (input as { schemaVersion?: unknown }).schemaVersion !== 1
-  ) {
-    const version = (input as { schemaVersion?: unknown }).schemaVersion;
-    if (typeof version === "number" && version > 1) {
+type JsonObject = Record<string, unknown>;
+type Migration = (json: JsonObject) => JsonObject;
+
+/** Each migration upgrades exactly one preceding wire version to the current schema. */
+const migrations: Record<number, Migration> = {
+  0: (json) => ({ ...json, schemaVersion: 1 }),
+};
+
+function migrateScenarioJson(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  let migrated = { ...(input as JsonObject) };
+  const initialVersion = migrated.schemaVersion;
+  if (typeof initialVersion !== "number" || !Number.isInteger(initialVersion)) return input;
+  if (initialVersion > 1) {
+    throw new EngineError(
+      "INVALID_INPUT",
+      "This file is from a newer version of Counterplay; upgrade to open it.",
+    );
+  }
+  while (migrated.schemaVersion !== 1) {
+    const version = migrated.schemaVersion;
+    if (typeof version !== "number" || !Number.isInteger(version)) return input;
+    const migrate = migrations[version];
+    if (!migrate)
       throw new EngineError(
         "INVALID_INPUT",
-        "This file is from a newer version of Counterplay; upgrade to open it.",
+        `This file uses unsupported Counterplay schema version ${version}.`,
       );
-    }
+    migrated = migrate(migrated);
   }
-  const result = ScenarioJsonSchema.safeParse(input);
+  return migrated;
+}
+
+/** Validates the JSON wire form and makes the only wire-to-domain conversion. */
+export function parseScenario(input: unknown): Scenario {
+  const result = ScenarioJsonSchema.safeParse(migrateScenarioJson(input));
   if (!result.success) {
     throw new EngineError("INVALID_INPUT", zodMessage(result.error));
   }

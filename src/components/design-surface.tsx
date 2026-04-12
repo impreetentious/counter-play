@@ -24,6 +24,7 @@ export function DesignSurface(): React.JSX.Element {
   const addPlan = useScenarioStore((state) => state.addPlan);
   const duplicatePlan = useScenarioStore((state) => state.duplicatePlan);
   const deletePlan = useScenarioStore((state) => state.deletePlan);
+  const highlight = useScenarioStore((state) => state.highlight);
 
   const activePlan = scenario.plans.find((plan) => plan.id === activePlanId) ?? scenario.plans[0];
   const domainPlan = domain?.plans.find((plan) => plan.id === activePlan?.id);
@@ -419,6 +420,7 @@ export function DesignSurface(): React.JSX.Element {
           <PayoutChart
             scenario={domain}
             plan={domainPlan}
+            highlight={highlight}
             editable={{
               tierFrom: (index, value) => setTierField(activePlan.id, index, "from", value),
               tierRate: (index, value) => setTierField(activePlan.id, index, "rate", value),
