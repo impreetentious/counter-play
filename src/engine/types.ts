@@ -119,6 +119,30 @@ export interface Horizon {
   response: "myopic" | "ratchetAware";
 }
 
+/**
+ * The firm's objective, **declared rather than discovered**. Expected profit is always
+ * `trueValue − totalComp` — both quantities the engine already computes, and the reason
+ * `valueQuality` exists at all. The two optional limits are the constraints a comp committee
+ * actually states out loud, and they are recorded so the design record carries the standard
+ * a plan was judged against rather than leaving it in the reader's head.
+ */
+export interface Objective {
+  /** Reject a plan whose `totalComp / expectedRevenue` exceeds this. */
+  compRatioCeiling: Rat | null;
+  /** Reject a plan that retains a smaller share of headcount than this. */
+  retentionFloor: Rat | null;
+}
+
+/**
+ * Presence means the scenario's plans are offered *together* — a menu people choose from
+ * rather than alternatives a designer picks between. Selection and sorting run either way;
+ * this is what licenses the menu reading, and with it the incentive-compatibility rule.
+ */
+export interface MenuSettings {
+  /** When false a segment must take its best plan even if its CE trails its reservation. */
+  walkAwayAllowed: boolean;
+}
+
 /** §3.14 V-05 team credit / rank-order tournament group. */
 export interface TeamSettings {
   mode: "split" | "tournament";
@@ -141,6 +165,10 @@ export interface ScenarioSettings {
   horizon?: Horizon | null;
   /** §3.14; absent ⇒ no equilibrium module runs. */
   team?: TeamSettings | null;
+  /** Absent ⇒ plans are compared on KPI cards only, with no declared standard. */
+  objective?: Objective | null;
+  /** Absent ⇒ the scenario's plans are alternatives to compare, not a menu people choose from. */
+  menu?: MenuSettings | null;
   mc: MonteCarloSettings;
 }
 
