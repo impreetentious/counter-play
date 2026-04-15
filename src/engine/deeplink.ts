@@ -54,5 +54,11 @@ export function deepLinkFor(
       return { surface: "analyze", chart: "horizon-table", highlight: { segment } };
     case "L-9":
       return { surface: "analyze", chart: "team-table", highlight: { segment } };
+    case "L-10":
+      return {
+        surface: "simulate",
+        chart: "sorting-map",
+        highlight: { segment, kind: String(finding.evidence.kind) },
+      };
   }
 }

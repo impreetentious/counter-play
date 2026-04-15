@@ -14,6 +14,8 @@ import type { AppLocale } from "@/engine/types";
 import { formatCompactCurrency, formatNumber, formatPercent, localeOf } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
 import { IdentityBadge } from "./identity-badge";
+import { LedgerPanel } from "./ledger-panel";
+import { SortingPanel } from "./sorting-panel";
 import {
   AttainmentDensity,
   AttainmentHistogram,
@@ -599,6 +601,8 @@ export function SimulateSurface(): React.JSX.Element {
           />
         ) : null}
       </div>
+      <SortingPanel />
+      <LedgerPanel />
     </section>
   );
 }

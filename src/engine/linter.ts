@@ -5,12 +5,14 @@ import { simulate } from "./simulate";
 import { computeTiming } from "./timing";
 import { computeHorizon } from "./horizon";
 import { computeTeam } from "./team";
+import { computeSorting } from "./sorting";
 import { EngineError } from "./errors";
 import { deepLinkFor } from "./deeplink";
 import { Rat, R0 } from "./rat";
 import type { DeepLink, Plan, Rationality, Scenario, Segment } from "./types";
 
-export type FindingType = "L-1" | "L-2" | "L-3" | "L-4" | "L-5" | "L-6" | "L-7" | "L-8" | "L-9";
+export type FindingType =
+  "L-1" | "L-2" | "L-3" | "L-4" | "L-5" | "L-6" | "L-7" | "L-8" | "L-9" | "L-10";
 export type FindingSeverity = "info" | "warn" | "high";
 
 export interface Finding {
@@ -531,6 +533,87 @@ function lintPlanForL6(plan: Plan, scenario: Scenario): DraftFinding[] {
   return findings;
 }
 
+/**
+ * L-10 Menu screening. Fires only when `settings.menu` is present, so every frozen golden is
+ * provably silent: a menu is a claim the owner makes about how plans are offered, and until it
+ * is made the plans are alternatives and there is nothing to screen.
+ *
+ * Three failures of a menu, each computed by the sorting module rather than guessed at:
+ * an option nobody takes is not screening anyone; a menu everybody pools onto is one plan in
+ * expensive disguise; and a segment the menu leaves exactly indifferent was sorted by the
+ * tie-break, not by the plans.
+ */
+function lintScenarioForL10(scenario: Scenario): DraftFinding[] {
+  if (!scenario.settings.menu) return [];
+  const sorting = computeSorting(scenario);
+  const findings: DraftFinding[] = [];
+  const headcount = scenario.population.reduce((sum, segment) => sum + segment.count, 0);
+  const placed = headcount - sorting.walkAwayHeadcount;
+
+  if (scenario.plans.length > 1 && sorting.deadOptions.length > 0) {
+    findings.push({
+      id: `L10-dead-${sorting.deadOptions.join("-")}`,
+      type: "L-10",
+      severity: sorting.deadOptions.length >= scenario.plans.length - 1 ? "high" : "warn",
+      segments: [],
+      plans: sorting.deadOptions,
+      evidence: {
+        kind: "dead-option",
+        unchosen_plans: sorting.deadOptions,
+        chosen_plans: sorting.sorting
+          .filter((entry) => entry.headcount > 0)
+          .map((entry) => entry.planId),
+      },
+    });
+  }
+
+  const crowded = sorting.sorting.find(
+    (entry) => placed > 0 && entry.headcount === placed && scenario.plans.length > 1,
+  );
+  if (crowded) {
+    findings.push({
+      id: `L10-pool-${crowded.planId}`,
+      type: "L-10",
+      severity: "high",
+      segments: crowded.segmentIds,
+      plans: [crowded.planId],
+      evidence: {
+        kind: "pooling",
+        pooled_plan: crowded.planId,
+        pooled_headcount: crowded.headcount,
+        offered_plans: scenario.plans.length,
+      },
+    });
+  }
+
+  if (sorting.knifeEdgeSegmentIds.length > 0) {
+    findings.push({
+      id: `L10-knife-${sorting.knifeEdgeSegmentIds.join("-")}`,
+      type: "L-10",
+      severity: "warn",
+      segments: sorting.knifeEdgeSegmentIds,
+      evidence: { kind: "knife-edge", segments: sorting.knifeEdgeSegmentIds },
+    });
+  }
+
+  if (sorting.walkAwayHeadcount > 0) {
+    const share = sorting.walkAwayHeadcount / Math.max(1, headcount);
+    findings.push({
+      id: `L10-exit-${sorting.walkAwaySegmentIds.join("-")}`,
+      type: "L-10",
+      severity: share >= 0.25 ? "high" : "warn",
+      segments: sorting.walkAwaySegmentIds,
+      evidence: {
+        kind: "walk-away",
+        walk_away_headcount: sorting.walkAwayHeadcount,
+        walk_away_pct: `${Math.round(share * 1000) / 10}%`,
+      },
+    });
+  }
+
+  return findings;
+}
+
 export function lintScenario(scenario: Scenario): Finding[] {
   const findings: DraftFinding[] = [];
   for (const plan of scenario.plans) {
@@ -544,6 +627,7 @@ export function lintScenario(scenario: Scenario): Finding[] {
     findings.push(...lintPlanForL9(plan, scenario));
   }
   findings.push(...lintScenarioForL5(scenario));
+  findings.push(...lintScenarioForL10(scenario));
   return findings
     .sort((left, right) => {
       const severityRank = { high: 0, warn: 1, info: 2 } as const;

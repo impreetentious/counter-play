@@ -16,7 +16,7 @@ import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 import { formatCompactCurrency, formatPercent, formatPreparedDate } from "@/i18n";
 
-const appVersion = "0.14.8";
+const appVersion = "0.14.9";
 
 function fmtCurrency(
   value: number,
@@ -50,6 +50,7 @@ const findingLabel: Record<FindingType, string> = {
   "L-7": "Boundary gaming",
   "L-8": "Ratchet suppression",
   "L-9": "Team free-riding",
+  "L-10": "Menu screening",
 };
 
 export function RecordView(): React.JSX.Element {
@@ -138,6 +139,24 @@ export function RecordView(): React.JSX.Element {
                   ? `split credit, n=${scenario.settings.team.size}, s=${scenario.settings.team.split?.creditShare ?? "0"}`
                   : `tournament, n=${scenario.settings.team.size}, prize ${scenario.settings.team.tournament?.prize ?? "0"}`
                 : "individual credit"}
+            </dd>
+          </div>
+          <div>
+            <dt>Declared objective</dt>
+            <dd>
+              {"expected profit = true value − total comp"}
+              {scenario.settings.objective
+                ? `; ${[
+                    scenario.settings.objective.compRatioCeiling
+                      ? `comp ratio ≤ ${scenario.settings.objective.compRatioCeiling}`
+                      : null,
+                    scenario.settings.objective.retentionFloor
+                      ? `retention ≥ ${scenario.settings.objective.retentionFloor}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}`
+                : "; no limits declared"}
             </dd>
           </div>
           <div>

@@ -11,6 +11,7 @@ import { HorizonPanel } from "./horizon-panel";
 import { TeamPanel } from "./team-panel";
 import { OptimizerPanel } from "./optimizer-panel";
 import { CalibrationPanel } from "./calibration-panel";
+import { SweepPanel } from "./sweep-panel";
 
 const explainerTemplates: Record<
   FindingType,
@@ -41,7 +42,23 @@ const explainerTemplates: Record<
     `Quota resets on what reps produce (${evidence.lambda_pct} weight, ${evidence.growth}× growth). A rep who prices that in withholds ${compactCurrency(evidence.withheld_currency, currency, locale)} of revenue across ${evidence.periods} periods — the plan pays for output today by taxing it tomorrow.`,
   "L-9": (evidence, currency, locale) =>
     `Pooling ${evidence.credit_share_pct} of credit across ${evidence.team_size} reps leaves each one keeping ${evidence.phi_pct} of their own marginal output. Equilibrium effort falls ${evidence.effort_gap_pct} short of the individual best response — ${compactCurrency(evidence.revenue_gap_currency, currency, locale)} of revenue never gets produced.`,
+  "L-10": (evidence) => {
+    switch (evidence.kind) {
+      case "dead-option":
+        return `Nobody chooses ${asList(evidence.unchosen_plans)}. An option no segment takes is not screening anyone — the menu is narrower than it looks.`;
+      case "pooling":
+        return `Every segment that stays takes ${evidence.pooled_plan}, out of ${evidence.offered_plans} plans offered. A menu everyone pools onto is one plan in expensive disguise.`;
+      case "knife-edge":
+        return `The menu leaves ${asList(evidence.segments)} exactly indifferent between two plans. The tie-break decided where they went, not the plans — a rounding error in your assumptions moves them.`;
+      default:
+        return `${evidence.walk_away_pct} of headcount (${evidence.walk_away_headcount}) takes no plan on the menu: every option leaves them below their reservation value. Full-roster KPIs assume these people stay.`;
+    }
+  },
 };
+
+function asList(value: unknown): string {
+  return Array.isArray(value) ? value.join(", ") : String(value);
+}
 
 function compactCurrency(value: unknown, currency: string, locale: AppLocale): string {
   return formatCompactCurrency(Number(value), currency, locale);
@@ -57,6 +74,7 @@ const deepLinkTargets: Record<FindingType, string> = {
   "L-7": "Analyze",
   "L-8": "Analyze / Horizon",
   "L-9": "Analyze / Team",
+  "L-10": "Simulate / Sorting map",
 };
 
 function severityBadge(severity: Finding["severity"]): string {
@@ -163,6 +181,7 @@ export function AnalyzeSurface(): React.JSX.Element {
           ))}
         </ul>
       )}
+      <SweepPanel />
       <OptimizerPanel />
       <CalibrationPanel />
       <BoundaryPanel />
