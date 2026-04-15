@@ -8,6 +8,8 @@ import {
   parseScenario,
   ScenarioJsonSchema,
   type HorizonJson,
+  type MenuJson,
+  type ObjectiveJson,
   type PayoutExtrasJson,
   type PlanJson,
   type ScenarioJson,
@@ -98,6 +100,10 @@ export interface StoreState {
   setTeamSize(size: number): void;
   setCreditShare(value: string): void;
   setTournamentField(key: "prize" | "winners", value: string): void;
+  toggleMenu(): void;
+  setMenuWalkAway(allowed: boolean): void;
+  toggleObjective(): void;
+  setObjectiveLimit(key: "compRatioCeiling" | "retentionFloor", value: string | null): void;
   setSeasonality(value: [string, string]): void;
   setNotes(notes: string): void;
   applyCalibration(proposals: CalibrationApplyProposal[]): void;
@@ -232,6 +238,12 @@ const HORIZON_DEFAULT: HorizonJson = {
 };
 
 const TEAM_DEFAULT: TeamJson = { mode: "split", size: 4, split: { creditShare: "0.5" } };
+
+// Offering the plans together is a claim about the market, so it is off until the owner says so.
+const MENU_DEFAULT: MenuJson = { walkAwayAllowed: true };
+
+// Expected profit is always the objective; these are the limits the owner may add to it.
+const OBJECTIVE_DEFAULT: ObjectiveJson = { compRatioCeiling: "0.4", retentionFloor: "1" };
 
 function updateSettings(
   scenario: ScenarioJson,
@@ -773,6 +785,58 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
             }
             return { ...team, tournament: { ...current, prize: value } };
           }),
+          get().activePlanId,
+        ),
+      );
+    },
+    toggleMenu() {
+      const scenario = get().scenario;
+      set(
+        commit(
+          updateSettings(scenario, (settings) => {
+            if (settings.menu) {
+              const { menu: _drop, ...rest } = settings;
+              return rest;
+            }
+            return { ...settings, menu: MENU_DEFAULT };
+          }),
+          get().activePlanId,
+        ),
+      );
+    },
+    setMenuWalkAway(allowed) {
+      set(
+        commit(
+          updateSettings(get().scenario, (settings) =>
+            settings.menu ? { ...settings, menu: { walkAwayAllowed: allowed } } : settings,
+          ),
+          get().activePlanId,
+        ),
+      );
+    },
+    toggleObjective() {
+      const scenario = get().scenario;
+      set(
+        commit(
+          updateSettings(scenario, (settings) => {
+            if (settings.objective) {
+              const { objective: _drop, ...rest } = settings;
+              return rest;
+            }
+            return { ...settings, objective: OBJECTIVE_DEFAULT };
+          }),
+          get().activePlanId,
+        ),
+      );
+    },
+    setObjectiveLimit(key, value) {
+      set(
+        commit(
+          updateSettings(get().scenario, (settings) =>
+            settings.objective
+              ? { ...settings, objective: { ...settings.objective, [key]: value } }
+              : settings,
+          ),
           get().activePlanId,
         ),
       );

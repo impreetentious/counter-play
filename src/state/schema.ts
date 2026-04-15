@@ -5,7 +5,9 @@ import type {
   Bonus,
   Horizon,
   MonteCarloSettings,
+  MenuSettings,
   MultiplierRange,
+  Objective,
   PayoutExtras,
   Plan,
   Rationality,
@@ -89,6 +91,15 @@ export interface TeamJson {
   tournament?: { prize: string; winners: number } | null;
 }
 
+export interface MenuJson {
+  walkAwayAllowed: boolean;
+}
+
+export interface ObjectiveJson {
+  compRatioCeiling?: string | null;
+  retentionFloor?: string | null;
+}
+
 export interface ScenarioJson {
   schemaVersion: 1;
   population: SegmentJson[];
@@ -103,6 +114,8 @@ export interface ScenarioJson {
     rationality?: RationalityJson | null;
     horizon?: HorizonJson | null;
     team?: TeamJson | null;
+    objective?: ObjectiveJson | null;
+    menu?: MenuJson | null;
     mc: {
       seed: number;
       N: number;
@@ -408,6 +421,26 @@ const teamSchema = z
     }
   });
 
+// Presence means the scenario's plans are a menu offered together, not alternatives.
+const menuSchema = z.object({ walkAwayAllowed: z.boolean() }).strict();
+
+// The declared firm objective; absent ⇒ plans carry no stated standard to be judged against.
+const objectiveSchema = z
+  .object({
+    compRatioCeiling: decimal({
+      min: R0,
+      max: Rat.from(1000),
+      minExclusive: true,
+      label: "Comp-ratio ceiling",
+    })
+      .nullable()
+      .optional(),
+    retentionFloor: decimal({ min: R0, max: Rat.one(), label: "Retention floor" })
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
 const settingsSchema = z
   .object({
     mode: z.enum(["deterministic", "stochastic"]),
@@ -422,6 +455,8 @@ const settingsSchema = z
     rationality: rationalitySchema.nullable().optional(),
     horizon: horizonSchema.nullable().optional(),
     team: teamSchema.nullable().optional(),
+    objective: objectiveSchema.nullable().optional(),
+    menu: menuSchema.nullable().optional(),
     mc: z
       .object({
         seed: z.number().int().min(0).max(maxUint32),
@@ -591,17 +626,31 @@ function toTeam(json: TeamJson | null | undefined): TeamSettings | null {
   };
 }
 
+function toObjective(json: ObjectiveJson | null | undefined): Objective | null {
+  if (!json) return null;
+  return {
+    compRatioCeiling: json.compRatioCeiling ? toRat(json.compRatioCeiling) : null,
+    retentionFloor: json.retentionFloor ? toRat(json.retentionFloor) : null,
+  };
+}
+
 function toSettings(json: ScenarioJson["settings"]): ScenarioSettings {
   const {
     rationality: _wireRationality,
     horizon: _wireHorizon,
     team: _wireTeam,
+    objective: _wireObjective,
+    menu: _wireMenu,
     locale: _wireLocale,
     ...rest
   } = json;
   const rationality = toRationality(json.rationality);
   const horizon = toHorizon(json.horizon);
   const team = toTeam(json.team);
+  const objective = toObjective(json.objective);
+  const menu: MenuSettings | null = json.menu
+    ? { walkAwayAllowed: json.menu.walkAwayAllowed }
+    : null;
   return {
     ...rest,
     discount: toRat(json.discount),
@@ -609,6 +658,8 @@ function toSettings(json: ScenarioJson["settings"]): ScenarioSettings {
     ...(rationality ? { rationality } : {}),
     ...(horizon ? { horizon } : {}),
     ...(team ? { team } : {}),
+    ...(objective ? { objective } : {}),
+    ...(menu ? { menu } : {}),
     ...(json.locale ? { locale: json.locale } : {}),
     mc: { ...json.mc, ranges: toRanges(json.mc.ranges) },
   };
@@ -803,6 +854,21 @@ export function serializeScenario(scenario: Scenario): ScenarioJson {
                 : {}),
             },
           }
+        : {}),
+      ...(scenario.settings.objective
+        ? {
+            objective: {
+              ...(scenario.settings.objective.compRatioCeiling
+                ? { compRatioCeiling: decimalOf(scenario.settings.objective.compRatioCeiling) }
+                : {}),
+              ...(scenario.settings.objective.retentionFloor
+                ? { retentionFloor: decimalOf(scenario.settings.objective.retentionFloor) }
+                : {}),
+            },
+          }
+        : {}),
+      ...(scenario.settings.menu
+        ? { menu: { walkAwayAllowed: scenario.settings.menu.walkAwayAllowed } }
         : {}),
       mc: {
         seed: scenario.settings.mc.seed,

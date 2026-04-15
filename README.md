@@ -12,7 +12,7 @@ None of that is a surprise, and none of it needs to be a surprise. Once the plan
 
 - **Model** — describe the rep population as explicit, inspectable assumptions: segments with ability, effort cost, risk aversion, and quota expectations. A segment can also carry a second activity the plan cannot measure but the business still values, and reps can be assumed to play the plan approximately rather than perfectly. No live data required; this is a pre-data instrument.
 - **Design** — specify the plan precisely: base/variable mix, tiered commission curves with accelerators and decelerators, quotas, lump-sum bonuses, caps — plus the primitives that ride on top: recoverable and non-recoverable draws, clawbacks, spot bonuses, and a pay floor.
-- **Simulate** — every modeled segment best-responds to the plan. Out come the distributions that matter: attainment, payouts, total comp cost, revenue response, pay-for-performance, and — where a second activity exists — how effort splits between what is measured and what is merely valuable.
+- **Simulate** — every modeled segment best-responds to the plan. Out come the distributions that matter: attainment, payouts, total comp cost, revenue response, pay-for-performance, and — where a second activity exists — how effort splits between what is measured and what is merely valuable. Declare the firm's objective and each plan is read back against it in expected profit, with the Goodhart wedge priced rather than only flagged.
 - **Analyze** — a perverse-incentive linter flags dead zones, cliff exploits, cap-induced quit points, period-boundary gaming, quota-ratchet suppression, team free-riding, and Goodhart divergence between the measured metric and the intended one. Run the plan across a multi-period horizon where quotas reset on what reps produced; put reps in a credit-sharing team or a rank-order tournament and read the equilibrium. Compare nearby commission-rate schedules with an explicitly bounded local search, or load a local attainment CSV to propose refreshed assumptions. Monte Carlo over assumption uncertainty shows which assumption to validate first; a plan-space sweep does the complementary job, moving one plan scalar across a range and marking the exact values where a segment changes the play it makes.
 - **Communicate** — export a self-contained, seed-stamped design record that documents the plan, the assumptions, and the computed consequences.
 
@@ -84,6 +84,7 @@ This emits a plain static site in `out/`, which serves from any static host. `np
 - **Suggestions are local, not prescriptions.** The rate-schedule helper explores only a small neighbourhood with explicit cost, retention, and linter guards; it does not identify a globally optimal plan or replace the linter and uncertainty reading.
 - **Calibration is local and descriptive.** It accepts a local attainment CSV and proposes ability/noise assumptions; no files are uploaded or retained, and it is not a payroll import, causal estimate, or connector to a CRM.
 - **The sweep is an instrument, not an optimiser.** It moves one plan scalar and recomputes; it never nominates a plan. Where a crossing is an irrational number it reports the interval rather than a point inside it.
+- **The declared objective is declared.** Expected profit and any limits beside it are what the owner writes down, not something the engine infers or defends. The only ranking it will make is dominance — better on both cost and value at once.
 - **Accessibility.** Light and dark themes, built against WCAG 2.1 AA. It has not been independently audited.
 
 ## References
@@ -104,4 +105,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.14.7
+**Version:** v0.14.8
