@@ -14,7 +14,7 @@ None of that is a surprise, and none of it needs to be a surprise. Once the plan
 - **Design** — specify the plan precisely: base/variable mix, tiered commission curves with accelerators and decelerators, quotas, lump-sum bonuses, caps — plus the primitives that ride on top: recoverable and non-recoverable draws, clawbacks, spot bonuses, and a pay floor.
 - **Simulate** — every modeled segment best-responds to the plan. Out come the distributions that matter: attainment, payouts, total comp cost, revenue response, pay-for-performance, and — where a second activity exists — how effort splits between what is measured and what is merely valuable. Beside those numbers sit the two questions the KPI cards cannot answer: who actually stays once a reservation value is a real alternative, and — when the plans are offered as a menu rather than compared as designs — which segment chooses which plan. Declare the firm's objective and each plan is read back against it in expected profit, with the Goodhart wedge priced rather than only flagged.
 - **Analyze** — a perverse-incentive linter flags dead zones, cliff exploits, cap-induced quit points, period-boundary gaming, quota-ratchet suppression, team free-riding, and Goodhart divergence between the measured metric and the intended one. Run the plan across a multi-period horizon where quotas reset on what reps produced; put reps in a credit-sharing team or a rank-order tournament and read the equilibrium. Compare nearby commission-rate schedules with an explicitly bounded local search, or load a local attainment CSV to propose refreshed assumptions. Monte Carlo over assumption uncertainty shows which assumption to validate first; a plan-space sweep does the complementary job, moving one plan scalar across a range and marking the exact values where a segment changes the play it makes.
-- **Communicate** — export a self-contained, seed-stamped design record that documents the plan, the assumptions, and the computed consequences.
+- **Communicate** — export a self-contained, seed-stamped design record that documents the plan, the assumptions, and the computed consequences. The casebook goes the other way: five published findings from the literature, encoded as scenarios the engine runs, each loadable in one click.
 
 ## What it is not
 
@@ -86,6 +86,7 @@ This emits a plain static site in `out/`, which serves from any static host. `np
 - **Sorting and exit are reported beside the KPIs, never inside them.** Headline KPIs stay full-roster by design, and say so. Who leaves, who chooses what, and what those readings change are computed separately, because folding them together would make both unreadable.
 - **The sweep is an instrument, not an optimiser.** It moves one plan scalar and recomputes; it never nominates a plan. Where a crossing is an irrational number it reports the interval rather than a point inside it.
 - **The declared objective is declared.** Expected profit and any limits beside it are what the owner writes down, not something the engine infers or defends. The only ranking it will make is dominance — better on both cost and value at once.
+- **The casebook encodes mechanisms, not estimates.** Each episode is a stylised scenario chosen so a published mechanism drives the result; the round numbers are not the studies' coefficients and no episode is a replication.
 - **Accessibility.** Light and dark themes, built against WCAG 2.1 AA. It has not been independently audited.
 
 ## References
@@ -97,6 +98,7 @@ The engine's design draws on a specific slice of the principal-agent literature.
 - Oyer, P. (1998). Fiscal year ends and nonlinear incentive contracts: the effect on business seasonality. _Quarterly Journal of Economics_ 113(1). doi:[10.1162/003355398555559](https://doi.org/10.1162/003355398555559) — anchors bonus-cliff bunching and accelerator-driven timing games.
 - Steenburgh, T. (2008). Effort or timing: the effect of lump-sum bonuses on the output of sales agents. _Quantitative Marketing and Economics_ 6(3). doi:[10.1007/s11129-008-9039-7](https://doi.org/10.1007/s11129-008-9039-7) — anchors the bonus-cliff decomposition of effort vs timing.
 - Larkin, I. (2014). The cost of high-powered incentives: employee gaming in enterprise software sales. _Journal of Labor Economics_ 32(2). doi:[10.1086/673371](https://doi.org/10.1086/673371) — anchors accelerator-driven deal-closure timing gaming.
+- Lazear, E. P. (2000). Performance pay and productivity. _American Economic Review_ 90(5). doi:[10.1257/aer.90.5.1346](https://doi.org/10.1257/aer.90.5.1346) — anchors the sorting half of the response to incentive pay, and the casebook episode built on it.
 - Lazear, E. P. & Rosen, S. (1981). Rank-order tournaments as optimum labor contracts. _Journal of Political Economy_ 89(5). — anchors the rank-order tournament equilibrium.
 - Weitzman, M. L. (1980). The "ratchet principle" and performance incentives. _Bell Journal of Economics_ 11(1). — anchors the multi-period quota ratchet.
 
@@ -106,4 +108,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.14.9
+**Version:** v0.14.10

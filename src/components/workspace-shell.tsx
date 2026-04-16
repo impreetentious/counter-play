@@ -141,6 +141,8 @@ export function WorkspaceShell(): React.JSX.Element {
       <SharePanel />
       <p className="record-footer" style={{ marginTop: 24 }}>
         <Link href="/record">Open printable design record →</Link>
+        {" · "}
+        <Link href="/casebook">Read the casebook: five published findings, runnable →</Link>
       </p>
     </main>
   );
