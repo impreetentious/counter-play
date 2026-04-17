@@ -8,8 +8,8 @@ import { lintScenario } from "./linter";
 import { Rat, R0 } from "./rat";
 import type { Plan, Scenario, SecondTask, Segment } from "./types";
 
-// §12 V-03 multitasking goldens. Every value is the closed form derived
-// by hand and reproduced here — never read back from the implementation (§9).
+// §12 V-03 multitasking goldens. Every value is the closed form pinned in docs/MATH-SPEC.md §3.3b, derived
+// by hand there and reproduced here — never read back from the implementation (§9).
 // a₁ = 100, k = 100, γ = 1, ρ = 0, Ū = 0, m = 1; plan B = 0, Q = 10, one tier r = 0.1.
 const baseSegment: Segment = {
   id: "seg-1",

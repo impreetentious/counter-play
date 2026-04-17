@@ -7,8 +7,8 @@ import { computeTiming } from "./timing";
 import { Rat, R0 } from "./rat";
 import type { Horizon, Plan, Scenario, Segment } from "./types";
 
-// §12 V-04 horizon and ratchet goldens. Every value is the closed form,
-// derived by hand and reproduced here — never read back from the implementation (§9).
+// §12 V-04 horizon and ratchet goldens. Every value is the closed form pinned in docs/MATH-SPEC.md §3.10a,
+// derived by hand there and reproduced here — never read back from the implementation (§9).
 // a = 100, k = 100, m = 1, movable = 0; plan B = 0, Q = 10, tiers 5% then 20% above quota.
 const segment: Segment = {
   id: "seg-1",

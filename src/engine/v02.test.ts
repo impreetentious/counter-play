@@ -9,7 +9,7 @@ import { computeTiming } from "./timing";
 import { Rat, R0 } from "./rat";
 import type { Plan, Rationality, Scenario, Segment } from "./types";
 
-// §12 V-02 bounded-rationality goldens. Every value is the closed form,
+// §12 V-02 bounded-rationality goldens. Every value is the closed form pinned in docs/MATH-SPEC.md §3.3a,
 // evaluated independently — never read back from the implementation (§9).
 // a = 100, k = 100, Q_s = 100, B = 10, one tier r = 0.1 ⇒ C = {0, 0.1}, f = (10, 10.5).
 const segment: Segment = {

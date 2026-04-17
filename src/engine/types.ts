@@ -57,7 +57,7 @@ export interface ThresholdLump {
 
 /**
  * §3.2a V-01 payout-primitive extensions. Every field is optional; an all-null
- * (or absent) block leaves `W` identical to §3.2.
+ * (or absent) block leaves `W` identical to §3.2. See docs/MATH-SPEC.md §3.2a.
  */
 export interface PayoutExtras {
   /** D_nr ≥ 0 — non-recoverable draw; floors tier commission at D_nr (incentive-bearing). */

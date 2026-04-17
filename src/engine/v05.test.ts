@@ -13,8 +13,8 @@ import {
 import { Rat, R0 } from "./rat";
 import type { Plan, Scenario, Segment, TeamSettings } from "./types";
 
-// §12 V-05 team and tournament goldens. Every value is the closed form,
-// derived by hand and reproduced here — never read back from the implementation (§9).
+// §12 V-05 team and tournament goldens. Every value is the closed form pinned in docs/MATH-SPEC.md §3.14,
+// derived by hand there and reproduced here — never read back from the implementation (§9).
 // a = 100, k = 100, m = 1; plan B = 0, Q = 10, one tier r = 0.1.
 const segment: Segment = {
   id: "seg-1",

@@ -382,7 +382,9 @@ function objectiveAtFixedEffort(
  * `unresolved` — a real branch change whose crossing is not a rational number.
  */
 type CrossingSearch =
-  { kind: "located"; at: Rat } | { kind: "continuous" } | { kind: "unresolved" };
+  | { kind: "located"; at: Rat }
+  | { kind: "continuous" }
+  | { kind: "unresolved" };
 
 /** `f⋆` — the best objective available at this axis value, in exact and softmax modes alike. */
 function bestObjectiveAt(

@@ -8,7 +8,7 @@ import { normalPdf } from "./normal";
 import { Rat, R0 } from "./rat";
 import type { Plan, PayoutExtras, Segment } from "./types";
 
-// §12 V-01 payout-primitive goldens. Every value is hand-derived,
+// §12 V-01 payout-primitive goldens. Every value is hand-derived from docs/MATH-SPEC.md §3.2a,
 // not read back from the implementation (§9): a=100, k=100, Q_s=100, B=10, one tier r=0.1.
 const segment: Segment = {
   id: "seg-1",
