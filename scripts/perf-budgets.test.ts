@@ -87,10 +87,18 @@ describe("§4.7 perf budgets (P10)", () => {
     });
     const total = sizes.reduce((sum, row) => sum + row.gzip, 0);
     const target = 200 * 1024;
-    // §4.7 targets 200 KB. On the ratified Next 16.2 / React 19 stack the measured
-    // first-load floor is ~272–283 KB (framework + polyfill + workspace). Closing the
-    // gap would require a stack change outside G-9. Record the miss as F-001 and guard
-    // against further regression.
+    // §4.7 targets 200 KB. Measured first-load on the ratified Next 16.2 / React 19
+    // stack is 289,173 bytes (282.4 KB) across 11 scripts, leaving 38,507 bytes —
+    // 11.8 % — under the ceiling below.
+    //
+    // Do not treat that headroom as spare. It exists because the Design, Simulate, and
+    // Analyze surfaces were moved to `next/dynamic`; before that the total was 318.8 KB
+    // with 1,259 bytes of margin, and the comment here claimed a ~272–283 KB floor that
+    // had not been true for some time. Re-measure rather than trusting this number.
+    //
+    // ~147 KB of the remainder is stack floor (react-dom + scheduler 69.2 KB, framework
+    // chunks 39.4 + 38.6 KB), so the §4.7 miss is not closable by further splitting.
+    // Record the miss as F-001 and guard against regression.
     const regressionCeiling = 320 * 1024;
     console.log(
       JSON.stringify({

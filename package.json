@@ -1,6 +1,6 @@
 {
   "name": "app",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "private": true,
   "engines": {
     "node": "24.14.0"
@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "serve -l 4001 out",
+    "start": "serve -l 4001 --config ../serve.json out",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -16,10 +16,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=0 playwright test",
-    "test:all": "npm run check:version && npm run typecheck && npm run lint && npm run check:citations && npm run format:check && npm run test && npm run build && npm run test:e2e",
+    "test:all": "npm run check:version && npm run typecheck && npm run lint && npm run check:citations && npm run format:check && npm run test && npm run build && npm run check:csp && npm run test:e2e",
     "perf:budgets": "vitest run --config vitest.perf.config.ts",
     "check:version": "node scripts/check-version-coherence.mjs",
-    "check:citations": "node scripts/check-citations.mjs"
+    "check:citations": "node scripts/check-citations.mjs",
+    "check:csp": "node scripts/check-csp.mjs"
   },
   "dependencies": {
     "next": "16.2.1",

@@ -75,6 +75,8 @@ npm run build
 
 This emits a plain static site in `out/`, which serves from any static host. `npm run start` serves that build locally at `http://localhost:4001`. There is no hosted instance — run it locally or deploy the bundle yourself.
 
+Whatever host you use should send the response headers documented in [docs/STATIC-HOST-HEADERS.md](docs/STATIC-HOST-HEADERS.md). `vercel.json` applies them on Vercel and `serve.json` applies the same policy to `npm run start`, so the browser suite runs against the real policy across all three engines. `npm run check:csp` fails if the two host configs and the document ever disagree.
+
 ## Limitations
 
 - **Segments, not individuals.** Reps are aggregated into segments, and every rep inside a segment is identical. Team credit and tournaments model a symmetric group within a segment — not heterogeneous rivals, and not an org chart.
@@ -108,4 +110,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.15.0
+**Version:** v0.15.1
