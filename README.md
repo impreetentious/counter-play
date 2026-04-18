@@ -77,6 +77,8 @@ This emits a plain static site in `out/`, which serves from any static host. `np
 
 Whatever host you use should send the response headers documented in [docs/STATIC-HOST-HEADERS.md](docs/STATIC-HOST-HEADERS.md). `vercel.json` applies them on Vercel and `serve.json` applies the same policy to `npm run start`, so the browser suite runs against the real policy across all three engines. `npm run check:csp` fails if the two host configs and the document ever disagree.
 
+The GitHub remote is authoritative and carries the only pipeline; `.github/workflows/ci.yml` runs every gate. The GitLab remote is a backup mirror kept in sync, deliberately without a `.gitlab-ci.yml` — there is no second publication target to gate, and a mirrored pipeline would only create a second place for gate drift.
+
 ## Limitations
 
 - **Segments, not individuals.** Reps are aggregated into segments, and every rep inside a segment is identical. Team credit and tournaments model a symmetric group within a segment — not heterogeneous rivals, and not an org chart.
@@ -110,4 +112,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.15.1
+**Version:** v0.15.2
