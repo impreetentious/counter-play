@@ -75,6 +75,8 @@ npm run build
 
 This emits a plain static site in `out/`, which serves from any static host. `npm run start` serves that build locally at `http://localhost:4001`. There is no hosted instance — run it locally or deploy the bundle yourself.
 
+The supported PDF route is browser print-to-PDF from `/record`; no generated-PDF runtime dependency is shipped.
+
 Whatever host you use should send the response headers documented in [docs/STATIC-HOST-HEADERS.md](docs/STATIC-HOST-HEADERS.md). `vercel.json` applies them on Vercel and `serve.json` applies the same policy to `npm run start`, so the browser suite runs against the real policy across all three engines. `npm run check:csp` fails if the two host configs and the document ever disagree.
 
 The GitHub remote is authoritative and carries the only pipeline; `.github/workflows/ci.yml` runs every gate. The GitLab remote is a backup mirror kept in sync, deliberately without a `.gitlab-ci.yml` — there is no second publication target to gate, and a mirrored pipeline would only create a second place for gate drift.
@@ -112,4 +114,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.15.2
+**Version:** v0.16.0
