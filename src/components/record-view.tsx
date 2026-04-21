@@ -16,7 +16,7 @@ import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 import { formatCompactCurrency, formatPercent, formatPreparedDate } from "@/i18n";
 
-const appVersion = "0.16.0";
+const appVersion = "0.16.1";
 
 function fmtCurrency(
   value: number,

@@ -1,13 +1,20 @@
 # Development Notes
 
+Use Node `24.14.0` and npm `11.12.0`, as declared by `.nvmrc`, `engines`, and `packageManager`.
+Install with `npm ci`; `engine-strict` rejects a different Node runtime.
+
 Local development uses deterministic, repo-owned ports:
 
 - `npm run dev` serves the Next.js dev server on port 3001.
 - `npm run start` serves the static export from `out/` on port 4001.
 - `npm run test:e2e` uses repo-local Playwright browsers via `PLAYWRIGHT_BROWSERS_PATH=0`.
 
-Dependency maintenance notes:
+Before opening a pull request, install the Playwright browsers once and run the full gate:
 
-- `next@16.2.x` can pin nested `postcss` and `sharp` ranges; explicit overrides are required when advisories land below Next.
-- The `serve-handler` `brace-expansion@~1.1.12` override is load-bearing for local static serving and Playwright.
-- Overrides on direct dependencies must use npm's `$name` self-reference form or npm raises `EOVERRIDE`.
+```bash
+PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium firefox webkit
+npm run test:all
+```
+
+The full gate includes the production build before performance and CSP checks because both inspect
+the generated `out/` directory. CI additionally runs `npm audit --audit-level=high`.

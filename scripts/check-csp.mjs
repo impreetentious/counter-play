@@ -13,7 +13,7 @@ const SERVE = "serve.json";
 
 // `worker-src 'none'` is a claim, not boilerplate: this repo runs no Web Worker
 // and no service worker, so the honest value is 'none'. Moving simulation off the
-// main thread means widening it in the same commit. `connect-src 'self'` is
+// main thread means widening it at the same time. `connect-src 'self'` is
 // deliberate too — `'none'` would block App Router prefetch of the same-origin
 // /record and /casebook payloads.
 const requiredDirectives = [

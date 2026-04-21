@@ -24,7 +24,7 @@ Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
 - **`worker-src 'none'`** — Counterplay has no Web Worker and no service worker; Monte Carlo runs
   chunked on the main thread. `'none'` is therefore the honest value, and it is deliberately
   stricter than the sibling repos that do run workers. If a future change moves the simulation off
-  the main thread, this directive must be widened to `'self'` in the same commit — `npm run
+  the main thread, this directive must be widened to `'self'` at the same time — `npm run
 check:csp` will not catch that, because a missing worker is not a broken build until it runs.
 - **`connect-src 'self'`** — the product opens no connections of its own, so `'none'` looks
   tempting. It is wrong here: the App Router prefetches same-origin route payloads for the `/record`
@@ -45,5 +45,5 @@ an off-origin reference. Update all three together, then re-run `npm run test:al
 serves `out/` under this exact policy across Chromium, Firefox, and WebKit, so a policy that breaks a
 surface fails the gate rather than shipping.
 
-Host-specific tuning and verification of the deployed response headers remain an owner step at deploy
-time; nothing here has been checked against a live host.
+Host-specific tuning and verification of the deployed response headers must be completed during
+deployment; nothing here has been checked against a live host.

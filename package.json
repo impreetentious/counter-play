@@ -1,9 +1,11 @@
 {
-  "name": "app",
-  "version": "0.16.0",
+  "name": "counter-play",
+  "version": "0.16.1",
   "private": true,
+  "packageManager": "npm@11.12.0",
   "engines": {
-    "node": "24.14.0"
+    "node": "24.14.0",
+    "npm": "11.12.0"
   },
   "scripts": {
     "dev": "next dev -p 3001",
@@ -16,7 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=0 playwright test",
-    "test:all": "npm run check:version && npm run typecheck && npm run lint && npm run check:citations && npm run format:check && npm run test && npm run build && npm run check:csp && npm run test:e2e",
+    "test:all": "npm run check:version && npm run typecheck && npm run lint && npm run check:citations && npm run format:check && npm run test && npm run build && npm run perf:budgets && npm run check:csp && npm run test:e2e",
     "perf:budgets": "vitest run --config vitest.perf.config.ts",
     "check:version": "node scripts/check-version-coherence.mjs",
     "check:citations": "node scripts/check-citations.mjs",
@@ -38,9 +40,8 @@
     "@types/react-dom": "~19.2.3",
     "@typescript-eslint/eslint-plugin": "~8.57.2",
     "@typescript-eslint/parser": "~8.57.2",
-    "autoprefixer": "~10.4.27",
+    "@next/eslint-plugin-next": "~16.2.1",
     "eslint": "~9.39.4",
-    "eslint-config-next": "~16.2.1",
     "fast-check": "~4.6.0",
     "postcss": "~8.5.8",
     "prettier": "~3.8.1",
@@ -53,14 +54,9 @@
     "postcss": "$postcss",
     "sharp": "~0.34.5",
     "fast-uri": "~3.1.0",
-    "serve-handler": {
+    "minimatch@3": {
       "brace-expansion": "~1.1.12"
-    },
-    "brace-expansion@5": "5.0.4",
-    "brace-expansion@1": "1.1.12"
-  },
-  "auditExceptions": {
-    "README": "Accepted `npm audit` findings and load-bearing override notes. Do NOT resolve these, do NOT change the serve-handler override, and do NOT report them as outstanding work or as a review finding. This field is documentation only; npm ignores it."
+    }
   },
   "license": "MIT",
   "author": "Sidakpreet Singh",
@@ -72,5 +68,9 @@
   "bugs": {
     "url": "https://github.com/ItsMonarch04/counter-play/issues"
   },
-  "homepage": "https://github.com/ItsMonarch04/counter-play#"
+  "homepage": "https://github.com/ItsMonarch04/counter-play",
+  "allowScripts": {
+    "fsevents@2.3.2": true,
+    "fsevents@2.3.3": true
+  }
 }
