@@ -43,7 +43,7 @@ export interface FloatDecomposition {
 }
 
 /** §3.2a recoverable-draw cash-flow report (never enters W). */
-export interface RecoverableDrawReport {
+interface RecoverableDrawReport {
   advance: number;
   carry: number;
 }
@@ -97,7 +97,7 @@ export interface PayoutPiece {
 }
 
 /** §3.3a one play from the choice set, with its own payout distribution. */
-export interface StochasticComponent {
+interface StochasticComponent {
   probability: number;
   effort: number;
   output: number;
@@ -269,7 +269,6 @@ function expectedDecomposition(
 /** §3.2a recoverable-draw report: advance D_r and expected carry E[(D_r + B − W)⁺]. */
 function recoverableDrawReport(
   plan: Plan,
-  segment: Segment,
   pieces: readonly PayoutPiece[],
   mean: number,
   sigma: number,
@@ -392,7 +391,6 @@ function useRiskNeutral(plan: Plan, segment: Segment, eMax: number): boolean {
 }
 
 function evaluateCe(
-  plan: Plan,
   segment: Segment,
   pieces: readonly PayoutPiece[],
   effort: number,
@@ -539,7 +537,7 @@ export function respondCARA(
   const pieces = payoutPieces(plan, solving);
   const eMax = stochasticCeiling(plan, solving);
   const riskNeutral = useRiskNeutral(plan, solving, eMax);
-  const evaluate = (effort: number) => evaluateCe(plan, solving, pieces, effort, riskNeutral);
+  const evaluate = (effort: number) => evaluateCe(solving, pieces, effort, riskNeutral);
   const ability = toNumber(solving.ability);
   const costK = toNumber(solving.costK);
   let best: { effort: number; ce: number };
@@ -616,7 +614,7 @@ export function respondCARA(
   const ce = single ? single.objective : weigh((component) => component.objective);
   const quota = toNumber(segmentQuota(plan, solving));
   const carries = components.map((component) =>
-    recoverableDrawReport(plan, solving, pieces, component.output, sigma),
+    recoverableDrawReport(plan, pieces, component.output, sigma),
   );
   const advance = carries.find((report) => report !== null) ?? null;
 

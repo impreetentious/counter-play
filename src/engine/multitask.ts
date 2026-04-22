@@ -79,7 +79,7 @@ export function portfolioEfficiency(first: Rat, second: Rat, psi: Rat): Portfoli
  * Cheapest effort split delivering `q`. Both branches agree where they meet (`ψ·max = min`),
  * so the interior formulas are used whenever the interior test passes.
  */
-export function allocate(
+function allocate(
   first: Rat,
   second: Rat,
   psi: Rat,

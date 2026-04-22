@@ -23,7 +23,7 @@ export const KPI_KEYS: readonly KpiKey[] = [
   "trueValue",
 ];
 
-export interface McKpiSample {
+interface McKpiSample {
   expectedRevenue: number;
   totalComp: number;
   compRatio: number | null;
@@ -32,20 +32,20 @@ export interface McKpiSample {
   trueValue: number;
 }
 
-export interface McPlanQuantiles {
+interface McPlanQuantiles {
   p10: number;
   p50: number;
   p90: number;
 }
 
-export interface McPlanSummary {
+interface McPlanSummary {
   planId: string;
   planLabel: string;
   draws: McKpiSample[];
   quantiles: Record<KpiKey, McPlanQuantiles | null>;
 }
 
-export interface McStamp {
+interface McStamp {
   seed: number;
   N: number;
   engineVersion: string;
@@ -66,13 +66,13 @@ export interface MonteCarloRun {
   result(): McResult;
 }
 
-export interface TornadoParameterId {
+interface TornadoParameterId {
   kind: "demand" | "segment";
   segmentId?: string;
   param?: "a" | "k" | "sigma" | "gamma";
 }
 
-export interface TornadoBarPlan {
+interface TornadoBarPlan {
   planId: string;
   planLabel: string;
   base: number | null;
@@ -80,7 +80,7 @@ export interface TornadoBarPlan {
   high: number | null;
 }
 
-export interface TornadoBar {
+interface TornadoBar {
   id: string;
   label: string;
   parameter: TornadoParameterId;
@@ -381,8 +381,4 @@ export function computeTornado(scenario: Scenario, kpi: KpiKey): TornadoResult {
 
 export function hasActiveRanges(scenario: Scenario): boolean {
   return canonicalParams(scenario).length > 0;
-}
-
-export function activeParameterLabels(scenario: Scenario): string[] {
-  return canonicalParams(scenario).map((param) => param.label);
 }

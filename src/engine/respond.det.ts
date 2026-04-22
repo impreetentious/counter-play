@@ -7,13 +7,13 @@ import type { PayoutDecomposition } from "./plan";
 import type { Plan, Rationality, Segment } from "./types";
 
 /** §3.2a recoverable-draw cash-flow report (never enters W); exact in det mode. */
-export interface RecoverableDrawReport {
+interface RecoverableDrawReport {
   advance: Rat;
   carry: Rat;
 }
 
 /** §3.3a one play from the choice set, with the probability the segment plays it. */
-export interface DeterministicComponent {
+interface DeterministicComponent {
   probability: Rat;
   effort: Rat;
   output: Rat;

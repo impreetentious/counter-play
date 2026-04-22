@@ -263,4 +263,3 @@ export class Rat {
 }
 
 export const R0 = Rat.zero();
-export const R1 = Rat.one();

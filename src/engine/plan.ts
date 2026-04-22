@@ -95,7 +95,7 @@ function rawPerTier(plan: Plan, segment: Segment, output: Rat): Rat[] {
 }
 
 /** Tier commission C(q) = Σ perTier (nondecreasing across ℝ). */
-export function rawCommission(plan: Plan, segment: Segment, output: Rat): Rat {
+function rawCommission(plan: Plan, segment: Segment, output: Rat): Rat {
   return rawPerTier(plan, segment, output).reduce((sum, value) => sum.add(value), R0);
 }
 
@@ -192,7 +192,7 @@ function sortUniqueRats(values: readonly Rat[]): Rat[] {
 }
 
 /** Builds exact α+βq pieces over (−∞, b₀], (b₀, b₁], …, (bₙ, ∞] from a value/slope oracle. */
-export function buildLinearPieces(
+function buildLinearPieces(
   breakpoints: readonly Rat[],
   valueAt: (q: Rat) => Rat,
   slopeAt: (q: Rat) => Rat,

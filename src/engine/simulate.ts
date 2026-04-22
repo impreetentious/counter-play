@@ -82,7 +82,7 @@ export type AnyPlanComparison = PlanComparison | StochasticPlanComparison;
 
 /**
  * §3.5 weighted lower quantile over exact point masses. Weights are rationals so a §3.3a
- * mixture contributes `n_s·p_j` per component; integer headcounts reproduce the P2 rule exactly.
+ * mixture contributes `n_s·p_j` per component, preserving integer-headcount weighting exactly.
  */
 function weightedLowerQuantile(
   points: readonly { value: Rat; weight: Rat }[],
@@ -170,7 +170,7 @@ function simulatePlan(scenario: Scenario, plan: Plan): DeterministicPlanResult {
   };
 }
 
-/** P2 deterministic population runner. P3 supplies the stochastic branch. */
+/** Deterministic population runner; the stochastic branch is implemented below. */
 export function simulateDeterministic(scenario: Scenario): DeterministicSimulationResult {
   if (scenario.settings.mode !== "deterministic")
     throw new EngineError("INVALID_INPUT", "Deterministic simulation requires deterministic mode.");

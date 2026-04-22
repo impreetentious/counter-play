@@ -43,7 +43,7 @@ function p1evl(value: number, coefficients: readonly number[]): number {
 }
 
 /** Cephes/Cody-style complementary error function, accurate in both normal tails. */
-export function erfc(value: number): number {
+function erfc(value: number): number {
   const x = Math.abs(value);
   if (x < 1) return 1 - erf(value);
   const exponent = -x * x;
@@ -54,7 +54,7 @@ export function erfc(value: number): number {
   return value < 0 ? 2 - answer : answer;
 }
 
-export function erf(value: number): number {
+function erf(value: number): number {
   const x = Math.abs(value);
   if (x > 1) return 1 - erfc(value);
   const z = value * value;
@@ -90,7 +90,7 @@ export function logNormalCdf(z: number): number {
   return -0.5 * z * z - Math.log(-z) - LOG_SQRT_2PI + Math.log1p(correction);
 }
 
-export function log1mexp(value: number): number {
+function log1mexp(value: number): number {
   if (value > 0) throw new RangeError("log1mexp expects a non-positive argument.");
   return value > -Math.LN2 ? Math.log(-Math.expm1(value)) : Math.log1p(-Math.exp(value));
 }
