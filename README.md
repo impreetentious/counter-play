@@ -114,4 +114,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.16.2
+**Version:** v0.16.3

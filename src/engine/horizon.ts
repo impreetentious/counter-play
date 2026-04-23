@@ -11,7 +11,7 @@ import type { Horizon, Plan, Scenario, Segment } from "./types";
  * module — see §3.10a for why a mixture over quota paths is a different object.
  */
 
-export interface HorizonPeriodResult {
+interface HorizonPeriodResult {
   /** 1-based period index. */
   period: number;
   demand: Rat;
@@ -27,7 +27,7 @@ export interface HorizonPeriodResult {
   payout: Rat;
 }
 
-export interface HorizonSegmentResult {
+interface HorizonSegmentResult {
   segmentId: string;
   segmentLabel: string;
   count: number;
@@ -48,7 +48,7 @@ export interface HorizonSegmentResult {
   attainmentDrift: Rat;
 }
 
-export interface HorizonPlanResult {
+interface HorizonPlanResult {
   planId: string;
   planLabel: string;
   perSegment: HorizonSegmentResult[];
@@ -199,7 +199,7 @@ function tiePreferable(candidate: Rat, current: Rat): boolean {
  * §3.10a boundary shift between two periods that may carry different quotas — §3.10's optimizer
  * with the payout functions taken from each period's own quota.
  */
-export function optimizeShiftAcross(
+function optimizeShiftAcross(
   plan: Plan,
   first: Segment,
   second: Segment,

@@ -1,12 +1,9 @@
 import { EngineError } from "./errors";
 import { trueValueOf } from "./multitask";
-import { attainment as planAttainment } from "./plan";
 import { Rat, R0 } from "./rat";
 import { respondCARA } from "./respond.cara";
 import { respondDeterministic } from "./respond.det";
 import type { Mode, Plan, Scenario, Segment } from "./types";
-
-export type { MenuSettings } from "./types";
 
 /**
  * Selection and sorting — the hidden-information half of the subject.
@@ -31,7 +28,7 @@ export type { MenuSettings } from "./types";
  * convention is the tie-break, pinned below.
  */
 
-export interface PlanOption {
+interface PlanOption {
   planId: string;
   planLabel: string;
   /** Exact in deterministic mode; the exact rational of the float CE in CARA mode (§3.7). */
@@ -45,7 +42,7 @@ export interface PlanOption {
   participates: boolean;
 }
 
-export interface SegmentChoice {
+interface SegmentChoice {
   segmentId: string;
   segmentLabel: string;
   count: number;
@@ -64,7 +61,7 @@ export interface SegmentChoice {
   surplus: Rat;
 }
 
-export interface RosterKpis {
+interface RosterKpis {
   headcount: number;
   expectedRevenue: Rat;
   totalComp: Rat;
@@ -270,13 +267,4 @@ export function computeSorting(scenario: Scenario): SortingResult {
       .map((choice) => choice.segmentId),
     roster,
   };
-}
-
-/** Attainment of a segment's chosen play, for the sorting map's per-row read-out. */
-export function chosenAttainment(scenario: Scenario, choice: SegmentChoice): Rat | null {
-  const plan = scenario.plans.find((entry) => entry.id === choice.chosenPlanId);
-  const segment = scenario.population.find((entry) => entry.id === choice.segmentId);
-  const option = choice.options.find((entry) => entry.planId === choice.chosenPlanId);
-  if (!plan || !segment || !option) return null;
-  return planAttainment(plan, segment, option.output);
 }

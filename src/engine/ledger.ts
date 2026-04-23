@@ -16,7 +16,7 @@ import type { Objective, Scenario } from "./types";
  * one plan dominates another on that objective it says so with the arithmetic attached.
  */
 
-export interface LedgerConstraint {
+interface LedgerConstraint {
   id: "comp-ratio" | "retention";
   label: string;
   /** The plan's realised value. Null when the KPI is itself undefined (§3.5 zero revenue). */
@@ -25,7 +25,7 @@ export interface LedgerConstraint {
   satisfied: boolean;
 }
 
-export interface LedgerRow {
+interface LedgerRow {
   planId: string;
   planLabel: string;
   expectedRevenue: Rat;
@@ -48,7 +48,7 @@ export interface LedgerRow {
   feasible: boolean;
 }
 
-export interface LedgerDominance {
+interface LedgerDominance {
   dominantPlanId: string;
   dominatedPlanId: string;
   /** How much more profit the dominant plan earns. Always strictly positive. */

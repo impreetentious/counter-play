@@ -3,7 +3,7 @@ import { optimizePlan } from "./optimizer";
 import { Rat, R0 } from "./rat";
 import type { Plan, Scenario, Segment } from "./types";
 
-// §3.15's hand-derived V-06 golden: e = r·a/k, q = 100e; a 10% rate lift moves q 10 → 11.
+// §3.15's hand-derived reference: e = r·a/k, q = 100e; a 10% rate lift moves q 10 → 11.
 const segment: Segment = {
   id: "seg-1",
   label: "Core",
@@ -41,7 +41,7 @@ const scenario: Scenario = {
   meta: { notes: "" },
 };
 
-describe("V-06 local plan search", () => {
+describe("local plan search", () => {
   it("selects the hand-derived 10% rate neighbour under the exact deterministic protocol", () => {
     const result = optimizePlan(scenario, "plan-1");
     expect(result).not.toBeNull();

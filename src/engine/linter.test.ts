@@ -275,7 +275,7 @@ describe("linter goldens", () => {
     expect(lintScenario(parseScenario(LF5))).toEqual([]);
   });
 
-  it("LF-6 fires L-7 high on seg-1 (O-F2 end-to-end pull; frozen at P8)", () => {
+  it("LF-6 fires L-7 high on seg-1 for the O-F2 end-to-end pull", () => {
     const findings = lintScenario(parseScenario(LF6));
     expect(findings).toHaveLength(1);
     const first = findings[0]!;

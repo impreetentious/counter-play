@@ -4,10 +4,10 @@ import { simulateDeterministic, type DeterministicPlanResult } from "./simulate"
 import type { Plan, Scenario } from "./types";
 
 /**
- * §3.15 V-06. A deliberately small, deterministic neighbourhood search. It is an aid for
+ * §3.15. A deliberately small, deterministic neighbourhood search. It is an aid for
  * comparing nearby rate schedules, not a plan-authoring oracle or a global optimisation claim.
  */
-export interface OptimizerSummary {
+interface OptimizerSummary {
   trueValue: Rat;
   totalComp: Rat;
   expectedRevenue: Rat;

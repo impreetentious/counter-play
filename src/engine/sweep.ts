@@ -13,13 +13,13 @@ import type { Mode, Plan, Scenario, Segment } from "./types";
  * scalar over a stated range, every KPI as a curve, and the exact parameter values where a
  * segment's best play jumps from one branch of the payout function to another.
  *
- * It is deliberately not a plan optimiser (§2.5 defers that, and §3.15's V-06 is the only
+ * It is deliberately not a plan optimiser (§3.15's local search is the only
  * search this product ships): there is no argmax, no ranking, and no suggested plan — the
- * reader draws the conclusion from the curve. Like V-06 it evaluates the exact deterministic
+ * reader draws the conclusion from the curve. Like that search, it evaluates the exact deterministic
  * response even from a CARA scenario, so no new float crossing enters §3.7.
  */
 
-export type SweepAxisKind = "base" | "bonusAmount" | "bonusThreshold" | "cap" | "tierRate";
+type SweepAxisKind = "base" | "bonusAmount" | "bonusThreshold" | "cap" | "tierRate";
 
 export interface SweepAxis {
   kind: SweepAxisKind;
@@ -33,7 +33,6 @@ export interface SweepAxis {
 
 export const SWEEP_MIN_STEPS = 4;
 export const SWEEP_MAX_STEPS = 200;
-export const SWEEP_GRID_MIN_STEPS = 4;
 export const SWEEP_GRID_MAX_STEPS = 40;
 
 export type SweepKpiKey = KpiKey | "profit";
@@ -41,14 +40,14 @@ export type SweepKpiKey = KpiKey | "profit";
 /** §3.5 KPIs plus the principal's declared objective (`trueValue − totalComp`). */
 export const SWEEP_KPI_KEYS: readonly SweepKpiKey[] = [...KPI_KEYS, "profit"];
 
-export type SweepKpis = Record<SweepKpiKey, Rat | null>;
+type SweepKpis = Record<SweepKpiKey, Rat | null>;
 
 /**
  * Which structural feature of the payout function the segment's best play is sitting on.
  * Two adjacent grid points sharing a branch moved along one continuous piece; a change of
  * branch is a regime change, and `SweepCrossing` locates it exactly.
  */
-export interface SweepPlay {
+interface SweepPlay {
   segmentId: string;
   effort: Rat;
   output: Rat;
@@ -56,7 +55,7 @@ export interface SweepPlay {
   branch: string;
 }
 
-export interface SweepCrossing {
+interface SweepCrossing {
   segmentId: string;
   /** The exact parameter value at which the play changes; null when it could not be located. */
   at: Rat | null;
@@ -68,7 +67,7 @@ export interface SweepCrossing {
   toOutput: Rat;
 }
 
-export interface SweepPoint {
+interface SweepPoint {
   value: Rat;
   /** Non-null when the plan this grid point would describe is not a legal plan (§3.0). */
   infeasible: string | null;
@@ -78,7 +77,7 @@ export interface SweepPoint {
   highFindings: number | null;
 }
 
-export interface SweepStamp {
+interface SweepStamp {
   engineVersion: string;
   /** The scenario's own mode, recorded even though the sweep always runs the exact path. */
   mode: Mode;
@@ -97,7 +96,7 @@ export interface SweepResult {
   derivedFromStochastic: boolean;
 }
 
-export interface SweepGridCell {
+interface SweepGridCell {
   x: Rat;
   y: Rat;
   infeasible: string | null;
@@ -209,7 +208,7 @@ const ATTAINMENT_CEILING = Rat.from(1000);
  * plan under §3.0's bounds. Infeasible points render as gaps in the curve with their reason
  * stated — never as a silently dropped sample.
  */
-export function applyAxisValue(
+function applyAxisValue(
   plan: Plan,
   axis: SweepAxis,
   value: Rat,
@@ -288,7 +287,7 @@ function kpisOf(row: DeterministicPlanResult): SweepKpis {
  * against a landmark the plan itself defines, so the label is a fact about the optimum rather
  * than a tolerance-dependent guess.
  */
-export function playBranch(plan: Plan, segment: Segment, output: Rat): string {
+function playBranch(plan: Plan, segment: Segment, output: Rat): string {
   if (output.eq(R0)) return "no effort";
   const quota = segmentQuota(plan, segment);
   if (plan.bonus && output.eq(quota.mul(plan.bonus.x_b))) return "bonus threshold";

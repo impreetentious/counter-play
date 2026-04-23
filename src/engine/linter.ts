@@ -22,7 +22,7 @@ export type FindingType =
   | "L-8"
   | "L-9"
   | "L-10";
-export type FindingSeverity = "info" | "warn" | "high";
+type FindingSeverity = "info" | "warn" | "high";
 
 export interface Finding {
   id: string;
