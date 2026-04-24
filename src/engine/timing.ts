@@ -1,10 +1,10 @@
-import { kinks, payout, segmentQuota } from "./plan";
+import { kinks, payout } from "./plan";
 import { respondDeterministic } from "./respond.det";
 import { scaleAbility } from "./multitask";
 import { Rat, R0 } from "./rat";
 import type { Plan, Scenario, Segment } from "./types";
 
-export interface TimingSegmentResult {
+interface TimingSegmentResult {
   segmentId: string;
   segmentLabel: string;
   count: number;
@@ -20,7 +20,7 @@ export interface TimingSegmentResult {
   displacedRevenuePerCapita: Rat;
 }
 
-export interface TimingPlanResult {
+interface TimingPlanResult {
   planId: string;
   planLabel: string;
   perSegment: TimingSegmentResult[];
@@ -144,9 +144,4 @@ export function computeTiming(scenario: Scenario): TimingResult {
     seasonality: scenario.settings.seasonality,
     plans,
   };
-}
-
-/** Quota-anchored helpers used by the boundary UI. */
-export function attainmentOfOutput(plan: Plan, segment: Segment, output: Rat): Rat {
-  return output.div(segmentQuota(plan, segment));
 }

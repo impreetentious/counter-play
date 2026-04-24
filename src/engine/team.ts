@@ -52,7 +52,7 @@ function bestResponse(plan: Plan, solving: Segment, phi: Rat, others: Rat): Rat 
   return best;
 }
 
-export interface SplitEquilibrium {
+interface SplitEquilibrium {
   effort: Rat;
   output: Rat;
   payout: Rat;
@@ -176,7 +176,7 @@ function rivalGrid(size: number, winners: number): { nodes: number[]; weights: n
 }
 
 /** P(top `w` of `n`) for a rep whose score sits `delta` standard deviations above the field. */
-export function winProbability(delta: number, size: number, winners: number): number {
+function winProbability(delta: number, size: number, winners: number): number {
   if (delta > RIVAL_HALF_WIDTH - 10) return 1;
   if (delta < -(RIVAL_HALF_WIDTH - 10)) return 0;
   const grid = rivalGrid(size, winners);
@@ -292,7 +292,7 @@ export function tournamentEquilibrium(
   };
 }
 
-export interface TeamSegmentResult {
+interface TeamSegmentResult {
   segmentId: string;
   segmentLabel: string;
   count: number;
@@ -311,7 +311,7 @@ export interface TeamSegmentResult {
   unavailable: string | null;
 }
 
-export interface TeamPlanResult {
+interface TeamPlanResult {
   planId: string;
   planLabel: string;
   perSegment: TeamSegmentResult[];

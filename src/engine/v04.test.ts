@@ -7,8 +7,8 @@ import { computeTiming } from "./timing";
 import { Rat, R0 } from "./rat";
 import type { Horizon, Plan, Scenario, Segment } from "./types";
 
-// §12 V-04 horizon and ratchet goldens. Every value is the closed form pinned in docs/MATH-SPEC.md §3.10a,
-// derived by hand there and reproduced here — never read back from the implementation (§9).
+// Horizon and ratchet references. Every value is the closed form in docs/MATH-SPEC.md §3.10a,
+// derived by hand there and reproduced here, never read back from the implementation.
 // a = 100, k = 100, m = 1, movable = 0; plan B = 0, Q = 10, tiers 5% then 20% above quota.
 const segment: Segment = {
   id: "seg-1",
@@ -87,7 +87,7 @@ function planPeriods(scenario: Scenario) {
   return { result, segmentResult: perSegment, periods: perSegment.periods };
 }
 
-describe("V-04 H1 — no ratchet is the §3.3 world repeated", () => {
+describe("H1 — no ratchet is the §3.3 world repeated", () => {
   const scenario = scenarioWith(accelerator, horizonOf(3, R0, "myopic"));
 
   it("holds the quota flat and repeats the single-period response", () => {
@@ -110,7 +110,7 @@ describe("V-04 H1 — no ratchet is the §3.3 world repeated", () => {
   });
 });
 
-describe("V-04 H2 — ratchet cycling (λ = 0.5, myopic)", () => {
+describe("H2 — ratchet cycling (λ = 0.5, myopic)", () => {
   const scenario = scenarioWith(accelerator, horizonOf(3, Rat.from(1, 2), "myopic"));
 
   it("reproduces the pinned quota and output path", () => {
@@ -135,7 +135,7 @@ describe("V-04 H2 — ratchet cycling (λ = 0.5, myopic)", () => {
   });
 });
 
-describe("V-04 H3 — a rep who prices the ratchet in (λ = 0.1, ratchet-aware)", () => {
+describe("H3 — a rep who prices the ratchet in (λ = 0.1, ratchet-aware)", () => {
   const scenario = scenarioWith(accelerator, horizonOf(2, Rat.from(1, 10), "ratchetAware"));
 
   it("computes the shadow price exactly from the naive baseline", () => {
@@ -167,7 +167,7 @@ describe("V-04 H3 — a rep who prices the ratchet in (λ = 0.1, ratchet-aware)"
   });
 });
 
-describe("V-04 H4 — a flat plan has no ratchet channel", () => {
+describe("H4 — a flat plan has no ratchet channel", () => {
   it("prices quota sensitivity at exactly zero", () => {
     expect(quotaSensitivity(flat, segment, Rat.from(11), Rat.from(20)).eq(R0)).toBe(true);
   });
@@ -186,7 +186,7 @@ describe("V-04 H4 — a flat plan has no ratchet channel", () => {
   });
 });
 
-describe("V-04 structural invariants", () => {
+describe("horizon structural invariants", () => {
   it("reproduces the single-period response when the shadow rate is zero", () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 40 }), (rateScale) => {

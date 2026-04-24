@@ -11,7 +11,7 @@ export interface DeepLink {
 }
 
 /**
- * §3.3b V-03 second task. `ability = 0` is the fully unmeasured activity; `valuePerEffort` is in
+ * §3.3b second task. `ability = 0` is the fully unmeasured activity; `valuePerEffort` is in
  * currency per unit of task-2 effort (not per revenue unit, which an unmeasured task cannot have).
  */
 export interface SecondTask {
@@ -56,7 +56,7 @@ export interface ThresholdLump {
 }
 
 /**
- * §3.2a V-01 payout-primitive extensions. Every field is optional; an all-null
+ * §3.2a payout-primitive extensions. Every field is optional; an all-null
  * (or absent) block leaves `W` identical to §3.2. See docs/MATH-SPEC.md §3.2a.
  */
 export interface PayoutExtras {
@@ -80,12 +80,12 @@ export interface Plan {
   tiers: Tier[];
   bonus: Bonus | null;
   cap: Rat | null;
-  /** §3.2a V-01 payout-primitive extensions; absent/null ⇒ identical W to §3.2. */
+  /** §3.2a payout-primitive extensions; absent/null ⇒ identical W to §3.2. */
   extras?: PayoutExtras | null;
 }
 
 /**
- * §3.3a V-02 bounded-rationality dial. `exact` is the §3.3/§3.4 best response;
+ * §3.3a bounded-rationality dial. `exact` is the §3.3/§3.4 best response;
  * `softmax` draws over the plan's salient efforts with temperature `tau` (currency units).
  */
 export interface Rationality {
@@ -111,7 +111,7 @@ export interface MonteCarloSettings {
   };
 }
 
-/** §3.10a V-04 N-period horizon with a dynamic quota rule. */
+/** §3.10a N-period horizon with a dynamic quota rule. */
 export interface Horizon {
   periods: number;
   seasonality: Rat[];
@@ -143,7 +143,7 @@ export interface MenuSettings {
   walkAwayAllowed: boolean;
 }
 
-/** §3.14 V-05 team credit / rank-order tournament group. */
+/** §3.14 team credit / rank-order tournament group. */
 export interface TeamSettings {
   mode: "split" | "tournament";
   size: number;
@@ -155,7 +155,7 @@ export interface ScenarioSettings {
   mode: Mode;
   periodLabel: string;
   currencyLabel: string;
-  /** V-10; absent on old scenarios means en-US. Formatting only — never touches engine input. */
+  /** Absent on old scenarios means en-US. Formatting only — never touches engine input. */
   locale?: AppLocale | null;
   discount: Rat;
   seasonality: readonly [Rat, Rat];

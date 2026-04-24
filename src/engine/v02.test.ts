@@ -9,8 +9,8 @@ import { computeTiming } from "./timing";
 import { Rat, R0 } from "./rat";
 import type { Plan, Rationality, Scenario, Segment } from "./types";
 
-// §12 V-02 bounded-rationality goldens. Every value is the closed form pinned in docs/MATH-SPEC.md §3.3a,
-// evaluated independently — never read back from the implementation (§9).
+// Bounded-rationality references. Every value is the closed form in docs/MATH-SPEC.md §3.3a,
+// evaluated independently and never read back from the implementation.
 // a = 100, k = 100, Q_s = 100, B = 10, one tier r = 0.1 ⇒ C = {0, 0.1}, f = (10, 10.5).
 const segment: Segment = {
   id: "seg-1",
@@ -66,7 +66,7 @@ function scenarioWith(plan: Plan, rationality: Rationality | null): Scenario {
   };
 }
 
-describe("V-02 softmax weights", () => {
+describe("softmax response weights", () => {
   it("normalizes exactly, so the probabilities sum to one in rationals", () => {
     const probabilities = softmaxProbabilitiesExact([Rat.from(10), Rat.from(21, 2)], HALF);
     expect(probabilities.reduce((sum, value) => sum.add(value), R0).eq(Rat.one())).toBe(true);
@@ -97,7 +97,7 @@ describe("V-02 softmax weights", () => {
   });
 });
 
-describe("V-02 deterministic mixture (G1, G2)", () => {
+describe("deterministic response mixture (G1, G2)", () => {
   it("G1 — two salient plays split by the logistic", () => {
     const response = respondDeterministic(basePlan, segment, softmax(HALF));
     expect(response.components.map((component) => component.effort.serialize())).toEqual([
@@ -145,7 +145,7 @@ describe("V-02 deterministic mixture (G1, G2)", () => {
   });
 });
 
-describe("V-02 temperature limits (G3)", () => {
+describe("response-temperature limits (G3)", () => {
   it("τ → 0⁺ reproduces the exact best response", () => {
     const cold = respondDeterministic(cliffPlan, segment, softmax(Rat.fromDecimalString("1e-9")));
     const exact = respondDeterministic(cliffPlan, segment);
@@ -175,7 +175,7 @@ describe("V-02 temperature limits (G3)", () => {
   });
 });
 
-describe("V-02 population KPIs under a mixture", () => {
+describe("population KPIs under a response mixture", () => {
   it("G2 — quota attainment becomes the share of plays that clear quota", () => {
     const result = simulateDeterministic(scenarioWith(cliffPlan, softmax(HALF)));
     const kpis = result.plans[0]?.kpis;
@@ -199,7 +199,7 @@ describe("V-02 population KPIs under a mixture", () => {
   });
 });
 
-describe("V-02 stochastic mixture (G4)", () => {
+describe("stochastic response mixture (G4)", () => {
   const noisy: Segment = { ...segment, riskAversion: Rat.fromFloat64(0.01), noiseSD: Rat.from(25) };
 
   it("logits the §3.4 certainty equivalents over the same choice set", () => {
@@ -221,7 +221,7 @@ describe("V-02 stochastic mixture (G4)", () => {
   });
 });
 
-describe("V-02 scope boundaries", () => {
+describe("bounded-rationality scope boundaries", () => {
   it("leaves the §3.10 timing module on the exact best response", () => {
     const dialed = computeTiming(scenarioWith(cliffPlan, softmax(HALF)));
     const exact = computeTiming(scenarioWith(cliffPlan, null));

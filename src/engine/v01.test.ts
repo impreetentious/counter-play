@@ -8,8 +8,8 @@ import { normalPdf } from "./normal";
 import { Rat, R0 } from "./rat";
 import type { Plan, PayoutExtras, Segment } from "./types";
 
-// §12 V-01 payout-primitive goldens. Every value is hand-derived from docs/MATH-SPEC.md §3.2a,
-// not read back from the implementation (§9): a=100, k=100, Q_s=100, B=10, one tier r=0.1.
+// Payout-primitive references. Every value is hand-derived from docs/MATH-SPEC.md §3.2a,
+// not read back from the implementation: a=100, k=100, Q_s=100, B=10, one tier r=0.1.
 const segment: Segment = {
   id: "seg-1",
   label: "Core",
@@ -50,7 +50,7 @@ function withExtras(extras: Partial<PayoutExtras>): Plan {
 
 const q = (value: number) => Rat.from(value);
 
-describe("V-01 exact payout primitives", () => {
+describe("exact payout primitives", () => {
   it("non-recoverable draw floors commission at D_nr", () => {
     const plan = withExtras({ drawNonRecoverable: Rat.from(20) });
     expect(payout(plan, segment, q(0)).serialize()).toBe("30/1"); // 10 + max(0,20)
@@ -125,7 +125,7 @@ describe("V-01 exact payout primitives", () => {
   });
 });
 
-describe("V-01 deterministic best response", () => {
+describe("payout primitives in the deterministic best response", () => {
   it("a binding pay-floor drives effort to zero at ce = F", () => {
     const plan = withExtras({ payFloor: Rat.from(15) });
     const response = respondDeterministic(plan, segment);
@@ -152,7 +152,7 @@ describe("V-01 deterministic best response", () => {
   });
 });
 
-describe("V-01 stochastic path", () => {
+describe("payout primitives in the stochastic path", () => {
   const stoch = (rho: number, sigma: number): Segment => ({
     ...segment,
     riskAversion: Rat.fromFloat64(rho),

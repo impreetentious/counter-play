@@ -8,8 +8,8 @@ import { lintScenario } from "./linter";
 import { Rat, R0 } from "./rat";
 import type { Plan, Scenario, SecondTask, Segment } from "./types";
 
-// §12 V-03 multitasking goldens. Every value is the closed form pinned in docs/MATH-SPEC.md §3.3b, derived
-// by hand there and reproduced here — never read back from the implementation (§9).
+// Multitasking references. Every value is the closed form in docs/MATH-SPEC.md §3.3b,
+// derived by hand there and reproduced here, never read back from the implementation.
 // a₁ = 100, k = 100, γ = 1, ρ = 0, Ū = 0, m = 1; plan B = 0, Q = 10, one tier r = 0.1.
 const baseSegment: Segment = {
   id: "seg-1",
@@ -71,7 +71,7 @@ function scenarioWith(population: Segment[], plans: Plan[] = [plan]): Scenario {
   };
 }
 
-describe("V-03 M1 — absent second task is a no-op", () => {
+describe("M1 — absent second task is a no-op", () => {
   it("returns the segment itself from the effective-segment reduction", () => {
     expect(effectiveSegment(baseSegment)).toBe(baseSegment);
     expect(revenuePortfolio(baseSegment).efficiency.eq(Rat.from(10_000))).toBe(true);
@@ -87,7 +87,7 @@ describe("V-03 M1 — absent second task is a no-op", () => {
   });
 });
 
-describe("V-03 M2 — independent tasks (ψ = 0)", () => {
+describe("M2 — independent tasks (ψ = 0)", () => {
   const segment = withTask(task(50, 25, R0));
 
   it("reproduces the pinned portfolio, allocation, and certainty equivalent", () => {
@@ -116,7 +116,7 @@ describe("V-03 M2 — independent tasks (ψ = 0)", () => {
   });
 });
 
-describe("V-03 M3 — substitutable effort (ψ = 1/4)", () => {
+describe("M3 — substitutable effort (ψ = 1/4)", () => {
   const segment = withTask(task(50, 25, Rat.from(1, 4)));
 
   it("reproduces the pinned interior solution", () => {
@@ -131,7 +131,7 @@ describe("V-03 M3 — substitutable effort (ψ = 1/4)", () => {
   });
 });
 
-describe("V-03 M4 — total crowd-out at the interior boundary", () => {
+describe("M4 — total crowd-out at the interior boundary", () => {
   const segment = withTask(task(50, 25, Rat.from(1, 2)));
 
   it("collapses task 2 to zero effort where the two branches meet", () => {
@@ -151,7 +151,7 @@ describe("V-03 M4 — total crowd-out at the interior boundary", () => {
   });
 });
 
-describe("V-03 M5 — the unmeasured task", () => {
+describe("M5 — the unmeasured task", () => {
   const segment = withTask(task(0, 40, R0));
 
   it("gets zero effort and leaves the measured response untouched", () => {
@@ -169,7 +169,7 @@ describe("V-03 M5 — the unmeasured task", () => {
   });
 });
 
-describe("V-03 structural invariants", () => {
+describe("multitasking structural invariants", () => {
   it("splits measured revenue exactly across the two tasks", () => {
     fc.assert(
       fc.property(
@@ -215,7 +215,7 @@ describe("V-03 structural invariants", () => {
   });
 });
 
-describe("V-03 stochastic path and linter", () => {
+describe("multitasking stochastic path and linter", () => {
   it("reduces the CARA response to the same effective segment", () => {
     const segment = { ...withTask(task(50, 25, R0)), noiseSD: Rat.from(5) };
     const equivalent = { ...effectiveSegment(segment), secondTask: null };

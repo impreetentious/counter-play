@@ -13,8 +13,8 @@ import {
 import { Rat, R0 } from "./rat";
 import type { Plan, Scenario, Segment, TeamSettings } from "./types";
 
-// §12 V-05 team and tournament goldens. Every value is the closed form pinned in docs/MATH-SPEC.md §3.14,
-// derived by hand there and reproduced here — never read back from the implementation (§9).
+// Team and tournament references. Every value is the closed form in docs/MATH-SPEC.md §3.14,
+// derived by hand there and reproduced here, never read back from the implementation.
 // a = 100, k = 100, m = 1; plan B = 0, Q = 10, one tier r = 0.1.
 const segment: Segment = {
   id: "seg-1",
@@ -69,7 +69,7 @@ function teamOf(
   };
 }
 
-describe("V-05 T1 — individual credit is the §3.3 world", () => {
+describe("T1 — individual credit is the §3.3 world", () => {
   it("keeps φ at one and reproduces the independent best response", () => {
     const set = symmetricSplitEquilibria(flat, segment, 4, R0);
     expect(set.creditWeight.eq(Rat.one())).toBe(true);
@@ -78,7 +78,7 @@ describe("V-05 T1 — individual credit is the §3.3 world", () => {
   });
 });
 
-describe("V-05 T2 — the 1/n problem, exactly", () => {
+describe("T2 — the 1/n problem, exactly", () => {
   it("cuts the marginal credit to a quarter and effort with it", () => {
     const set = symmetricSplitEquilibria(flat, segment, 4, Rat.one());
     expect(set.creditWeight.eq(Rat.from(1, 4))).toBe(true);
@@ -98,7 +98,7 @@ describe("V-05 T2 — the 1/n problem, exactly", () => {
   });
 });
 
-describe("V-05 T3 — a cliff supports two symmetric equilibria", () => {
+describe("T3 — a cliff supports two symmetric equilibria", () => {
   const set = symmetricSplitEquilibria(cliff, segment, 2, Rat.one());
 
   it("finds both, and only those two", () => {
@@ -117,7 +117,7 @@ describe("V-05 T3 — a cliff supports two symmetric equilibria", () => {
   });
 });
 
-describe("V-05 T4/T5 — rank-order tournament", () => {
+describe("T4/T5 — rank-order tournament", () => {
   // σ = 50 keeps the contest smooth enough for a pure-strategy equilibrium (§3.14).
   const noisy: Segment = { ...segment, noiseSD: Rat.from(50) };
 
@@ -159,7 +159,7 @@ describe("V-05 T4/T5 — rank-order tournament", () => {
   });
 });
 
-describe("V-05 structural invariants", () => {
+describe("team and tournament structural invariants", () => {
   it("keeps φ inside (0, 1] across the whole bounded range", () => {
     fc.assert(
       fc.property(
