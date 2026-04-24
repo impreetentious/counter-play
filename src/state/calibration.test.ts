@@ -42,7 +42,7 @@ const scenario: Scenario = {
   meta: { notes: "" },
 };
 
-describe("V-07 local calibration", () => {
+describe("local calibration", () => {
   it("reproduces the hand-derived attainment mean and spread proposal", () => {
     const result = calibrateHistoricalCsv(
       "segment,attainment\nseg-1,0.8\nseg-1,1.0\nseg-1,1.2\n",

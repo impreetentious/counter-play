@@ -175,5 +175,3 @@ export const templates: readonly TemplateEntry[] = [
     scenario: blankScenario,
   },
 ];
-
-export const landingScenario: ScenarioJson = templateT2;

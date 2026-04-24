@@ -16,7 +16,7 @@ function resetStore(): void {
   });
 }
 
-describe("V-09 scenario history", () => {
+describe("scenario history", () => {
   beforeEach(resetStore);
 
   it("undoes and redoes the same validated wire snapshot", () => {

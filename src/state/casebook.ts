@@ -316,7 +316,3 @@ export const casebook: readonly CasebookEntry[] = [
     scenario: capQuit,
   },
 ];
-
-export function casebookEntry(id: string): CasebookEntry | undefined {
-  return casebook.find((entry) => entry.id === id);
-}

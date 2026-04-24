@@ -4,8 +4,8 @@ import { parseScenario, ScenarioJsonSchema, type ScenarioJson } from "./schema";
 const HASH_PREFIX_COMPRESSED = "s=";
 const HASH_PREFIX_RAW = "s0=";
 export const MAX_HASH_BYTES = 8 * 1024;
-export const MAX_DECOMPRESSED_BYTES = 512 * 1024;
-export const MAX_IMPORT_BYTES = 1024 * 1024;
+const MAX_DECOMPRESSED_BYTES = 512 * 1024;
+const MAX_IMPORT_BYTES = 1024 * 1024;
 
 export interface EncodedShare {
   hash: string;

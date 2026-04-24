@@ -22,12 +22,3 @@ export function persistScenario(scenario: ScenarioJson): void {
     // Persistence is best-effort; the in-memory scenario is unaffected.
   }
 }
-
-export function clearPersistedScenario(): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(scenarioKey);
-  } catch {
-    // Ignore storage failures.
-  }
-}

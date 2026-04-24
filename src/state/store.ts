@@ -17,7 +17,7 @@ import {
   type SegmentJson,
   type TeamJson,
 } from "./schema";
-import { landingScenario, templates, type TemplateEntry } from "./templates";
+import { templateT2, templates, type TemplateEntry } from "./templates";
 import { applyStressPreset, type StressPresetId } from "./presets";
 import { persistScenario } from "./persist";
 import {
@@ -33,7 +33,7 @@ export interface FieldIssue {
   message: string;
 }
 
-export interface CalibrationApplyProposal {
+interface CalibrationApplyProposal {
   segmentId: string;
   ability: string | null;
   noiseSD: string | null;
@@ -126,9 +126,9 @@ export interface StoreState {
   cancelMonteCarlo(): void;
 }
 
-export type ExtraKey = "drawNonRecoverable" | "drawRecoverable" | "spiff" | "clawback" | "payFloor";
-export type ExtraScalarKey = "drawNonRecoverable" | "drawRecoverable" | "payFloor";
-export type ExtraLumpKey = "spiff" | "clawback";
+type ExtraKey = "drawNonRecoverable" | "drawRecoverable" | "spiff" | "clawback" | "payFloor";
+type ExtraScalarKey = "drawNonRecoverable" | "drawRecoverable" | "payFloor";
+type ExtraLumpKey = "spiff" | "clawback";
 
 // §3.3a default temperature (currency units), adopted when the rationality dial is switched on.
 const DEFAULT_TAU = "5000";
@@ -291,10 +291,10 @@ function replacePlan(
   };
 }
 
-const initialReview = reviewScenario(landingScenario);
+const initialReview = reviewScenario(templateT2);
 
 export const useScenarioStore = create<StoreState>((rawSet, get) => {
-  // V-09: every scenario-bearing store commit is journalled centrally. Individual mutations keep
+  // Every scenario-bearing store mutation is journalled centrally. Individual mutations keep
   // their compact shape; view-only updates never carry `scenario` and therefore never enter history.
   let restoringHistory = false;
   let mcTimer: ReturnType<typeof setTimeout> | null = null;
@@ -334,11 +334,11 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
   };
 
   return {
-    scenario: landingScenario,
+    scenario: templateT2,
     domain: initialReview.domain,
     domainError: initialReview.domainError,
     issues: initialReview.issues,
-    activePlanId: landingScenario.plans[0]?.id ?? "plan-1",
+    activePlanId: templateT2.plans[0]?.id ?? "plan-1",
     activeSurface: "Model",
     highlight: null,
     historyPast: [],

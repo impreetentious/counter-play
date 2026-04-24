@@ -7,7 +7,7 @@ const MAX_CALIBRATION_BYTES = 512 * 1024;
 const MAX_CALIBRATION_ROWS = 10_000;
 const MAX_MONEY = 1_000_000_000_000;
 
-export interface CalibrationProposal {
+interface CalibrationProposal {
   segmentId: string;
   segmentLabel: string;
   observations: number;
@@ -111,7 +111,7 @@ function namedRow(
 }
 
 /**
- * §3.15 V-07. Parses a local attainment CSV and proposes, but never writes, model assumptions.
+ * §3.15. Parses a local attainment CSV and proposes, but never writes, model assumptions.
  * Historical rows are transient: callers must explicitly apply the returned proposal to the store.
  */
 export function calibrateHistoricalCsv(
