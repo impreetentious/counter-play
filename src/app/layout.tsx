@@ -7,8 +7,11 @@ const themeBootScript = `(() => { try { const raw = localStorage.getItem('settin
 const description =
   "Client-side sales compensation plan simulator and perverse-incentive linter. Model assumptions, design the plan, simulate strategic best responses, and export a seed-stamped design record.";
 
-/** Absolute origin for OG/Twitter image URLs. Owner replaces at deploy (D-019 / §11). */
-const siteOrigin = "https://itsmonarch04.github.io/counter-play";
+const siteOrigin =
+  process.env.SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3001");
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),

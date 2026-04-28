@@ -10,7 +10,7 @@ function multiplyDecimal(value: string, factor: Rat): string {
   return Rat.fromDecimalString(value).mul(factor).toDecimalString();
 }
 
-/** Exact wire-level stress transforms; callers commit the returned scenario through Zod validation. */
+/** Exact wire-level stress transforms; callers apply the returned scenario through Zod validation. */
 export function applyStressPreset(scenario: ScenarioJson, preset: StressPresetId): ScenarioJson {
   switch (preset) {
     case "aggressive-accelerator":

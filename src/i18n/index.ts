@@ -1,7 +1,7 @@
 import type { AppLocale } from "@/engine/types";
 
 export const supportedLocales: readonly AppLocale[] = ["en-US", "en-GB", "de-DE"] as const;
-export const defaultLocale: AppLocale = "en-US";
+const defaultLocale: AppLocale = "en-US";
 
 type CopyKey =
   | "locale.label"

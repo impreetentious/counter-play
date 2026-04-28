@@ -1,7 +1,7 @@
 import type { Finding } from "./linter";
 import type { DeepLink } from "./types";
 
-/** §4.8 registry for the interactive "Show me" target on each linter finding. */
+/** Registry for the interactive "Show me" target on each linter finding. */
 export function deepLinkFor(
   finding: Pick<Finding, "type" | "segments" | "plans" | "evidence">,
 ): DeepLink {

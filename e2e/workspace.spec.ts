@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("workspace P4", () => {
+test.describe("workspace interactions", () => {
   test.beforeEach(async ({ context }) => {
     await context.clearCookies();
   });
@@ -29,7 +29,7 @@ test.describe("workspace P4", () => {
     await expect(page.locator("#segment-seg-3-count")).toHaveValue("7");
   });
 
-  test("the V-02 rationality dial switches the response class and persists", async ({ page }) => {
+  test("the rationality dial switches the response class and persists", async ({ page }) => {
     await page.goto("/");
     const bounded = page.getByRole("button", { name: "Bounded (softmax)" });
     await expect(bounded).toHaveAttribute("aria-pressed", "false");
@@ -55,9 +55,7 @@ test.describe("workspace P4", () => {
     await expect(page.locator("#rationality-tau")).toHaveCount(0);
   });
 
-  test("the V-03 second task adds a task split and a value-efficiency reading", async ({
-    page,
-  }) => {
+  test("the second task adds a task split and a value-efficiency reading", async ({ page }) => {
     await page.goto("/");
     const add = page.getByRole("button", { name: "Add second task" }).first();
     await expect(add).toHaveAttribute("aria-pressed", "false");
@@ -74,7 +72,7 @@ test.describe("workspace P4", () => {
     await expect(page.getByRole("button", { name: "Remove second task" }).first()).toBeVisible();
   });
 
-  test("the V-04 horizon and V-05 team panels switch on and report", async ({ page }) => {
+  test("the horizon and team panels switch on and report", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("tab", { name: /Analyze/ }).click();
 
@@ -112,9 +110,7 @@ test.describe("workspace P4", () => {
     await expect(page.locator("#segment-seg-1-label")).toHaveValue("Junior");
   });
 
-  test("V-08 curve handles, V-09 history, and V-10 locale controls remain keyboard-operable", async ({
-    page,
-  }) => {
+  test("curve handles, history, and locale controls remain keyboard-operable", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("tab", { name: /Design/ }).click();
     const rate = page.locator("#plan-plan-1-tier-0-rate");
@@ -129,7 +125,7 @@ test.describe("workspace P4", () => {
     await expect(page.getByRole("button", { name: "Rückgängig" })).toBeVisible();
   });
 
-  test("V-06 local search and V-07 calibration stay client-side and require explicit apply", async ({
+  test("local search and calibration stay client-side and require explicit apply", async ({
     page,
   }) => {
     await page.goto("/");

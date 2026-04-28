@@ -107,8 +107,8 @@ describe("scenario wire schema", () => {
     expect(allocateId("plan", ["plan-x"])).toBe("plan-1");
   });
 
-  it("round-trips V-01 payout extras and omits them when absent", () => {
-    // absent extras stay absent on the wire (byte-stable for pre-V-01 scenarios)
+  it("round-trips payout extras and omits them when absent", () => {
+    // Absent extras stay absent on the wire for backward compatibility.
     expect(serializeScenario(parseScenario(scenario)).plans[0]).not.toHaveProperty("extras");
 
     const withExtras: ScenarioJson = {
@@ -133,8 +133,8 @@ describe("scenario wire schema", () => {
     expect(serializeScenario(parseScenario(wire))).toEqual(wire);
   });
 
-  it("round-trips the V-02 rationality dial and omits it when untouched", () => {
-    // an untouched scenario never gains the block (byte-stable for pre-V-02 scenarios)
+  it("round-trips the rationality dial and omits it when untouched", () => {
+    // An untouched scenario never gains the block, preserving backward compatibility.
     expect(serializeScenario(parseScenario(scenario)).settings).not.toHaveProperty("rationality");
 
     const bounded: ScenarioJson = {
@@ -255,7 +255,7 @@ describe("scenario wire schema", () => {
     expect(() => parseScenario(bad)).toThrow(EngineError);
   });
 
-  it("round-trips the V-10 locale and preserves byte-stable old scenarios when it is unset", () => {
+  it("round-trips the locale and preserves byte-stable old scenarios when it is unset", () => {
     expect(serializeScenario(parseScenario(scenario)).settings).not.toHaveProperty("locale");
     const localized = { ...scenario, settings: { ...scenario.settings, locale: "de-DE" as const } };
     const wire = serializeScenario(parseScenario(localized));

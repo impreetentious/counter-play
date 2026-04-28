@@ -43,12 +43,12 @@ export interface SegmentJson {
   secondTask?: SecondTaskJson | null;
 }
 
-export interface TierJson {
+interface TierJson {
   from: string;
   rate: string;
 }
 
-export interface ThresholdLumpJson {
+interface ThresholdLumpJson {
   amount: string;
   threshold: string;
 }
@@ -72,7 +72,7 @@ export interface PlanJson {
   extras?: PayoutExtrasJson | null;
 }
 
-export interface RationalityJson {
+interface RationalityJson {
   mode: "exact" | "softmax";
   tau: string;
 }
@@ -220,7 +220,7 @@ const tierSchema = z.object({ from: attainment, rate }).strict();
 
 const bonusSchema = z.object({ L: money, x_b: positiveAttainment }).strict();
 const thresholdLumpSchema = z.object({ amount: money, threshold: positiveAttainment }).strict();
-// §3.2a V-01 payout-primitive extensions; every field optional/nullable so absence ⇒ identical W.
+// §3.2a payout-primitive extensions; every field optional/nullable so absence ⇒ identical W.
 const extrasSchema = z
   .object({
     drawNonRecoverable: money.nullable().optional(),
@@ -273,7 +273,7 @@ const planSchema = z
     }
   });
 
-// §3.3b V-03 second task; optional/nullable so absence ⇒ the §3.3 single-task response.
+// §3.3b second task; optional/nullable so absence ⇒ the §3.3 single-task response.
 const secondTaskSchema = z
   .object({
     ability: money,
@@ -331,7 +331,7 @@ const rangesSchema = z
   })
   .strict();
 
-// §3.3a V-02 rationality dial; optional/nullable so absence ⇒ the exact best response.
+// §3.3a rationality dial; optional/nullable so absence ⇒ the exact best response.
 const rationalitySchema = z
   .object({
     mode: z.enum(["exact", "softmax"]),
@@ -344,7 +344,7 @@ const rationalitySchema = z
   })
   .strict();
 
-// §3.10a V-04 horizon; absent ⇒ the §3.10 two-period module is the whole timing story.
+// §3.10a horizon; absent ⇒ the §3.10 two-period module is the whole timing story.
 const horizonSchema = z
   .object({
     periods: z.number().int().min(2).max(12),
@@ -376,7 +376,7 @@ const horizonSchema = z
     }
   });
 
-// §3.14 V-05 team block; absent ⇒ no equilibrium module runs.
+// §3.14 team block; absent ⇒ no equilibrium module runs.
 const teamSchema = z
   .object({
     mode: z.enum(["split", "tournament"]),
@@ -890,7 +890,7 @@ export function serializeScenario(scenario: Scenario): ScenarioJson {
   return checked.data as ScenarioJson;
 }
 
-/** G-11-safe identity allocation used by P4 editors and import helpers. */
+/** Deterministic identity allocation used by editors and import helpers. */
 export function allocateId(prefix: "seg" | "plan", ids: readonly string[]): string {
   const pattern = new RegExp(`^${prefix}-(\\d+)$`);
   let max = 0;

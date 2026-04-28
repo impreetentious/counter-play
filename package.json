@@ -1,11 +1,11 @@
 {
   "name": "counter-play",
-  "version": "0.16.5",
+  "version": "0.16.6",
   "private": true,
-  "packageManager": "npm@11.12.0",
+  "packageManager": "npm@11.12.1",
   "engines": {
-    "node": "24.14.0",
-    "npm": "11.12.0"
+    "node": "24.14.1",
+    "npm": "11.12.1"
   },
   "scripts": {
     "dev": "next dev -p 3001",
@@ -48,14 +48,14 @@
     "serve": "~14.2.6",
     "tailwindcss": "~4.2.2",
     "typescript": "~5.9.3",
-    "vitest": "~4.1.1"
+    "vitest": "~4.1.2"
   },
   "overrides": {
     "postcss": "$postcss",
     "sharp": "~0.34.5",
     "fast-uri": "~3.1.0",
     "minimatch@3": {
-      "brace-expansion": "~1.1.12"
+      "brace-expansion": "~1.1.13"
     }
   },
   "license": "MIT",
