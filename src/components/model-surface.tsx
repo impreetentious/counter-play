@@ -47,7 +47,7 @@ const secondTaskFields: Array<{ key: keyof SecondTaskJson; label: string; hint: 
   },
 ];
 
-/** §3.3b V-03: the second activity the plan cannot tell apart but the business values differently. */
+/** §3.3b: the second activity the plan cannot tell apart but the business values differently. */
 function MultitaskBlock(): React.JSX.Element {
   const population = useScenarioStore((state) => state.scenario.population);
   const toggleSecondTask = useScenarioStore((state) => state.toggleSecondTask);
@@ -99,7 +99,7 @@ function MultitaskBlock(): React.JSX.Element {
   );
 }
 
-/** §3.3a V-02: the population's response class — exact best response, or a bounded softmax draw. */
+/** §3.3a: the population's response class — exact best response, or a bounded softmax draw. */
 function RationalityDial(): React.JSX.Element {
   const rationality = useScenarioStore((state) => state.scenario.settings.rationality);
   const currency = useScenarioStore((state) => state.scenario.settings.currencyLabel);

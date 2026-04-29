@@ -46,7 +46,7 @@ export function SharePanel(): React.JSX.Element {
       if (share.oversized) {
         setShareStatus({
           kind: "error",
-          message: `Share link is ${share.bytes} bytes — exceeds the ${MAX_HASH_BYTES} byte fragment budget. Use JSON export for a full handoff.`,
+          message: `Share link is ${share.bytes} bytes — exceeds the ${MAX_HASH_BYTES} byte fragment budget. Use JSON export for the complete scenario.`,
         });
         return;
       }
@@ -138,7 +138,7 @@ export function SharePanel(): React.JSX.Element {
       <h2 id="share-heading">Share & export</h2>
       <p className="share-panel-summary">
         Share links carry the scenario only — every result recomputes on load, so seeded MC runs and
-        analytic outputs stay honest. The full JSON export is the complete handoff (identity,
+        analytic outputs stay honest. The full JSON export contains the complete scenario (identity,
         ranges, decision notes, everything).
       </p>
       <div className="share-grid">
@@ -192,9 +192,9 @@ export function SharePanel(): React.JSX.Element {
         </div>
 
         <div className="share-block">
-          <h3>JSON handoff</h3>
+          <h3>JSON export and import</h3>
           <p>
-            Export as JSON for a complete handoff (schemaVersion, ranges, notes, everything). Import
+            Export as JSON for a complete copy (schemaVersion, ranges, notes, everything). Import
             replaces the current scenario — future schema versions are politely refused.
           </p>
           <div className="share-actions">

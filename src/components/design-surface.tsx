@@ -34,7 +34,7 @@ export function DesignSurface(): React.JSX.Element {
         <p className="eyebrow">Design</p>
         <h2 id="design-heading">No plans configured</h2>
         <p className="surface-summary">
-          A scenario needs at least one plan. Load a template above, or import a JSON handoff that
+          A scenario needs at least one plan. Load a template above, or import a JSON export that
           includes a plan.
         </p>
       </section>
@@ -402,7 +402,7 @@ export function DesignSurface(): React.JSX.Element {
               />
               <p className="field-note">
                 Full-recovery assumption — CE-neutral in the one-period model; multi-period recovery
-                is V-04.
+                is outside the current model.
               </p>
             </div>
           ) : null}

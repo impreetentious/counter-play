@@ -5,7 +5,7 @@ import { computeTeam } from "@/engine/team";
 import { formatCompactCurrency, formatNumber, formatPercent, localeOf } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
 
-/** §3.14 V-05: the equilibrium response class, reported beside the independent best response. */
+/** §3.14: the equilibrium response class, reported beside the independent best response. */
 export function TeamPanel(): React.JSX.Element {
   const scenario = useScenarioStore((state) => state.scenario);
   const domain = useScenarioStore((state) => state.domain);

@@ -13,12 +13,11 @@ import { localeOf, t } from "@/i18n";
 import { TemplatePicker } from "./template-picker";
 import { ModelSurface } from "./model-surface";
 
-// F-001 — only one surface is mounted at a time and Model is always the one that
+// Only one surface is mounted at a time and Model is always the one that
 // renders first, so Design/Simulate/Analyze were paying for themselves in the
 // first-load bundle without ever being on screen at first paint. They carry the
-// heaviest dependencies in the app (Monte Carlo, the sweep engine, the chart
-// stack), and the first-load gzip ceiling had 1.2 KB of headroom left. Loading
-// them on demand is the only lever that reduces first load without a stack change.
+// heaviest dependencies in the app (Monte Carlo, the sweep engine, and charts),
+// so they load on demand.
 //
 // `ssr: false` is correct rather than convenient: these are client-only surfaces
 // behind a tab that is never active during prerender, so there is no server pass

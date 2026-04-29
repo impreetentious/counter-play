@@ -46,7 +46,8 @@ Next.js (App Router, static export) · React · TypeScript (strict) · Tailwind 
 
 ## Run locally
 
-Requires Node `24.14.1` (see `.nvmrc`; `engine-strict` makes `npm ci` fail on a different version).
+Requires Node `24.14.1` and npm `11.12.1` (see `.nvmrc`; `engine-strict` makes `npm ci` fail on
+different versions).
 
 ```bash
 npm ci
@@ -57,15 +58,16 @@ Open `http://localhost:3001`.
 
 ## Verify
 
+Install the Playwright browsers once, then run the complete local gate:
+
 ```bash
-npm run typecheck
-npm run lint
-npm run test
-npm run build
-npm run test:e2e
+PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium firefox webkit
+npm run test:all
 ```
 
-Or `npm run test:all` to run all of the above in sequence.
+`test:all` checks release-version coherence, types, lint, mathematical citations, formatting,
+unit and property tests, the production build, performance and bundle budgets, CSP consistency,
+and the full Playwright matrix. CI also audits the complete dependency tree after the clean install.
 
 ## Build and deploy
 
@@ -75,11 +77,16 @@ npm run build
 
 This emits a plain static site in `out/`, which serves from any static host. `npm run start` serves that build locally at `http://localhost:4001`. There is no hosted instance — run it locally or deploy the bundle yourself.
 
+Set `SITE_URL` to the deployment origin when building for a public host so Open Graph
+and Twitter image metadata use the deployed URL. Vercel's production URL is detected automatically;
+local builds fall back to `http://localhost:3001`.
+
 The supported PDF route is browser print-to-PDF from `/record`; no generated-PDF runtime dependency is shipped.
 
 Whatever host you use should send the response headers documented in [docs/STATIC-HOST-HEADERS.md](docs/STATIC-HOST-HEADERS.md). `vercel.json` applies them on Vercel and `serve.json` applies the same policy to `npm run start`, so the browser suite runs against the real policy across all three engines. `npm run check:csp` fails if the two host configs and the document ever disagree.
 
-The GitHub remote is authoritative and carries the only pipeline; `.github/workflows/ci.yml` runs every gate. The GitLab remote is a backup mirror kept in sync, deliberately without a `.gitlab-ci.yml` — there is no second publication target to gate, and a mirrored pipeline would only create a second place for gate drift.
+`.github/workflows/ci.yml` runs the clean install, complete dependency audit, browser setup, and
+the complete `test:all` gate on pushes to `main` and on pull requests.
 
 ## Limitations
 
@@ -114,4 +121,4 @@ MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.16.6
+**Version:** v0.16.7

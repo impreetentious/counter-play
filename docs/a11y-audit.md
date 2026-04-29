@@ -1,124 +1,65 @@
-# Accessibility audit — Counterplay (P10)
+# Accessibility evidence
 
-**Date:** 2025-12-12 (build session; planning calendar per D-018 / D-019)  
-**Scope:** WCAG 2.1 AA _intent_ (D-009). This document records evidence; it does not claim a formal third-party certification.  
-**Surfaces:** Model, Design, Simulate, Analyze, Share/Export, `/record`, both themes, `prefers-reduced-motion`.
+Counterplay targets WCAG 2.1 AA. This document records reproducible automated checks and
+code-inspected behavior; it is not a third-party accessibility certification.
 
----
+## Automated checks
 
-## 1. Automated axe (Playwright)
+`e2e/axe.spec.ts` runs `@axe-core/playwright` with the `wcag2a`, `wcag2aa`, `wcag21a`, and
+`wcag21aa` tag sets. A serious or critical violation fails the suite. The checks cover:
 
-Runner: `@axe-core/playwright` with tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`.  
-Gate: any violation with impact `serious` or `critical` fails the suite (`e2e/axe.spec.ts`).
+- Model, Design, Simulate, and Analyze surfaces
+- the printable `/record` route
+- the Model surface in dark theme
+- Chromium, Firefox, and WebKit through the standard Playwright project matrix
 
-| Surface / condition                             | Spec                 | Result (chromium / firefox / webkit) |
-| ----------------------------------------------- | -------------------- | ------------------------------------ |
-| Model (default template T2, light)              | `e2e/axe.spec.ts`    | 0 serious/critical                   |
-| Design                                          | same                 | 0 serious/critical                   |
-| Simulate                                        | same                 | 0 serious/critical                   |
-| Analyze                                         | same                 | 0 serious/critical                   |
-| `/record`                                       | same (P10 extension) | 0 serious/critical                   |
-| Model in dark theme (`settings.v1` forced dark) | same (P10 extension) | 0 serious/critical                   |
+`e2e/keyboard.spec.ts` verifies a keyboard-only route through Model → Design → Simulate → Analyze,
+share-link creation, and the printable record. Additional end-to-end tests cover keyboard operation
+for curve handles, history controls, locale selection, template replacement, and calibration.
 
-Full three-browser matrix also re-runs these scans (see §9 / P10 gate).
-
----
-
-## 2. Manual keyboard run-through
-
-Executable coverage: `e2e/keyboard.spec.ts` (focus → Enter activation across Model → Design → Simulate → Analyze → Build share link → printable record).
-
-| Step | Action                          | Expected                                        | Result |
-| ---- | ------------------------------- | ----------------------------------------------- | ------ |
-| 1    | Land on `/`                     | H1 = brand; Model tab `aria-selected=true`      | Pass   |
-| 2    | Focus Design tab, Enter         | Design heading visible; tab selected            | Pass   |
-| 3    | Focus Simulate tab, Enter       | Best-response heading; identity `role="status"` | Pass   |
-| 4    | Focus Analyze tab, Enter        | Findings heading                                | Pass   |
-| 5    | Focus “Build share link”, Enter | Share URL field appears and is focusable        | Pass   |
-| 6    | Focus record link, Enter        | `/record` with Compensation Design Record       | Pass   |
-
-Additional keyboard notes (code-inspected + prior P4–P9 gates):
-
-- Theme toggle, template cards, plan tabs, mode toggle, MC run, and segment/plan row actions are native `<button>` / labeled `<input>` controls with `:focus-visible` (3px `--focus` outline).
-- Template replace confirmation is a `role="dialog"` with explicit Replace/Cancel actions.
-- Chart SVG twins expose data tables (Design payout twin; Simulate / MC twins) so chart meaning is not mouse-only.
-
----
-
-## 3. Screen-reader spot pass
-
-Method: structure audit against the DOM roles/names (VoiceOver not available in this CI-class session; names and live regions verified in the accessibility tree via Playwright role queries).
-
-| Region         | Name / role                                                 | Notes                                          |
-| -------------- | ----------------------------------------------------------- | ---------------------------------------------- |
-| Brand          | `heading` level 1 from `brandName`                          | Sole display-name source (`src/brand.ts`)      |
-| Surface nav    | `tablist` “Workspace surfaces” + `tab` / `tabpanel` pairing | Pass                                           |
-| Plan editors   | `tablist` “Plans”                                           | Pass                                           |
-| Identity badge | `status` + `aria-live="polite"`                             | Pass / fail states announced                   |
-| Domain errors  | `role="alert"`                                              | Pass                                           |
-| Share status   | text status lines after build/import                        | Clipboard blocked path now announces (P10 fix) |
-| Findings       | list of cards with severity + Evidence `<details>`          | Pass                                           |
-| Record tables  | captions + column headers                                   | Pass                                           |
-| Segment fields | `sr-only` / `visually-hidden` labels + `title` explainers   | Pass                                           |
-
-Residual: deep-link “hints” are textual (“Deep link: Design”) rather than automatic focus moves — intentional for v1 (no focus-stealing on lint).
-
----
-
-## 4. Contrast — both themes
-
-Computed contrast ratios (sRGB relative luminance, WCAG formula):
-
-| Pair                              | Light           | Dark                                        |
-| --------------------------------- | --------------- | ------------------------------------------- |
-| `--ink` on `--canvas`             | 14.98:1         | 16.23:1                                     |
-| `--muted` on `--canvas`           | 5.13:1          | 9.40:1                                      |
-| `--accent` on `--canvas`          | 5.87:1          | 10.34:1                                     |
-| Primary button text on `--accent` | 6.51:1 (`#fff`) | **was 1.76:1 (`#fff` on `#7bd4b9`) — FAIL** |
-
-### Finding fixed in P10
-
-Dark-theme primary actions (`.button-primary`, `.mc-run-button`) used white text on the light teal `--accent` (~1.76:1).  
-**Fix:** introduced `--on-accent` (`#fff` light / `#101716` dark) and wired both primary button rules to `color: var(--on-accent)`. Post-fix dark primary contrast ≈ **10.34:1**.
-
-Focus ring (`--focus`) is a 3px outline (not body text); orange-on-canvas alone is below 3:1 for _text_, but the ring sits against mixed ink/surface chrome and remains the established focus treatment from P4.
-
----
-
-## 5. Reduced-motion parity
-
-`src/app/globals.css` contains:
-
-```css
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-  }
-}
-```
-
-The product does not ship decorative motion loops; charts are static SVG. Reduced-motion users get the same information architecture with transitions collapsed. **Pass / parity.**
-
----
-
-## 6. Serious/critical findings closed before audit close
-
-| ID  | Finding                                  | Severity            | Resolution                                |
-| --- | ---------------------------------------- | ------------------- | ----------------------------------------- |
-| A-1 | Dark primary button contrast ~1.76:1     | critical (contrast) | `--on-accent` token + button/MC run color |
-| —   | axe serious/critical on audited surfaces | —                   | None remaining after A-1                  |
-
-No remaining serious/critical items in the automated gate or the contrast re-check above.
-
----
-
-## 7. How to re-run
+Run the complete accessibility coverage with:
 
 ```bash
 npm run build
-PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test e2e/axe.spec.ts e2e/keyboard.spec.ts
+PLAYWRIGHT_BROWSERS_PATH=0 npx playwright test e2e/axe.spec.ts e2e/keyboard.spec.ts e2e/workspace.spec.ts
 ```
+
+## Structure and announcements
+
+- Workspace navigation uses a named `tablist` with paired `tab` and `tabpanel` roles.
+- Plan editors use a separate named tablist.
+- Identity checks use `role="status"` and `aria-live="polite"`.
+- Validation failures use `role="alert"`.
+- Template replacement uses a named dialog with explicit Replace and Cancel actions.
+- Data-bearing SVG charts have table equivalents so their meaning is not pointer-only.
+- Record tables provide captions and column headers.
+- Segment inputs have programmatic labels and explanatory titles.
+
+Finding deep links identify the relevant surface without moving focus automatically. This avoids
+unexpected focus changes when a linter result appears.
+
+## Contrast
+
+Current theme-token contrast ratios, calculated from the CSS colors using WCAG relative luminance:
+
+| Pair                       | Light |  Dark |
+| -------------------------- | ----: | ----: |
+| `--ink` on `--canvas`      | 14.98 | 16.23 |
+| `--muted` on `--canvas`    |  5.13 |  9.40 |
+| `--accent` on `--canvas`   |  5.87 | 10.34 |
+| Primary text on `--accent` |  6.51 | 10.34 |
+
+Primary buttons use the theme-specific `--on-accent` token. Focus is drawn with a 3px
+`--focus` outline.
+
+## Reduced motion
+
+The product has no decorative motion loops; charts are static SVG. Under
+`prefers-reduced-motion: reduce`, smooth scrolling is disabled and animation and transition
+durations collapse to `0.01ms`, preserving the same information architecture without motion.
+
+## Known limits
+
+- Automated axe checks do not replace testing with assistive technologies and disabled users.
+- The current screen-reader evidence is structural and role-based; no independent manual audit has
+  been completed.

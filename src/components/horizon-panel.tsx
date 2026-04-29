@@ -5,7 +5,7 @@ import { computeHorizon } from "@/engine/horizon";
 import { formatCompactCurrency, formatNumber, formatPercent, localeOf } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
 
-/** §3.10a V-04: the N-period quota chain, the ratchet, and what a rep does about it. */
+/** §3.10a: the N-period quota chain, the ratchet, and what a rep does about it. */
 export function HorizonPanel(): React.JSX.Element {
   const scenario = useScenarioStore((state) => state.scenario);
   const domain = useScenarioStore((state) => state.domain);
