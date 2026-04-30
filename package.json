@@ -1,6 +1,6 @@
 {
   "name": "counter-play",
-  "version": "0.16.7",
+  "version": "0.17.0",
   "private": true,
   "packageManager": "npm@11.12.1",
   "engines": {

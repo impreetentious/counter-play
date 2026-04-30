@@ -115,10 +115,31 @@ The engine's design draws on a specific slice of the principal-agent literature.
 - Lazear, E. P. & Rosen, S. (1981). Rank-order tournaments as optimum labor contracts. _Journal of Political Economy_ 89(5). — anchors the rank-order tournament equilibrium.
 - Weitzman, M. L. (1980). The "ratchet principle" and performance incentives. _Bell Journal of Economics_ 11(1). — anchors the multi-period quota ratchet.
 
+## Status
+
+Everything described above is implemented and covered by the gate suite in [Verify](#verify). The
+project is nonetheless pre-1.0 and versioned accordingly, so module interfaces may still change
+between releases. Saved scenarios are the stable part: the JSON wire format carries a
+`schemaVersion`, older files are migrated forward on import, and a file from a newer version is
+refused rather than misread. It is not published to a package registry, and there is no hosted
+instance — run it locally or deploy the static bundle yourself.
+
+## Contributing
+
+Issues and pull requests go through
+[the GitHub repository](https://github.com/ItsMonarch04/counter-play). Two things are worth knowing
+before opening one:
+
+- `npm run test:all` is the bar, and CI runs it on every pull request alongside a dependency audit.
+  Run it locally first; it needs the Playwright browsers installed once (see [Verify](#verify)).
+- `docs/MATH-SPEC.md` is normative, not descriptive. A change to engine behaviour is a change to the
+  contract: update the governing section, update the reference values in `src/engine/v01.test.ts` …
+  `v05.test.ts`, and keep the `§` citations in source pointing at sections that exist.
+
 ## License
 
 MIT © Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.16.7
+**Version:** v0.17.0

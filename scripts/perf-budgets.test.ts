@@ -22,7 +22,7 @@ function gzipBytes(filePath: string): number {
   return gzipSync(readFileSync(filePath), { level: 9 }).byteLength;
 }
 
-describe("§4.7 perf budgets (P10)", () => {
+describe("perf and bundle budgets", () => {
   it("det MC N=1000 and stoch MC N=500 on T2 stay under budgets (median of 3)", () => {
     const detScenario = parseScenario({
       ...templateT2,
@@ -75,7 +75,7 @@ describe("§4.7 perf budgets (P10)", () => {
     ).toBeLessThan(10000);
   });
 
-  it("first-load JS gzip stays under the F-001 regression ceiling", () => {
+  it("first-load JS gzip stays under the regression ceiling", () => {
     const indexHtml = readFileSync(join(process.cwd(), "out", "index.html"), "utf8");
     const referenced = new Set<string>();
     for (const match of indexHtml.matchAll(/\/_next\/static\/[^"' ]+\.js/g)) {
@@ -87,18 +87,20 @@ describe("§4.7 perf budgets (P10)", () => {
     });
     const total = sizes.reduce((sum, row) => sum + row.gzip, 0);
     const target = 300 * 1024;
-    // §4.7 targets 300 KB. Measured first-load on the ratified Next 16.2 / React 19
-    // stack is 289,173 bytes (282.4 KB) across 11 scripts, leaving 38,507 bytes —
-    // 11.8 % — under the ceiling below.
+    // The first-load budget is 300 KB gzip, and this file is where it is defined and
+    // measured. Current measurement on the Next 16.2 / React 19 stack is ~289 KB
+    // (282.4 KB) across 11 scripts, so the budget is met with roughly 18 KB to spare.
     //
-    // Do not treat that headroom as spare. It exists because the Design, Simulate, and
-    // Analyze surfaces were moved to `next/dynamic`; before that the total was 318.8 KB
-    // with 1,259 bytes of margin, and the comment here claimed a ~272–283 KB floor that
-    // had not been true for some time. Re-measure rather than trusting this number.
+    // Do not treat that headroom as spare capacity. It exists because the Design,
+    // Simulate, and Analyze surfaces were moved to `next/dynamic`; before that split the
+    // total was 318.8 KB, over budget. Re-measure rather than trusting these numbers —
+    // the exact byte count drifts a little between builds.
     //
-    // ~147 KB of the remainder is stack floor (react-dom + scheduler 69.2 KB, framework
-    // chunks 39.4 + 38.6 KB), so the §4.7 miss is not closable by further splitting.
-    // Record the miss as F-001 and guard against regression.
+    // ~147 KB of the total is stack floor (react-dom + scheduler 69.2 KB, framework
+    // chunks 39.4 + 38.6 KB), which further code splitting cannot reach. The assertion
+    // below guards a regression ceiling above the 300 KB budget rather than the budget
+    // itself, so a dependency bump fails loudly before it silently erodes the split;
+    // `budgetMet` in the log line is the reading against the budget proper.
     const regressionCeiling = 320 * 1024;
     console.log(
       JSON.stringify({

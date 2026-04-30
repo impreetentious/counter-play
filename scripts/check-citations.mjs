@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url";
 
 /**
  * Every numbered `docs/MATH-SPEC.md` citation in source must resolve to a real heading.
+ *
+ * Source cites the spec in two interchangeable forms: the explicit `docs/MATH-SPEC.md §X`
+ * and the bare `§X` used throughout engine comments. Both are checked — a bare citation is
+ * the common form, so exempting it would leave most of the corpus unguarded.
  */
 const SPEC = "docs/MATH-SPEC.md";
 const SELF = path.relative(process.cwd(), fileURLToPath(import.meta.url));
@@ -43,11 +47,16 @@ const files = [...(await Promise.all(ROOTS.map(filesUnder))).flat(), ...EXTRA_FI
 );
 
 const unresolved = [];
+let citations = 0;
+
+// Matches the bare `§X`, which also covers the `docs/MATH-SPEC.md §X` form.
+const CITATION = /§(\d+(?:\.\d+)*[a-z]?)/g;
 
 for (const file of files) {
   const content = await readFile(file, "utf8");
   content.split("\n").forEach((line, index) => {
-    for (const match of line.matchAll(/docs\/MATH-SPEC\.md §(\d+(?:\.\d+)*[a-z]?)/g)) {
+    for (const match of line.matchAll(CITATION)) {
+      citations += 1;
       if (!specHeadings.has(match[1])) {
         unresolved.push(`${file}:${index + 1}: §${match[1]} is not a heading in ${SPEC}`);
       }
@@ -64,5 +73,5 @@ if (unresolved.length > 0) {
 }
 
 console.log(
-  `citations OK — ${files.length} files scanned, every § citation resolves in ${SPEC} (${specHeadings.size} numbered headings).`,
+  `citations OK — ${files.length} files scanned, all ${citations} § citations resolve in ${SPEC} (${specHeadings.size} numbered headings).`,
 );

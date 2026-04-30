@@ -307,30 +307,28 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
   const set: typeof rawSet = (partial, _replace) => {
     const resolved = typeof partial === "function" ? partial(get()) : partial;
     const candidate = resolved.scenario;
-    if (
-      candidate &&
+    const scenarioChanged =
+      candidate !== undefined &&
       candidate !== get().scenario &&
-      !differsOnlyByLocale(get().scenario, candidate)
-    ) {
-      stopMcTimer();
-    }
-    if (
-      candidate &&
-      candidate !== get().scenario &&
-      !restoringHistory &&
-      !differsOnlyByLocale(get().scenario, candidate)
-    ) {
-      const state = get();
-      rawSet({
-        ...resolved,
-        historyPast: [...state.historyPast, state.scenario].slice(-50),
-        historyFuture: [],
-        mcRunning: false,
-        mcProgress: 0,
-      });
+      !differsOnlyByLocale(get().scenario, candidate);
+    if (!scenarioChanged) {
+      rawSet(partial);
       return;
     }
-    rawSet(partial);
+    // A material scenario change invalidates any in-flight Monte Carlo run, so the timer and the
+    // two flags the panel reads must always be cleared together. Undo and redo reach this path with
+    // `restoringHistory` set: clearing only the timer there would leave the panel on "Running…"
+    // with its Run button disabled and no run left to complete it.
+    stopMcTimer();
+    const state = get();
+    rawSet({
+      ...resolved,
+      mcRunning: false,
+      mcProgress: 0,
+      ...(restoringHistory
+        ? {}
+        : { historyPast: [...state.historyPast, state.scenario].slice(-50), historyFuture: [] }),
+    });
   };
 
   return {

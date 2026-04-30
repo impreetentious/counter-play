@@ -38,4 +38,24 @@ describe("scenario history", () => {
     expect(useScenarioStore.getState().scenario.settings.locale).toBe("de-DE");
     expect(useScenarioStore.getState().historyPast).toHaveLength(0);
   });
+
+  it("clears the Monte Carlo run flags when undo and redo interrupt a run", () => {
+    useScenarioStore.getState().setTierField("plan-1", 0, "rate", "0.09");
+
+    useScenarioStore.getState().runMonteCarloAction();
+    expect(useScenarioStore.getState().mcRunning).toBe(true);
+
+    // Undo cancels the pending run; leaving mcRunning set would strand the panel on "Running…"
+    // with its Run button disabled, because the cancelled run can never clear the flag itself.
+    useScenarioStore.getState().undo();
+    expect(useScenarioStore.getState().mcRunning).toBe(false);
+    expect(useScenarioStore.getState().mcProgress).toBe(0);
+
+    useScenarioStore.getState().runMonteCarloAction();
+    expect(useScenarioStore.getState().mcRunning).toBe(true);
+
+    useScenarioStore.getState().redo();
+    expect(useScenarioStore.getState().mcRunning).toBe(false);
+    expect(useScenarioStore.getState().mcProgress).toBe(0);
+  });
 });
