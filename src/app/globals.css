@@ -14,6 +14,11 @@
   --error: #9b2f2f;
   --error-ink: #4b1414;
   --shadow: 0 20px 60px rgb(24 34 31 / 10%);
+  /* Compare-overlay series ramp. Each clears WCAG 1.4.11's 3:1 against --surface in its
+     own theme, which a single fixed hex cannot do across both. */
+  --series-1: #5b4db1;
+  --series-2: #0f766e;
+  --series-3: #a16207;
 }
 
 :root[data-theme="dark"] {
@@ -30,6 +35,9 @@
   --error: #ff8c8c;
   --error-ink: #ffd4d4;
   --shadow: 0 20px 60px rgb(0 0 0 / 25%);
+  --series-1: #a99bf0;
+  --series-2: #5ecfb6;
+  --series-3: #e5a83f;
 }
 
 * {
@@ -795,6 +803,15 @@ button:disabled {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+.chart-series-1 {
+  stroke: var(--series-1);
+}
+.chart-series-2 {
+  stroke: var(--series-2);
+}
+.chart-series-3 {
+  stroke: var(--series-3);
 }
 .chart-strip-line {
   stroke: var(--accent);
@@ -1883,6 +1900,11 @@ button:disabled {
   display: inline-flex;
   gap: 8px;
   align-items: center;
+}
+/* The shared error box carries a bottom margin for stacked prose; as a flex item beside the
+   trace button that margin is what pulls it off centre. */
+.ledger-trace-controls .surface-error {
+  margin-bottom: 0;
 }
 .ledger-trace {
   stroke: var(--muted);

@@ -143,7 +143,20 @@ export function sweepAxisLabel(axis: SweepAxis, plan?: Plan): string {
   return `Tier ${index + 1} rate${from}`;
 }
 
-/** Which axes this plan can express. Sweeping a bonus a plan does not have is not a curve. */
+/** Keeps a default range strictly increasing, which `validateAxis` requires of every axis. */
+function spanAbove(lo: Rat, preferredHi: Rat): Rat {
+  return preferredHi.gt(lo) ? preferredHi : lo.mul(Rat.from(2));
+}
+
+/**
+ * Which axes this plan can express. Sweeping a bonus a plan does not have is not a curve.
+ *
+ * Every returned range is strictly increasing. The cap and bonus-threshold defaults are anchored
+ * to values the plan supplies, and those anchors can invert — a plan whose last tier opens at 400%
+ * attainment has a cap floor above the default ceiling, and a bonus threshold under 2% has a floor
+ * above twice itself. `createSweepRun` rejects such a range, so emitting one puts an axis in the
+ * catalogue that cannot be swept.
+ */
 export function availableAxes(plan: Plan): SweepAxis[] {
   const axes: SweepAxis[] = [
     { kind: "base", lo: R0, hi: plan.base.mul(Rat.from(2)).max(Rat.from(1)), steps: 40 },
@@ -164,17 +177,19 @@ export function availableAxes(plan: Plan): SweepAxis[] {
       hi: plan.bonus.L.mul(Rat.from(2)).max(Rat.from(1)),
       steps: 40,
     });
+    const thresholdLo = plan.bonus.x_b.mul(HALF).max(Rat.from(1, 100));
     axes.push({
       kind: "bonusThreshold",
-      lo: plan.bonus.x_b.mul(HALF).max(Rat.from(1, 100)),
-      hi: plan.bonus.x_b.mul(Rat.from(2)),
+      lo: thresholdLo,
+      hi: spanAbove(thresholdLo, plan.bonus.x_b.mul(Rat.from(2))),
       steps: 40,
     });
   }
+  const capLo = lastTierFrom(plan).max(Rat.from(1, 100));
   axes.push({
     kind: "cap",
-    lo: lastTierFrom(plan).max(Rat.from(1, 100)),
-    hi: (plan.cap ?? Rat.from(2)).mul(Rat.from(2)),
+    lo: capLo,
+    hi: spanAbove(capLo, (plan.cap ?? Rat.from(2)).mul(Rat.from(2))),
     steps: 40,
   });
   return axes;
@@ -381,9 +396,7 @@ function objectiveAtFixedEffort(
  * `unresolved` — a real branch change whose crossing is not a rational number.
  */
 type CrossingSearch =
-  | { kind: "located"; at: Rat }
-  | { kind: "continuous" }
-  | { kind: "unresolved" };
+  { kind: "located"; at: Rat } | { kind: "continuous" } | { kind: "unresolved" };
 
 /** `f⋆` — the best objective available at this axis value, in exact and softmax modes alike. */
 function bestObjectiveAt(

@@ -189,3 +189,37 @@ describe("plan-space sweep", () => {
     expect(result.crossings[0]!.at?.toDecimalString()).toBe("0.06");
   });
 });
+
+describe("axis catalogue", () => {
+  /**
+   * The catalogue is a menu the UI offers directly, so an entry `createSweepRun` refuses is a
+   * dead control. Both anchored defaults can invert: a cap floor sits at the last tier edge, and
+   * a bonus threshold floor is clamped up to 0.01.
+   */
+  it.each([
+    [
+      "a top tier beyond the default cap ceiling",
+      planWith({
+        tiers: [
+          { from: R0, rate: d("0.05") },
+          { from: d("4"), rate: d("0.08") },
+        ],
+      }),
+    ],
+    [
+      "a bonus threshold under the floor clamp",
+      planWith({ bonus: { L: d("1000"), x_b: d("0.005") } }),
+    ],
+    ["a zero-rate, zero-base plan", planWith({ base: R0, tiers: [{ from: R0, rate: R0 }] })],
+  ])("emits only strictly increasing ranges for %s", (_case, plan) => {
+    const axes = availableAxes(plan);
+    expect(axes.length).toBeGreaterThan(0);
+    for (const axis of axes) {
+      expect(
+        axis.hi.gt(axis.lo),
+        `${axis.kind} range ${axis.lo.toDecimalString()}..${axis.hi.toDecimalString()}`,
+      ).toBe(true);
+      expect(() => sweepPlan(scenarioWith(plan), plan.id, { ...axis, steps: 4 })).not.toThrow();
+    }
+  });
+});

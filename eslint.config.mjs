@@ -6,6 +6,8 @@ import path from "node:path";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
+// Flat config. Generated and build output are ignored here rather than in .eslintignore,
+// which flat config no longer reads.
 export default [
   {
     ignores: [

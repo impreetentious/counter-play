@@ -434,7 +434,11 @@ export function CompareOverlayChart({
   const xToPx = (revenue: number): number => margin.left + (revenue / maxRevenue) * plotWidth;
   const yToPx = (delta: number): number =>
     margin.top + plotHeight - ((delta - lowerDelta) / (upperDelta - lowerDelta)) * plotHeight;
-  const colors = ["#5b4db1", "#0f766e", "#a16207"];
+  // Series colour comes from the stylesheet like every other chart element, because it has to
+  // change with the theme: the fixed #5b4db1 this replaced measured 2.49:1 against the dark
+  // chart surface, under the 3:1 WCAG 1.4.11 asks of a data series. axe scores text contrast
+  // only, so nothing in the gate reads an SVG stroke.
+  const seriesClass = (index: number): string => `chart-series-${(index % 3) + 1}`;
   return (
     <figure
       className={highlighted ? "chart deep-link-highlight" : "chart"}
@@ -482,7 +486,7 @@ export function CompareOverlayChart({
             .join(" ");
           return (
             <g key={entry.planId}>
-              <path d={path} fill="none" stroke={colors[index % colors.length]} strokeWidth="2.5" />
+              <path d={path} fill="none" className={seriesClass(index)} strokeWidth="2.5" />
               {entry.points.map((point) => (
                 <circle
                   key={point.segmentId}
@@ -503,14 +507,7 @@ export function CompareOverlayChart({
             key={`legend-${entry.planId}`}
             transform={`translate(${margin.left + index * 150}, 14)`}
           >
-            <line
-              x1="0"
-              x2="18"
-              y1="0"
-              y2="0"
-              stroke={colors[index % colors.length]}
-              strokeWidth="3"
-            />
+            <line x1="0" x2="18" y1="0" y2="0" className={seriesClass(index)} strokeWidth="3" />
             <text x="24" y="4" className="chart-axis-label">
               {entry.label}
             </text>

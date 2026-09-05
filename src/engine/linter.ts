@@ -12,16 +12,7 @@ import { Rat, R0 } from "./rat";
 import type { DeepLink, Plan, Rationality, Scenario, Segment } from "./types";
 
 export type FindingType =
-  | "L-1"
-  | "L-2"
-  | "L-3"
-  | "L-4"
-  | "L-5"
-  | "L-6"
-  | "L-7"
-  | "L-8"
-  | "L-9"
-  | "L-10";
+  "L-1" | "L-2" | "L-3" | "L-4" | "L-5" | "L-6" | "L-7" | "L-8" | "L-9" | "L-10";
 type FindingSeverity = "info" | "warn" | "high";
 
 export interface Finding {

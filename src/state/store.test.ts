@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { parseScenario } from "./schema";
-import { templateT1 } from "./templates";
+import { templateT1, templateT2 } from "./templates";
 import { useScenarioStore } from "./store";
 
 function resetStore(): void {
@@ -57,5 +57,26 @@ describe("scenario history", () => {
     useScenarioStore.getState().redo();
     expect(useScenarioStore.getState().mcRunning).toBe(false);
     expect(useScenarioStore.getState().mcProgress).toBe(0);
+  });
+});
+
+describe("plan editing", () => {
+  beforeEach(resetStore);
+
+  /**
+   * The tier step is exact for the same reason every other wire value is: a float `1.4 + 0.2`
+   * renders as 1.5999999999999999, which §3.0's 15-significand-digit rule rejects — and 1.4 is
+   * the last tier edge of the template the workspace opens on, so the default scenario plus one
+   * click was enough to invalidate it.
+   */
+  it("appends a tier edge that is still an exact wire decimal", () => {
+    useScenarioStore.getState().replaceScenario(templateT2);
+    useScenarioStore.getState().addTier("plan-1");
+
+    const state = useScenarioStore.getState();
+    expect(state.scenario.plans[0]?.tiers.at(-1)?.from).toBe("1.6");
+    expect(state.domainError).toBeNull();
+    expect(state.issues).toEqual([]);
+    expect(state.domain).not.toBeNull();
   });
 });

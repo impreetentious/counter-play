@@ -16,7 +16,7 @@ import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 import { formatCompactCurrency, formatPercent, formatPreparedDate } from "@/i18n";
 
-const appVersion = "0.17.0";
+const appVersion = "0.17.1";
 
 function fmtCurrency(
   value: number,
@@ -410,11 +410,7 @@ export function RecordView(): React.JSX.Element {
                 const rows: Array<{
                   label: string;
                   key:
-                    | "expectedRevenue"
-                    | "totalComp"
-                    | "compRatio"
-                    | "quotaAttainRate"
-                    | "trueValue";
+                    "expectedRevenue" | "totalComp" | "compRatio" | "quotaAttainRate" | "trueValue";
                   kind: "currency" | "percent";
                 }> = [
                   { label: "Total comp", key: "totalComp", kind: "currency" },

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+// The shell test is the canary: if the export stops booting, every other spec here is noise.
 test("the static shell renders and its theme control works", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Counterplay" })).toBeVisible();

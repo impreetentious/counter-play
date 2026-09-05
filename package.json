@@ -1,6 +1,6 @@
 {
   "name": "counter-play",
-  "version": "0.17.0",
+  "version": "0.17.1",
   "private": true,
   "packageManager": "npm@11.12.1",
   "engines": {
@@ -25,50 +25,56 @@
     "check:csp": "node scripts/check-csp.mjs"
   },
   "dependencies": {
-    "next": "16.2.1",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "zod": "~4.3.6",
-    "zustand": "~5.0.12"
+    "next": "16.3.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "~4.4.3",
+    "zustand": "~5.0.14"
   },
   "devDependencies": {
-    "@axe-core/playwright": "~4.11.1",
-    "@playwright/test": "~1.58.2",
-    "@tailwindcss/postcss": "~4.2.2",
-    "@types/node": "~25.5.0",
-    "@types/react": "~19.2.14",
+    "@axe-core/playwright": "~4.12.1",
+    "@playwright/test": "~1.61.1",
+    "@tailwindcss/postcss": "~4.3.3",
+    "@types/node": "~26.1.1",
+    "@types/react": "~19.2.17",
     "@types/react-dom": "~19.2.3",
-    "@typescript-eslint/eslint-plugin": "~8.57.2",
-    "@typescript-eslint/parser": "~8.57.2",
-    "@next/eslint-plugin-next": "~16.2.1",
-    "eslint": "~9.39.4",
-    "fast-check": "~4.6.0",
-    "postcss": "~8.5.8",
-    "prettier": "~3.8.1",
+    "@typescript-eslint/eslint-plugin": "~8.64.0",
+    "@typescript-eslint/parser": "~8.64.0",
+    "@next/eslint-plugin-next": "~16.2.12",
+    "eslint": "~9.39.5",
+    "fast-check": "~4.9.0",
+    "postcss": "~8.5.19",
+    "prettier": "~3.9.5",
     "serve": "~14.2.6",
-    "tailwindcss": "~4.2.2",
-    "typescript": "~5.9.3",
-    "vitest": "~4.1.2"
+    "tailwindcss": "~4.3.3",
+    "typescript": "~6.0.3",
+    "vitest": "~4.1.10"
   },
   "overrides": {
     "postcss": "$postcss",
-    "sharp": "~0.34.5",
-    "fast-uri": "~3.1.0",
+    "sharp": "0.35.4",
     "minimatch@3": {
-      "brace-expansion": "~1.1.13"
-    }
+      "brace-expansion": "~1.1.17"
+    },
+    "next": {
+      "sharp": "0.35.4"
+    },
+    "js-yaml@>=4.0.0 <4.3.2": "4.3.2",
+    "fast-uri@>=3.0.0 <3.1.6": "3.1.6",
+    "nanoid@<3.3.18": "3.3.18",
+    "brace-expansion@>=4.0.0 <=5.0.8": "5.0.9"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": "Sidakpreet Singh",
   "description": "Client-side sales compensation plan simulator and perverse-incentive linter.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ItsMonarch04/counter-play.git"
+    "url": "git+https://github.com/impreetentious/counter-play.git"
   },
   "bugs": {
-    "url": "https://github.com/ItsMonarch04/counter-play/issues"
+    "url": "https://github.com/impreetentious/counter-play/issues"
   },
-  "homepage": "https://github.com/ItsMonarch04/counter-play",
+  "homepage": "https://github.com/impreetentious/counter-play",
   "allowScripts": {
     "fsevents@2.3.2": true,
     "fsevents@2.3.3": true

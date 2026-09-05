@@ -83,6 +83,9 @@ function finiteNonnegative(
 
 function toWireDecimal(value: number): string | null {
   if (!Number.isFinite(value) || value < 0 || value > MAX_MONEY) return null;
+  // Below 1e-12 `toString` emits an exponent the wire format rejects (its magnitude cap is 12),
+  // so such a proposal is reported as unavailable rather than offered and then refused on apply.
+  if (value > 0 && value < 1e-12) return null;
   // 12 significant digits stays below the scenario's 15-digit wire guard and parses exactly.
   return Number(value.toPrecision(12)).toString();
 }

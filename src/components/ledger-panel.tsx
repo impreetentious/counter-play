@@ -42,11 +42,13 @@ export function LedgerPanel(): React.JSX.Element {
   const [traceKey, setTraceKey] = useState<string | null>(null);
   const [trace, setTrace] = useState<SweepResult | null>(null);
   const [tracing, setTracing] = useState(false);
+  const [traceError, setTraceError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const token = useRef(0);
 
   useEffect(() => {
     setTrace(null);
+    setTraceError(null);
     setTraceKey(catalogue[0] ? axisKey(catalogue[0]) : null);
   }, [catalogue]);
 
@@ -58,28 +60,44 @@ export function LedgerPanel(): React.JSX.Element {
     [],
   );
 
+  // The sweep runs in a timer, so a throw inside it escapes React entirely: no error boundary
+  // sees it, and `tracing` would stay set, leaving the button on "Tracing…" with nothing left to
+  // clear it. Both ends are caught and reported, as the Analyze sweep panel already does.
   const runTrace = (): void => {
     const axis = catalogue.find((entry) => axisKey(entry) === traceKey);
     if (!domain || !plan || !axis) return;
     const current = ++token.current;
     if (timer.current) clearTimeout(timer.current);
-    const runner = createSweepRun(domain, plan.id, { ...axis, steps: 40 });
-    setTracing(true);
-    setTrace(null);
-    const drive = (): void => {
-      if (current !== token.current) return;
-      const deadline = performance.now() + 30;
-      do runner.step(1);
-      while (runner.completed < runner.total && performance.now() < deadline);
-      if (runner.completed < runner.total) {
-        timer.current = setTimeout(drive, 0);
-        return;
-      }
-      timer.current = null;
+    setTraceError(null);
+    try {
+      const runner = createSweepRun(domain, plan.id, { ...axis, steps: 40 });
+      setTracing(true);
+      setTrace(null);
+      const drive = (): void => {
+        if (current !== token.current) return;
+        try {
+          const deadline = performance.now() + 30;
+          do runner.step(1);
+          while (runner.completed < runner.total && performance.now() < deadline);
+          if (runner.completed < runner.total) {
+            timer.current = setTimeout(drive, 0);
+            return;
+          }
+          timer.current = null;
+          setTracing(false);
+          setTrace(runner.result());
+        } catch (caught) {
+          if (current !== token.current) return;
+          timer.current = null;
+          setTracing(false);
+          setTraceError(caught instanceof Error ? caught.message : "The trace could not complete.");
+        }
+      };
+      timer.current = setTimeout(drive, 0);
+    } catch (caught) {
       setTracing(false);
-      setTrace(runner.result());
-    };
-    timer.current = setTimeout(drive, 0);
+      setTraceError(caught instanceof Error ? caught.message : "The trace could not start.");
+    }
   };
 
   if (!ledger) return <></>;
@@ -246,6 +264,11 @@ export function LedgerPanel(): React.JSX.Element {
               <button type="button" onClick={runTrace} disabled={tracing || !plan}>
                 {tracing ? "Tracing…" : "Trace this scalar"}
               </button>
+              {traceError ? (
+                <span role="alert" className="surface-error">
+                  {traceError}
+                </span>
+              ) : null}
             </span>
           ) : null}
         </figcaption>

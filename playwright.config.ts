@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// End-to-end runs against the built export served by `serve`, not the dev server,
+// so the suite exercises the same bytes the host will publish.
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -14,7 +16,18 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    {
+      name: "firefox",
+      use: {
+        ...devices["Desktop Firefox"],
+        launchOptions: {
+          // Firefox's automation bridge can lose the execution context during a
+          // COOP switch. Limit this workaround to the test browser; the server
+          // keeps its production security headers.
+          firefoxUserPrefs: { "browser.tabs.remote.useCrossOriginOpenerPolicy": false },
+        },
+      },
+    },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {

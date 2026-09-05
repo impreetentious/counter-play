@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type { AppLocale, DeepLink, Scenario } from "@/engine/types";
 import { EngineError } from "@/engine/errors";
+import { Rat } from "@/engine/rat";
 import {
   allocateId,
   parseScenario,
@@ -245,6 +246,21 @@ const MENU_DEFAULT: MenuJson = { walkAwayAllowed: true };
 // Expected profit is always the objective; these are the limits the owner may add to it.
 const OBJECTIVE_DEFAULT: ObjectiveJson = { compRatioCeiling: "0.4", retentionFloor: "1" };
 
+// Tier edges are exact wire decimals, so the +0.2 step is taken in rationals. Float addition
+// emits 1.4 + 0.2 = 1.5999999999999999, which the §3.0 15-significand-digit guard rejects —
+// and 1.4 is the last tier edge of the template the workspace opens on.
+const TIER_STEP = Rat.from(1, 5);
+
+function nextTierFrom(previous: string): string {
+  try {
+    return Rat.fromDecimalString(previous).add(TIER_STEP).toDecimalString();
+  } catch {
+    // The existing edge is already unreadable, so the scenario is invalid and says so; repeating
+    // it keeps that one message rather than adding a second, unrelated one.
+    return previous;
+  }
+}
+
 function updateSettings(
   scenario: ScenarioJson,
   mutate: (settings: ScenarioJson["settings"]) => ScenarioJson["settings"],
@@ -467,7 +483,7 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
       const next = replacePlan(get().scenario, planId, (plan) => {
         if (plan.tiers.length >= 12) return plan;
         const last = plan.tiers[plan.tiers.length - 1];
-        const from = last ? String(Number(last.from) + 0.2) : "0";
+        const from = last ? nextTierFrom(last.from) : "0";
         return { ...plan, tiers: [...plan.tiers, { from, rate: "0.1" }] };
       });
       set(commit(next, get().activePlanId));
