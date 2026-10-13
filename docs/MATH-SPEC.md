@@ -498,7 +498,7 @@ The objective is piecewise concave-quadratic exactly as in §3.3, so the candida
 max_z  W(q_p + z ; Q_p) + δ·W(q_{p+1} − z ; Q_{p+1})       z ∈ [−μ_s·q_p , +μ_s·q_{p+1}]
 ```
 
-candidates `{0, both window ends, every in-window z landing `q*p + z`on a kink of period p or`q*{p+1} − z` on a kink of period p+1}`, tie-break to smallest `|z|` then `z ≤ 0` — §3.10's rules verbatim. A shift consumes the source period's credited output, so a later boundary sees the earlier one's result; that sequencing is normative (the simultaneous joint optimum over all `z` is a different object and is not built).
+candidates `{0, both window ends, every in-window z landing q_p + z on a kink of period p or q_{p+1} − z on a kink of period p+1}`, tie-break to smallest `|z|` then `z ≤ 0` — §3.10's rules verbatim. A shift consumes the source period's credited output, so a later boundary sees the earlier one's result; that sequencing is normative (the simultaneous joint optimum over all `z` is a different object and is not built).
 
 **The rationality dial does not reach this module.** A softmax effort choice per period turns the quota chain into a distribution over quota _paths_ whose support grows multiplicatively with `N`; representing that faithfully needs a particle or enumeration engine, which is a different object with its own convergence contract. The horizon module therefore stays exact, and the panel says so on screen whenever the dial is on — the same disclosure rule §3.10 already follows.
 
@@ -640,11 +640,11 @@ Split credit is **deterministic-exact only**. Pooling noise as well as output is
 
 The `1/σ` scaling is exact (substitute `t = σu`), so the integral is computed **once per `(n, w)`** on the standard normal. **Quadrature (pinned):** composite Simpson, `16384` subintervals on `[−12, 12]`. Closed-form micro-oracles the quadrature must reproduce (abs tol `1e-12`, and `1e-9` for the third):
 
-| Case      | Closed form                                                                                | Value                 |
-| --------- | ------------------------------------------------------------------------------------------ | --------------------- |
-| `C_{2,1}` | `1/(2√π)`                                                                                  | `0.28209479177387814` |
-| `C_{3,1}` | `2·∫φ²Φ = 2/(4√π) = 1/(2√π)` — _equal to `C_{2,1}`_, since `E[Φ(Z)] = 1/2`for`Z ~ N(0, ½)` | `0.28209479177387814` |
-| `C_{4,1}` | `3/(2√π)·(1/4 + arcsin(1/3)/(2π))` — the bivariate orthant probability at `ρ = 1/3`        | `≈ 0.2573435`         |
+| Case      | Closed form                                                                                  | Value                 |
+| --------- | -------------------------------------------------------------------------------------------- | --------------------- |
+| `C_{2,1}` | `1/(2√π)`                                                                                    | `0.28209479177387814` |
+| `C_{3,1}` | `2·∫φ²Φ = 2/(4√π) = 1/(2√π)` — _equal to `C_{2,1}`_, since `E[Φ(Z)] = 1/2` for `Z ~ N(0, ½)` | `0.28209479177387814` |
+| `C_{4,1}` | `3/(2√π)·(1/4 + arcsin(1/3)/(2π))` — the bivariate orthant probability at `ρ = 1/3`          | `≈ 0.2573435`         |
 
 These are contract values derived analytically, never printed from the implementation. `C_{3,1} = C_{2,1}` from two structurally different integrands is the sharpest single check the quadrature has.
 

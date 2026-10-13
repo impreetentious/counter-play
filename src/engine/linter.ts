@@ -472,7 +472,7 @@ function lintPlanForL9(plan: Plan, scenario: Scenario): DraftFinding[] {
   const team = computeTeam(scenario);
   if (!team || team.mode !== "split") return [];
   const planResult = team.plans.find((entry) => entry.planId === plan.id);
-  if (!planResult) return [];
+  if (!planResult || planResult.revenueGap === null) return [];
   const affected = planResult.perSegment.filter(
     (entry) =>
       entry.individualRevenue > 0 &&

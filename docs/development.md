@@ -1,6 +1,6 @@
 # Development Notes
 
-Use Node `24.14.1` and npm `11.12.1`, as declared by `.nvmrc`, `engines`, and `packageManager`.
+Use Node `24.21.0` and npm `11.19.0`, as declared by `.nvmrc`, `engines`, and `packageManager`.
 Install with `npm ci`; `engine-strict` rejects a different Node runtime.
 
 Local development uses deterministic, repo-owned ports:

@@ -144,11 +144,15 @@ export function TeamPanel(): React.JSX.Element {
                   </strong>{" "}
                   · equilibrium{" "}
                   <strong>
-                    {formatCompactCurrency(plan.equilibriumRevenue.toNumber(), currency, locale)}
+                    {plan.equilibriumRevenue === null
+                      ? "Unavailable"
+                      : formatCompactCurrency(plan.equilibriumRevenue.toNumber(), currency, locale)}
                   </strong>{" "}
                   · gap{" "}
                   <strong>
-                    {formatCompactCurrency(plan.revenueGap.toNumber(), currency, locale)}
+                    {plan.revenueGap === null
+                      ? "Unavailable"
+                      : formatCompactCurrency(plan.revenueGap.toNumber(), currency, locale)}
                   </strong>
                 </p>
               </header>

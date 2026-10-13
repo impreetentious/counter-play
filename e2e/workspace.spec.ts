@@ -100,6 +100,22 @@ test.describe("workspace interactions", () => {
     await expect(page.getByRole("button", { name: "Turn off team play" })).toBeVisible();
   });
 
+  test("tournament summaries withhold totals when a segment has no equilibrium", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.locator("#segment-seg-1-noiseSD").fill("0");
+    await page.getByRole("tab", { name: /Analyze/ }).click();
+    await page.getByRole("button", { name: "Model team play" }).click();
+    await page.getByRole("button", { name: "Tournament", exact: true }).click();
+    const panel = page.locator('[aria-labelledby="team-heading"]');
+    await expect(panel.getByText(/A tournament needs positive noise/).first()).toBeVisible();
+    const summary = panel.locator(".boundary-plan-summary").first();
+    await expect(summary).toContainText("equilibrium Unavailable");
+    await expect(summary).toContainText("gap Unavailable");
+    await expect(summary.locator("strong").first()).not.toHaveText("Unavailable");
+  });
+
   test("template picker asks before replacing a customised scenario", async ({ page }) => {
     await page.goto("/");
     await page.locator("#segment-seg-1-label").fill("Junior team");

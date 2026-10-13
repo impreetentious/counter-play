@@ -316,8 +316,8 @@ interface TeamPlanResult {
   planLabel: string;
   perSegment: TeamSegmentResult[];
   individualRevenue: Rat;
-  equilibriumRevenue: Rat;
-  revenueGap: Rat;
+  equilibriumRevenue: Rat | null;
+  revenueGap: Rat | null;
 }
 
 export interface TeamResult {
@@ -408,18 +408,20 @@ export function computeTeam(scenario: Scenario): TeamResult | null {
         total.add(Rat.fromFloat64(entry.individualRevenue).mul(Rat.from(entry.count))),
       R0,
     );
-    const equilibriumRevenue = perSegment.reduce(
-      (total, entry) =>
-        total.add(Rat.fromFloat64(entry.equilibriumRevenue).mul(Rat.from(entry.count))),
-      R0,
-    );
+    const equilibriumRevenue = perSegment.some((entry) => entry.unavailable !== null)
+      ? null
+      : perSegment.reduce(
+          (total, entry) =>
+            total.add(Rat.fromFloat64(entry.equilibriumRevenue).mul(Rat.from(entry.count))),
+          R0,
+        );
     return {
       planId: plan.id,
       planLabel: plan.label,
       perSegment,
       individualRevenue,
       equilibriumRevenue,
-      revenueGap: individualRevenue.sub(equilibriumRevenue),
+      revenueGap: equilibriumRevenue === null ? null : individualRevenue.sub(equilibriumRevenue),
     } satisfies TeamPlanResult;
   });
   return {

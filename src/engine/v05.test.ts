@@ -156,6 +156,24 @@ describe("T4/T5 — rank-order tournament", () => {
       teamOf({ mode: "tournament", size: 2, tournament: { prize: Rat.one(), winners: 1 } }),
     );
     expect(result?.plans[0]?.perSegment[0]?.unavailable).toMatch(/positive noise/);
+    expect(result?.plans[0]?.equilibriumRevenue).toBeNull();
+    expect(result?.plans[0]?.revenueGap).toBeNull();
+  });
+
+  it("withholds plan totals when only part of the population has an equilibrium", () => {
+    const result = computeTeam(
+      teamOf({ mode: "tournament", size: 2, tournament: { prize: Rat.one(), winners: 1 } }, flat, [
+        segment,
+        { ...segment, id: "noisy", noiseSD: Rat.from(10) },
+      ]),
+    );
+    const plan = result!.plans[0]!;
+    expect(plan.perSegment[0]?.unavailable).toMatch(/positive noise/);
+    expect(plan.perSegment[1]?.unavailable).toBeNull();
+    expect(plan.equilibriumRevenue).toBeNull();
+    expect(plan.revenueGap).toBeNull();
+    // Each independent response is a=100, k=100, r=0.1: effort 0.1, revenue 10.
+    expect(plan.individualRevenue.toNumber()).toBe(20);
   });
 });
 
