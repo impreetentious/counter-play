@@ -5,7 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { brandName } from "@/brand";
 import { loadPersistedScenario } from "@/state/persist";
-import { decodeShare } from "@/state/codec";
+import { decodeShare, exportScenarioJsonString } from "@/state/codec";
 import { useScenarioStore } from "@/state/store";
 import { ThemeToggle } from "./theme-toggle";
 import { LocalePicker } from "./locale-picker";
@@ -54,6 +54,22 @@ const surfaces = ["Model", "Design", "Simulate", "Analyze"] as const;
 
 export function WorkspaceShell(): React.JSX.Element {
   const [shareLoadNotice, setShareLoadNotice] = useState<string | null>(null);
+  const persistenceError = useScenarioStore((state) => state.persistenceError);
+  const recoveryBytes = useScenarioStore((state) => state.recoveryBytes);
+  const retryPersistence = useScenarioStore((state) => state.retryPersistence);
+  const domain = useScenarioStore((state) => state.domain);
+  const downloadRecovery = (raw = false): void => {
+    const text = raw
+      ? recoveryBytes
+      : exportScenarioJsonString(useScenarioStore.getState().scenario);
+    if (text === null) return;
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "scenario.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
   const hydrate = useScenarioStore((state) => state.hydrate);
   const hydrated = useScenarioStore((state) => state.hydrated);
   const replaceScenario = useScenarioStore((state) => state.replaceScenario);
@@ -73,7 +89,7 @@ export function WorkspaceShell(): React.JSX.Element {
         : "";
     if (fragment.startsWith("s=") || fragment.startsWith("s0=")) {
       // A share link takes precedence over autosave — mark hydrated so autosave doesn't clobber later.
-      hydrate(null);
+      hydrate(loadPersistedScenario());
       decodeShare(fragment)
         .then((wire) => {
           replaceScenario(wire);
@@ -164,6 +180,28 @@ export function WorkspaceShell(): React.JSX.Element {
         <p className="share-status ok" role="status">
           {shareLoadNotice}
         </p>
+      ) : null}
+      {persistenceError ? (
+        <aside role="status" className="share-status error">
+          <p>Autosave unavailable: {persistenceError} Your current edits remain in memory.</p>
+          <button type="button" disabled={!domain} onClick={() => downloadRecovery()}>
+            Export current scenario JSON
+          </button>
+          {recoveryBytes !== null ? (
+            <>
+              <button type="button" onClick={() => downloadRecovery(true)}>
+                Download saved recovery data
+              </button>
+              <button type="button" disabled={!domain} onClick={() => retryPersistence(true)}>
+                Replace saved workspace
+              </button>
+            </>
+          ) : (
+            <button type="button" disabled={!domain} onClick={() => retryPersistence()}>
+              Retry autosave
+            </button>
+          )}
+        </aside>
       ) : null}
       <ErrorBoundary>
         {active === "Model" ? <ModelSurface /> : null}

@@ -2052,8 +2052,8 @@ button:disabled {
   }
   .record-section {
     box-shadow: none;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    page-break-inside: auto;
+    break-inside: auto;
     margin-bottom: 16px;
     border-color: #999;
   }
@@ -2075,5 +2075,30 @@ button:disabled {
   }
   details > *:not(summary) {
     display: block !important;
+  }
+}
+
+.record-raw {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+@media print {
+  .record-table thead {
+    display: table-header-group;
+  }
+  .record-table tr {
+    break-inside: avoid;
+  }
+  .record-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  .record-table th,
+  .record-table td {
+    overflow-wrap: anywhere;
+  }
+  .record-raw {
+    overflow: visible;
   }
 }

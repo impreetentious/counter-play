@@ -20,7 +20,7 @@ import {
 } from "./schema";
 import { templateT2, templates, type TemplateEntry } from "./templates";
 import { applyStressPreset, type StressPresetId } from "./presets";
-import { persistScenario } from "./persist";
+import { persistScenario, type PersistenceRead } from "./persist";
 import {
   computeTornado,
   createMonteCarloRun,
@@ -42,6 +42,10 @@ interface CalibrationApplyProposal {
 
 export interface StoreState {
   scenario: ScenarioJson;
+  revision: number;
+  persistenceError: string | null;
+  recoveryBytes: string | null;
+  retryPersistence(replaceUnreadable?: boolean): void;
   domain: Scenario | null;
   domainError: string | null;
   issues: FieldIssue[];
@@ -51,7 +55,7 @@ export interface StoreState {
   historyPast: ScenarioJson[];
   historyFuture: ScenarioJson[];
   hydrated: boolean;
-  hydrate(persisted: ScenarioJson | null): void;
+  hydrate(persisted: PersistenceRead): void;
   replaceScenario(next: ScenarioJson): void;
   undo(): void;
   redo(): void;
@@ -62,7 +66,12 @@ export interface StoreState {
   duplicateSegment(id: string): void;
   deleteSegment(id: string): void;
   setPlanField<K extends keyof PlanJson>(id: string, key: K, value: PlanJson[K]): void;
-  applyOptimizedPlanRates(planId: string, rates: string[]): void;
+  applyOptimizedPlanRates(proposal: {
+    revision: number;
+    planId: string;
+    tierFrom: readonly string[];
+    rates: readonly string[];
+  }): boolean;
   setTierField(planId: string, index: number, key: "from" | "rate", value: string): void;
   addTier(planId: string): void;
   deleteTier(planId: string, index: number): void;
@@ -188,7 +197,6 @@ function commit(next: ScenarioJson, activePlanIdCandidate?: string): Partial<Sto
   const activePlanId = next.plans.some((plan) => plan.id === activePlanIdCandidate)
     ? (activePlanIdCandidate as string)
     : (next.plans[0]?.id ?? "plan-1");
-  persistScenario(next);
   return {
     scenario: next,
     ...review,
@@ -323,12 +331,20 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
   const set: typeof rawSet = (partial, _replace) => {
     const resolved = typeof partial === "function" ? partial(get()) : partial;
     const candidate = resolved.scenario;
+    const sourceChanged = candidate !== undefined && candidate !== get().scenario;
+    const planChanged =
+      resolved.activePlanId !== undefined && resolved.activePlanId !== get().activePlanId;
+    if (sourceChanged || planChanged) resolved.revision = get().revision + 1;
+    if (sourceChanged && resolved.domain && get().recoveryBytes === null) {
+      const saved = persistScenario(candidate!);
+      resolved.persistenceError = saved.ok ? null : saved.message;
+    }
     const scenarioChanged =
       candidate !== undefined &&
       candidate !== get().scenario &&
       !differsOnlyByLocale(get().scenario, candidate);
     if (!scenarioChanged) {
-      rawSet(partial);
+      rawSet(resolved);
       return;
     }
     // A material scenario change invalidates any in-flight Monte Carlo run, so the timer and the
@@ -349,6 +365,9 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
 
   return {
     scenario: templateT2,
+    revision: 0,
+    persistenceError: null,
+    recoveryBytes: null,
     domain: initialReview.domain,
     domainError: initialReview.domainError,
     issues: initialReview.issues,
@@ -360,14 +379,29 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
     hydrated: false,
     hydrate(persisted) {
       if (get().hydrated) return;
-      if (persisted)
-        rawSet({
-          hydrated: true,
-          ...commit(persisted, persisted.plans[0]?.id),
-          historyPast: [],
-          historyFuture: [],
-        });
-      else rawSet({ hydrated: true, historyPast: [], historyFuture: [] });
+      rawSet({
+        hydrated: true,
+        historyPast: [],
+        historyFuture: [],
+        revision: get().revision + 1,
+        ...(persisted.kind === "valid"
+          ? commit(persisted.scenario, persisted.scenario.plans[0]?.id)
+          : {}),
+        recoveryBytes: persisted.kind === "invalid" ? persisted.raw : null,
+        persistenceError:
+          persisted.kind === "invalid" || persisted.kind === "unavailable"
+            ? persisted.message
+            : null,
+      });
+    },
+    retryPersistence(replaceUnreadable = false) {
+      const state = get();
+      if (!state.domain || (state.recoveryBytes !== null && !replaceUnreadable)) return;
+      const result = persistScenario(state.scenario);
+      rawSet({
+        persistenceError: result.ok ? null : result.message,
+        ...(result.ok ? { recoveryBytes: null } : {}),
+      });
     },
     replaceScenario(next) {
       set(commit(next, get().activePlanId));
@@ -463,12 +497,39 @@ export const useScenarioStore = create<StoreState>((rawSet, get) => {
       const next = replacePlan(get().scenario, id, (plan) => ({ ...plan, [key]: value }));
       set(commit(next, get().activePlanId));
     },
-    applyOptimizedPlanRates(planId, rates) {
-      const next = replacePlan(get().scenario, planId, (plan) => ({
-        ...plan,
-        tiers: plan.tiers.map((tier, index) => ({ ...tier, rate: rates[index] ?? tier.rate })),
+    applyOptimizedPlanRates(proposal) {
+      const state = get();
+      const plan = state.scenario.plans.find((entry) => entry.id === proposal.planId);
+      if (
+        !state.domain ||
+        state.revision !== proposal.revision ||
+        state.activePlanId !== proposal.planId ||
+        !plan ||
+        proposal.rates.length !== plan.tiers.length ||
+        proposal.tierFrom.length !== plan.tiers.length ||
+        plan.tiers.some((tier, index) => tier.from !== proposal.tierFrom[index])
+      )
+        return false;
+      try {
+        if (
+          proposal.rates.some(
+            (rate) =>
+              typeof rate !== "string" ||
+              !Number.isFinite(Number(rate)) ||
+              Rat.fromDecimalString(rate).lt(Rat.zero()),
+          )
+        )
+          return false;
+      } catch {
+        return false;
+      }
+      const next = replacePlan(state.scenario, proposal.planId, (entry) => ({
+        ...entry,
+        tiers: entry.tiers.map((tier, index) => ({ ...tier, rate: proposal.rates[index]! })),
       }));
-      set(commit(next, get().activePlanId));
+      if (!reviewScenario(next).domain) return false;
+      set(commit(next, state.activePlanId));
+      return true;
     },
     setTierField(planId, index, key, value) {
       const next = replacePlan(get().scenario, planId, (plan) => ({

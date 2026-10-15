@@ -1,24 +1,51 @@
-import { ScenarioJsonSchema, type ScenarioJson } from "./schema";
+import { parseScenario, ScenarioJsonSchema, type ScenarioJson } from "./schema";
 
 const scenarioKey = "scenario.v1";
 
-export function loadPersistedScenario(): ScenarioJson | null {
-  if (typeof window === "undefined") return null;
+export type PersistenceRead =
+  | { kind: "absent" }
+  | { kind: "valid"; scenario: ScenarioJson }
+  | { kind: "invalid"; raw: string; message: string }
+  | { kind: "unavailable"; message: string };
+export type PersistenceWrite = { ok: true } | { ok: false; message: string };
+
+export function loadPersistedScenario(): PersistenceRead {
+  if (typeof window === "undefined")
+    return { kind: "unavailable", message: "Browser storage is unavailable." };
+  let raw: string | null;
   try {
-    const raw = window.localStorage.getItem(scenarioKey);
-    if (!raw) return null;
-    const parsed = ScenarioJsonSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? (parsed.data as ScenarioJson) : null;
+    raw = window.localStorage.getItem(scenarioKey);
+  } catch (error) {
+    return {
+      kind: "unavailable",
+      message: error instanceof Error ? error.message : "Browser storage could not be read.",
+    };
+  }
+  if (raw === null) return { kind: "absent" };
+  try {
+    const scenario = ScenarioJsonSchema.parse(JSON.parse(raw)) as ScenarioJson;
+    parseScenario(scenario);
+    return { kind: "valid", scenario };
   } catch {
-    return null;
+    return {
+      kind: "invalid",
+      raw,
+      message:
+        "Saved workspace is unreadable or unsupported. Autosave is paused until you explicitly replace it.",
+    };
   }
 }
 
-export function persistScenario(scenario: ScenarioJson): void {
-  if (typeof window === "undefined") return;
+export function persistScenario(scenario: ScenarioJson): PersistenceWrite {
+  if (typeof window === "undefined")
+    return { ok: false, message: "Browser storage is unavailable." };
   try {
     window.localStorage.setItem(scenarioKey, JSON.stringify(scenario));
-  } catch {
-    // Persistence is best-effort; the in-memory scenario is unaffected.
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "The workspace could not be saved.",
+    };
   }
 }

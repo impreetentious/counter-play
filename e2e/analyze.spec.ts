@@ -22,3 +22,19 @@ test("clean template shows the empty-findings state", async ({ page }) => {
   await expect(page.getByRole("tab", { name: "Design" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("deep-link-highlight-target")).toBeVisible();
 });
+
+test("scenario edits synchronously expire optional optimizer and sweep results", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: /Analyze/ }).click();
+  await page.getByRole("button", { name: "Explore local rates" }).click();
+  await page.getByRole("button", { name: "Run sweep", exact: true }).click();
+  await page.getByRole("button", { name: "Tight cap", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Apply this candidate" })).toHaveCount(0);
+  await expect(page.getByRole("progressbar", { name: "Sweep progress" })).toHaveCount(0);
+  await expect(page.locator(".sweep-figure")).toHaveCount(0);
+  await page.getByRole("button", { name: /Undo/ }).click();
+  await expect(page.getByRole("button", { name: "Apply this candidate" })).toHaveCount(0);
+  await expect(page.locator(".sweep-figure")).toHaveCount(0);
+});

@@ -54,3 +54,49 @@ test("JSON export produces a file the import path accepts back verbatim", async 
   expect(parsed.schemaVersion).toBe(1);
   expect(Array.isArray(parsed.population)).toBe(true);
 });
+
+test("unreadable autosave is preserved until explicit replacement and remains downloadable", async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem("scenario.v1", "{unreadable"));
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Download saved recovery data" })).toBeVisible();
+  await page.getByRole("tab", { name: /Analyze/ }).click();
+  await page.getByRole("button", { name: /^Flat 8% / }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Replace", exact: true }).click();
+  expect(await page.evaluate(() => localStorage.getItem("scenario.v1"))).toBe("{unreadable");
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download saved recovery data" }).click(),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  expect(Buffer.concat(chunks).toString()).toBe("{unreadable");
+  expect(await page.evaluate(() => localStorage.getItem("scenario.v1"))).toBe("{unreadable");
+  await page.getByRole("button", { name: "Replace saved workspace" }).click();
+  await expect(page.getByRole("button", { name: "Download saved recovery data" })).toHaveCount(0);
+  expect(
+    JSON.parse((await page.evaluate(() => localStorage.getItem("scenario.v1")))!).schemaVersion,
+  ).toBe(1);
+});
+
+test("enabled advanced record preserves exact values and print disclosures", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: /Analyze/ }).click();
+  await page.getByRole("button", { name: "Model an N-period horizon" }).click();
+  await page.getByRole("button", { name: "Model team play" }).click();
+  await page.getByRole("tab", { name: /Simulate/ }).click();
+  await page.getByLabel("Offer these plans as a menu, not as alternatives").check();
+  await page.getByRole("link", { name: /Open printable design record/ }).click();
+  await expect(page.getByRole("heading", { name: "Multi-period horizon results" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Team equilibrium results" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Enabled menu selections" })).toBeVisible();
+  await expect(page.locator(".record-raw").filter({ hasText: "[object Object]" })).toHaveCount(0);
+  await page.emulateMedia({ media: "print" });
+  await expect(page.getByText(/Ratchet-aware response uses one step/)).toBeVisible();
+  await expect(page.locator(".record-table thead").first()).toHaveCSS(
+    "display",
+    "table-header-group",
+  );
+});

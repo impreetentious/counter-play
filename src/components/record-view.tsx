@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { brandName } from "@/brand";
@@ -11,12 +12,16 @@ import {
   type DeterministicPlanResult,
   type StochasticPlanResult,
 } from "@/engine/simulate";
+import { Rat } from "@/engine/rat";
+import { computeHorizon } from "@/engine/horizon";
+import { computeTeam } from "@/engine/team";
+import { computeSorting } from "@/engine/sorting";
 import { computeTiming } from "@/engine/timing";
 import { loadPersistedScenario } from "@/state/persist";
 import { useScenarioStore } from "@/state/store";
 import { formatCompactCurrency, formatPercent, formatPreparedDate } from "@/i18n";
 
-const appVersion = "0.17.2";
+const appVersion = "0.17.3";
 
 function fmtCurrency(
   value: number,
@@ -54,13 +59,26 @@ const findingLabel: Record<FindingType, string> = {
 };
 
 export function RecordView(): React.JSX.Element {
-  const hydrate = useScenarioStore((state) => state.hydrate);
-  const hydrated = useScenarioStore((state) => state.hydrated);
-  const scenario = useScenarioStore((state) => state.scenario);
-  const domain = useScenarioStore((state) => state.domain);
-  const domainError = useScenarioStore((state) => state.domainError);
-  const mcResult = useScenarioStore((state) => state.mcResult);
+  const live = useScenarioStore();
+  const [captured, setCaptured] = useState<typeof live | null>(null);
+  const { hydrate, hydrated, scenario, domain, domainError, mcResult, mcRunning, revision } =
+    captured ?? live;
   const [now, setNow] = useState<string>("");
+
+  useEffect(() => {
+    const capture = () =>
+      flushSync(() => {
+        setCaptured(useScenarioStore.getState());
+        setNow(new Date().toISOString());
+      });
+    const release = () => setCaptured(null);
+    window.addEventListener("beforeprint", capture);
+    window.addEventListener("afterprint", release);
+    return () => {
+      window.removeEventListener("beforeprint", capture);
+      window.removeEventListener("afterprint", release);
+    };
+  }, []);
 
   useEffect(() => {
     if (!hydrated) hydrate(loadPersistedScenario());
@@ -82,6 +100,28 @@ export function RecordView(): React.JSX.Element {
   const findings = useMemo<Finding[]>(() => (domain ? lintScenario(domain) : []), [domain]);
   const timing = useMemo(() => (domain ? computeTiming(domain) : null), [domain]);
 
+  const advanced = useMemo(() => {
+    function prepare<T>(
+      enabled: boolean,
+      compute: () => T,
+    ): { result: T | null; reason: string | null } {
+      if (!enabled) return { result: null, reason: null };
+      if (!domain) return { result: null, reason: domainError ?? "Validated inputs unavailable." };
+      try {
+        return { result: compute(), reason: null };
+      } catch (error) {
+        return {
+          result: null,
+          reason: error instanceof Error ? error.message : "Analysis unavailable.",
+        };
+      }
+    }
+    return {
+      horizon: prepare(Boolean(scenario.settings.horizon), () => computeHorizon(domain!)),
+      team: prepare(Boolean(scenario.settings.team), () => computeTeam(domain!)),
+      sorting: prepare(true, () => computeSorting(domain!)),
+    };
+  }, [domain, domainError, scenario]);
   const currency = scenario.settings.currencyLabel;
   const locale = scenario.settings.locale;
 
@@ -94,12 +134,26 @@ export function RecordView(): React.JSX.Element {
         </div>
         <div className="record-actions">
           <Link href="/">Back to workspace</Link>
-          <button type="button" className="button-primary" onClick={() => window.print()}>
+          <button
+            type="button"
+            className="button-primary"
+            onClick={() => {
+              flushSync(() => {
+                setCaptured(useScenarioStore.getState());
+                setNow(new Date().toISOString());
+              });
+              window.print();
+            }}
+          >
             Print or save PDF
           </button>
         </div>
       </header>
 
+      <p className="record-stamp">
+        Captured workspace revision {revision}. Full-roster KPIs remain separate from equilibrium
+        and selection outcomes.
+      </p>
       <section className="record-section record-cover" aria-labelledby="cover-heading">
         <h2 id="cover-heading">Compensation Design Record</h2>
         <dl className="record-meta">
@@ -466,8 +520,10 @@ export function RecordView(): React.JSX.Element {
             <section className="record-section" aria-labelledby="mc-heading">
               <h3 id="mc-heading">Monte Carlo bands</h3>
               <p className="muted">
-                No Monte Carlo run has been captured. Open Analyze → Monte Carlo, run the sweep, and
-                reload this record to include bands.
+                {mcRunning
+                  ? "Monte Carlo is pending and unavailable for this captured revision. "
+                  : "No current Monte Carlo run has been captured. "}{" "}
+                Open Analyze → Monte Carlo, run the sweep, and reload this record to include bands.
               </p>
             </section>
           )}
@@ -482,6 +538,151 @@ export function RecordView(): React.JSX.Element {
           </p>
         </section>
       )}
+
+      {scenario.settings.horizon ? (
+        <section className="record-section" aria-labelledby="horizon-record-heading">
+          <h3 id="horizon-record-heading">Multi-period horizon results</h3>
+          <p>
+            Quota reads produced output, not credited output. Ratchet-aware response uses one step
+            of lookahead; the rationality dial does not affect this deterministic quota chain.
+          </p>
+          <pre className="record-raw">{JSON.stringify(scenario.settings.horizon, null, 2)}</pre>
+          {advanced.horizon.reason ? <p>Unavailable: {advanced.horizon.reason}</p> : null}
+          {advanced.horizon.result?.plans.map((plan) => (
+            <article key={plan.planId}>
+              <h4>{plan.planLabel}</h4>
+              {plan.perSegment.map((segment) => (
+                <table className="record-table" key={segment.segmentId}>
+                  <caption>{segment.segmentLabel}: quota path and output</caption>
+                  <thead>
+                    <tr>
+                      {[
+                        "Period",
+                        "Demand",
+                        "Quota",
+                        "Shadow rate",
+                        "Effort",
+                        "Produced",
+                        "Credited",
+                        "Attainment",
+                        "Pay",
+                      ].map((label) => (
+                        <th key={label}>{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {segment.periods.map((period) => (
+                      <tr key={period.period}>
+                        <td>{period.period}</td>
+                        {[
+                          period.demand,
+                          period.quota,
+                          period.shadowRate,
+                          period.effort,
+                          period.produced,
+                          period.credited,
+                          period.attainment,
+                          period.payout,
+                        ].map((value, index) => (
+                          <td key={index}>{value.serialize()}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ))}
+              <RawResults value={plan} />
+            </article>
+          ))}
+        </section>
+      ) : null}
+      {scenario.settings.team ? (
+        <section className="record-section" aria-labelledby="team-record-heading">
+          <h3 id="team-record-heading">Team equilibrium results</h3>
+          <p>
+            Equilibrium sits beside the independent-response baseline and full-roster KPIs. Split
+            credit is deterministic exact, including CARA mode. Tournament results are risk neutral
+            and ignore risk aversion. The rationality dial does not affect team equilibrium.
+          </p>
+          <pre className="record-raw">{JSON.stringify(scenario.settings.team, null, 2)}</pre>
+          {advanced.team.reason ? <p>Unavailable: {advanced.team.reason}</p> : null}
+          {advanced.team.result?.plans.map((plan) => (
+            <article key={plan.planId}>
+              <h4>{plan.planLabel}</h4>
+              <table className="record-table">
+                <thead>
+                  <tr>
+                    {[
+                      "Segment",
+                      "Independent effort",
+                      "Equilibrium effort",
+                      "Independent revenue",
+                      "Equilibrium revenue",
+                      "Result",
+                    ].map((label) => (
+                      <th key={label}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.perSegment.map((entry) => (
+                    <tr key={entry.segmentId}>
+                      <td>{entry.segmentLabel}</td>
+                      <td>{entry.individualEffort}</td>
+                      <td>{entry.unavailable ? "Unavailable" : entry.equilibriumEffort}</td>
+                      <td>{entry.individualRevenue}</td>
+                      <td>{entry.unavailable ? "Unavailable" : entry.equilibriumRevenue}</td>
+                      <td>
+                        {entry.unavailable ??
+                          (entry.converged
+                            ? `${entry.equilibriaCount} equilibria`
+                            : "Not converged")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p>
+                Multiple symmetric equilibria, when present, are equally stable; the selected one is
+                the group's preferred equilibrium.
+              </p>
+              <RawResults value={plan} />
+            </article>
+          ))}
+        </section>
+      ) : null}
+      <section className="record-section" aria-labelledby="sorting-record-heading">
+        <h3 id="sorting-record-heading">Full and surviving roster results</h3>
+        <p>
+          Reservation values determine exits. These outcomes supplement the original full-roster
+          KPIs.
+        </p>
+        {advanced.sorting.reason ? <p>Unavailable: {advanced.sorting.reason}</p> : null}
+        {advanced.sorting.result ? (
+          <>
+            <RawResults value={advanced.sorting.result.roster} />
+            {scenario.settings.menu ? (
+              <>
+                <h4>Enabled menu selections</h4>
+                <p>
+                  Each segment selects its highest certainty equivalent. Ties prefer lower effort,
+                  then the first written plan. Outside option:{" "}
+                  {scenario.settings.menu.walkAwayAllowed ? "allowed" : "not allowed"}.
+                </p>
+                <RawResults
+                  value={{
+                    choices: advanced.sorting.result.choices,
+                    menuKpis: advanced.sorting.result.menuKpis,
+                    deadOptions: advanced.sorting.result.deadOptions,
+                    walkAwayHeadcount: advanced.sorting.result.walkAwayHeadcount,
+                  }}
+                />
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </section>
 
       <section className="record-section" aria-labelledby="notes-heading">
         <h3 id="notes-heading">Decision notes</h3>
@@ -595,5 +796,22 @@ function StochKpi({
         <p className="retention-flag">Retention risk: {plan.kpis.retentionRisk.join(", ")}</p>
       ) : null}
     </article>
+  );
+}
+
+function RawResults({ value }: { value: unknown }): React.JSX.Element {
+  return (
+    <pre className="record-raw">
+      {JSON.stringify(
+        value,
+        (_key, item: unknown) =>
+          item instanceof Rat
+            ? item.serialize()
+            : typeof item === "bigint"
+              ? item.toString()
+              : item,
+        2,
+      )}
+    </pre>
   );
 }

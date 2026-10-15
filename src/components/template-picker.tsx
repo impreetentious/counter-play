@@ -6,6 +6,7 @@ import type { TemplateEntry } from "@/state/templates";
 
 export function TemplatePicker(): React.JSX.Element {
   const applyTemplate = useScenarioStore((state) => state.applyTemplate);
+  const recoveryBytes = useScenarioStore((state) => state.recoveryBytes);
   const scenario = useScenarioStore((state) => state.scenario);
   const [pending, setPending] = useState<TemplateEntry | null>(null);
   const templates = selectTemplates();
@@ -47,8 +48,10 @@ export function TemplatePicker(): React.JSX.Element {
           <div className="template-dialog-body">
             <h3 id="template-confirm-title">Replace current scenario?</h3>
             <p>
-              Loading {pending.name} will discard the current segments and plans (autosave will
-              overwrite the stored scenario).
+              Loading {pending.name} will replace the current segments and plans.{" "}
+              {recoveryBytes !== null
+                ? "Saved recovery data remains untouched until you explicitly replace the saved workspace."
+                : "Autosave will overwrite the stored scenario."}
             </p>
             <div className="template-dialog-actions">
               <button type="button" onClick={() => setPending(null)}>

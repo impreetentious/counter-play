@@ -6,25 +6,44 @@ import { formatCompactCurrency } from "@/i18n";
 import { useScenarioStore } from "@/state/store";
 
 export function OptimizerPanel(): React.JSX.Element {
+  const revision = useScenarioStore((state) => state.revision);
   const domain = useScenarioStore((state) => state.domain);
   const activePlanId = useScenarioStore((state) => state.activePlanId);
   const scenario = useScenarioStore((state) => state.scenario);
   const applyOptimizedPlanRates = useScenarioStore((state) => state.applyOptimizedPlanRates);
-  const [suggestion, setSuggestion] = useState<OptimizerSuggestion | null>(null);
+  const [captured, setCaptured] = useState<{
+    result: OptimizerSuggestion;
+    revision: number;
+    planId: string;
+    tierFrom: string[];
+  } | null>(null);
+  const suggestion =
+    captured?.revision === revision && captured.planId === activePlanId ? captured.result : null;
   const [status, setStatus] = useState<string | null>(null);
 
   const findSuggestion = (): void => {
     if (!domain) return;
     try {
       const next = optimizePlan(domain, activePlanId);
-      setSuggestion(next);
+      setCaptured(
+        next
+          ? {
+              result: next,
+              revision,
+              planId: activePlanId,
+              tierFrom: scenario.plans
+                .find((plan) => plan.id === activePlanId)!
+                .tiers.map((tier) => tier.from),
+            }
+          : null,
+      );
       setStatus(
         next
           ? null
           : "No feasible strict improvement was found in this plan's local rate neighbourhood.",
       );
     } catch (error) {
-      setSuggestion(null);
+      setCaptured(null);
       setStatus(
         error instanceof Error ? error.message : "Local search could not evaluate this plan.",
       );
@@ -33,14 +52,23 @@ export function OptimizerPanel(): React.JSX.Element {
 
   const applySuggestion = (): void => {
     if (!suggestion) return;
-    applyOptimizedPlanRates(
-      activePlanId,
-      suggestion.plan.tiers.map((tier) => tier.rate.toDecimalString()),
-    );
+    if (
+      !captured ||
+      !applyOptimizedPlanRates({
+        revision: captured.revision,
+        planId: captured.planId,
+        tierFrom: captured.tierFrom,
+        rates: suggestion.plan.tiers.map((tier) => tier.rate.toDecimalString()),
+      })
+    ) {
+      setStatus("This suggestion is no longer applicable. Run the local search again.");
+      setCaptured(null);
+      return;
+    }
     setStatus(
       "Applied the local suggestion. Re-run the linter and Monte Carlo before making a decision.",
     );
-    setSuggestion(null);
+    setCaptured(null);
   };
 
   const currency = scenario.settings.currencyLabel;

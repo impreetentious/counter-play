@@ -2,13 +2,13 @@
 
 > A compensation plan is a mechanism. People respond to the mechanism, not to the intent behind it. This is the instrument that computes that response before the plan ships.
 
-## The problem
+## The Problem
 
 Sales compensation — quotas, commission tiers, accelerators, bonuses, caps — is mechanism design. Yet almost every plan is designed by benchmarking and gut feel, then debugged in production on real people and real revenue. Reps respond strategically to whatever ships: they choose how hard to work, sandbag pipeline into next quarter, pull deals forward to clear a cliff, bunch at bonus thresholds and stop selling the moment a cap binds.
 
 None of that is a surprise and none of it needs to be a surprise. Once the plan and the population it targets are written down as explicit assumptions, the strategic response stops being an opinion. It can be computed.
 
-## What it does
+## What it DOES
 
 - **Model** — describe the rep population as explicit, inspectable assumptions: segments with ability, effort cost, risk aversion and quota expectations. A segment can also carry a second activity the plan cannot measure but the business still values and reps can be assumed to play the plan approximately rather than perfectly. No live data required; this is a pre-data instrument.
 - **Design** — specify the plan precisely: base/variable mix, tiered commission curves with accelerators and decelerators, quotas, lump-sum bonuses, caps — plus the primitives that ride on top: recoverable and non-recoverable draws, clawbacks, spot bonuses and a pay floor.
@@ -16,18 +16,18 @@ None of that is a surprise and none of it needs to be a surprise. Once the plan 
 - **Analyze** — a perverse-incentive linter flags dead zones, cliff exploits, cap-induced quit points, period-boundary gaming, quota-ratchet suppression, team free-riding and Goodhart divergence between the measured metric and the intended one. Run the plan across a multi-period horizon where quotas reset on what reps produced; put reps in a credit-sharing team or a rank-order tournament and read the equilibrium. Compare nearby commission-rate schedules with an explicitly bounded local search, or load a local attainment CSV to propose refreshed assumptions. Monte Carlo over assumption uncertainty shows which assumption to validate first; a plan-space sweep does the complementary job, moving one plan scalar across a range and marking the exact values where a segment changes the play it makes.
 - **Communicate** — export a self-contained, seed-stamped design record that documents the plan, the assumptions and the computed consequences. The casebook goes the other way: five published findings from the literature, encoded as scenarios the engine runs, each loadable in one click.
 
-## What it is not
+## What it is NOT
 
 Not an incentive-compensation-management or commission-tracking tool. It does not connect to a CRM, does not ingest payroll or attainment data and does not compute anyone's actual paycheck. ICM suites answer "given these attainment scenarios, what do we pay?" This answers the prior question: "given this plan, what will people _do_?"
 
-## How it is built
+## How it is BUILT
 
 - **Client-side only.** No backend, no accounts, no analytics, no cookies. Scenarios persist locally, share by URL and export as JSON you own.
 - **Exact where it matters.** Solver-critical arithmetic runs on big-integer rationals; floating point appears only outside the solver's correctness paths.
 - **Theory-anchored.** The engine is grounded in principal-agent economics — Holmström–Milgrom linear contracts and multitask analysis, the deal-timing literature (Oyer 1998; Larkin 2014), the Weitzman ratchet and Lazear–Rosen rank-order tournaments. It is tested against the closed-form results wherever they exist.
 - **Replayable.** Every random element is seeded. Every run re-derives and displays a global payout-conservation identity. Counterfactuals are comparable across runs.
 
-## Using it
+## Using It
 
 The workspace opens on a pre-loaded template scenario, so the first screen is already live. From there:
 
@@ -44,7 +44,7 @@ Scenarios live in your browser's local storage. Nothing is uploaded; a share URL
 
 Next.js (App Router, static export) · React · TypeScript (strict) · Tailwind CSS · Zustand · Zod · hand-rolled SVG visualization · Vitest + fast-check · Playwright.
 
-## Run locally
+## Run Locally
 
 Requires Node `24.21.0` and npm `11.19.0` (see `.nvmrc`; `engine-strict` makes `npm ci` fail on
 different versions).
@@ -69,7 +69,7 @@ npm run test:all
 unit and property tests, the production build, performance and bundle budgets, CSP consistency,
 and the full Playwright matrix. CI also audits the complete dependency tree after the clean install.
 
-## Build and deploy
+## Build and Deploy
 
 ```bash
 npm run build
@@ -125,4 +125,4 @@ Apache-2.0 © 2025-2026 Sidakpreet Singh — see [LICENSE](LICENSE).
 
 ---
 
-**Version:** v0.17.2
+**Version:** v0.17.3

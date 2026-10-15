@@ -93,6 +93,7 @@ function resolveAxis(draft: AxisDraft, catalogue: readonly SweepAxis[]): SweepAx
 type SweepView = "curve" | "pair";
 
 export function SweepPanel(): React.JSX.Element {
+  const revision = useScenarioStore((state) => state.revision);
   const domain = useScenarioStore((state) => state.domain);
   const scenario = useScenarioStore((state) => state.scenario);
   const activePlanId = useScenarioStore((state) => state.activePlanId);
@@ -117,6 +118,8 @@ export function SweepPanel(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runToken = useRef(0);
+  const [capturedRevision, setCapturedRevision] = useState<number | null>(null);
+  const current = capturedRevision === revision;
 
   // A new plan means a new axis catalogue; drop stale drafts and stale curves together.
   useEffect(() => {
@@ -136,6 +139,12 @@ export function SweepPanel(): React.JSX.Element {
   }, []);
 
   useEffect(() => stop, [stop]);
+  useEffect(() => {
+    stop();
+    setCurve(null);
+    setGrid(null);
+    setError(null);
+  }, [revision, stop]);
 
   const primaryAxis = primary ? resolveAxis(primary, catalogue) : null;
   const secondaryAxis = secondary ? resolveAxis(secondary, catalogue) : null;
@@ -146,6 +155,12 @@ export function SweepPanel(): React.JSX.Element {
       return;
     stop();
     const token = ++runToken.current;
+    const sourceRevision = revision;
+    const isCurrent = () =>
+      token === runToken.current &&
+      useScenarioStore.getState().revision === sourceRevision &&
+      useScenarioStore.getState().activePlanId === plan.id;
+    setCapturedRevision(sourceRevision);
     setError(null);
     setCurve(null);
     setGrid(null);
@@ -157,11 +172,12 @@ export function SweepPanel(): React.JSX.Element {
       setRunning(true);
       setProgress({ done: 0, total: runner.total });
       const drive = (): void => {
-        if (token !== runToken.current) return;
+        if (!isCurrent()) return;
         try {
           const deadline = performance.now() + 30;
           do runner.step(1);
           while (runner.completed < runner.total && performance.now() < deadline);
+          if (!isCurrent()) return;
           setProgress({ done: runner.completed, total: runner.total });
           if (runner.completed < runner.total) {
             timer.current = setTimeout(drive, 0);
@@ -173,13 +189,14 @@ export function SweepPanel(): React.JSX.Element {
           if ("cells" in output) setGrid(output);
           else setCurve(output);
         } catch (caught) {
-          if (token !== runToken.current) return;
+          if (!isCurrent()) return;
           setRunning(false);
           setError(caught instanceof Error ? caught.message : "The sweep could not complete.");
         }
       };
       timer.current = setTimeout(drive, 0);
     } catch (caught) {
+      if (!isCurrent()) return;
       setRunning(false);
       setError(caught instanceof Error ? caught.message : "The sweep could not start.");
     }
@@ -268,14 +285,14 @@ export function SweepPanel(): React.JSX.Element {
             <button type="button" className="button-primary" onClick={run} disabled={!runnable}>
               {running ? "Sweeping…" : "Run sweep"}
             </button>
-            {running ? (
+            {current && running ? (
               <button type="button" onClick={stop}>
                 Cancel
               </button>
             ) : null}
           </div>
 
-          {running ? (
+          {current && running ? (
             <div
               role="progressbar"
               aria-label="Sweep progress"
@@ -289,16 +306,16 @@ export function SweepPanel(): React.JSX.Element {
             </div>
           ) : null}
 
-          {error ? (
+          {current && error ? (
             <p role="alert" className="surface-error">
               {error}
             </p>
           ) : null}
 
-          {curve ? (
+          {current && curve ? (
             <SweepCurve result={curve} kpi={kpi} currency={currency} locale={locale} plan={plan} />
           ) : null}
-          {grid ? (
+          {current && grid ? (
             <SweepHeatmap result={grid} kpi={kpi} currency={currency} locale={locale} plan={plan} />
           ) : null}
         </>
